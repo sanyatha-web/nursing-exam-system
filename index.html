@@ -1132,28 +1132,35 @@
                 `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
+        let lastTabSwitchTime = 0; // เพิ่มตัวแปรหน่วงเวลาป้องกันนับซ้ำ
         function setupAntiCheatListeners() {
-            const handleVisibilityChange = () => {
-                if (!isExamActive || !settings.antiCheatEnable) return;
+    const handleVisibilityChange = () => {
+        if (!isExamActive || !settings.antiCheatEnable) return;
 
-                if (document.hidden || !document.hasFocus()) {
-                    tabSwitchCount++;
-                    const countElem = document.getElementById('tab-switch-count-num');
-                    if (countElem) countElem.textContent = tabSwitchCount;
+        const now = Date.now();
+        // ถ้าสลับจอห่างกันไม่ถึง 1.5 วินาที ให้ถือว่าเป็น Event เดียวกัน (ป้องกันการนับซ้ำ)
+        if (now - lastTabSwitchTime < 1500) return;
 
-                    if (settings.autoSubmitOnCheat && tabSwitchCount >= settings.maxTabSwitches) {
-                        isExamActive = false;
-                        showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอเกินกำหนด (${settings.maxTabSwitches} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
-                        submitExam(true);
-                    } else {
-                        showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาต ${settings.maxTabSwitches} ครั้ง`);
-                    }
-                }
-            };
+        if (document.hidden || !document.hasFocus()) {
+            lastTabSwitchTime = now;
+            tabSwitchCount++;
 
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-            window.addEventListener('blur', handleVisibilityChange);
+            const countElem = document.getElementById('tab-switch-count-num');
+            if (countElem) countElem.textContent = tabSwitchCount;
+
+            if (settings.autoSubmitOnCheat && tabSwitchCount >= settings.maxTabSwitches) {
+                isExamActive = false;
+                showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอครบ ${settings.maxTabSwitches} ครั้ง ระบบทำการส่งข้อสอบทันที`);
+                submitExam(true);
+            } else {
+                showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาต ${settings.maxTabSwitches} ครั้ง`);
+            }
         }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleVisibilityChange);
+}
 
         function confirmSubmitExam() {
             const unanswered = activeQuestions.length - Object.keys(userAnswers).length;
