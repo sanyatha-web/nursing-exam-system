@@ -33,7 +33,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
 
-    <!-- Header / Navbar (มีปุ่มออกจากระบบหลักที่นี่จุดเดียว) -->
+    <!-- Header / Navbar -->
     <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-3">
@@ -724,14 +724,15 @@
             const drawCount = Math.min(settings.questionCount, shuffled.length);
             
             activeQuestions = shuffled.slice(0, drawCount).map((q, idx) => {
-                let optionsFormatted = q.options.map((optText, origIdx) => ({ text: optText, originalIndex: origIdx }));
-                if (settings.shuffleOptions) {
+                let optionsFormatted = (q.options || []).map((optText, origIdx) => ({ text: optText, originalIndex: origIdx }));
+                if (settings.shuffleOptions && optionsFormatted.length > 0) {
                     optionsFormatted = optionsFormatted.sort(() => 0.5 - Math.random());
                 }
                 return {
                     id: idx + 1,
                     category: q.category || 'ทั่วไป',
                     question: q.question,
+                    mediaUrl: q.mediaUrl || '',
                     options: optionsFormatted,
                     correctOriginalIndex: q.correct
                 };
@@ -832,6 +833,7 @@
             let setIdx = headerCols.findIndex(h => h.includes('ชุดข้อสอบ') || h.includes('ชุด') || h.includes('เดือน'));
             const catIdx = headerCols.findIndex(h => h.includes('หมวดหมู่') || h.includes('หน่วย'));
             const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์'));
+            const mediaIdx = headerCols.findIndex(h => h.includes('สื่อ') || h.includes('รูป') || h.includes('วิดีโอ') || h.includes('media'));
             const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1'));
             const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2'));
             const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3'));
@@ -840,8 +842,8 @@
 
             if (setIdx === -1 && headerCols.length >= 3) setIdx = 2;
 
-            if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
-                console.error("ไม่พบหัวคอลัมน์ที่จำเป็น โปรดตรวจสอบชื่อหัวคอลัมน์ใน Google Sheets");
+            if (qIdx === -1) {
+                console.error("ไม่พบหัวคอลัมน์คำถาม โปรดตรวจสอบชื่อหัวคอลัมน์ใน Google Sheets");
                 return false;
             }
 
@@ -849,21 +851,33 @@
 
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
-                if (cols.length < 6) continue;
+                if (cols.length < 4) continue;
 
                 const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx] : 'ข้อสอบกลาง';
                 const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ที่ 1';
                 const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
                 const question = cols[qIdx];
-                const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
-                const correctVal = parseInt(cols[ansIdx]) - 1;
+                const mediaUrl = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
 
-                if (question && options.every(o => o !== undefined && o !== '') && !isNaN(correctVal)) {
+                // ตรวจสอบว่ามีตัวเลือก 1-4 หรือไม่
+                let options = [];
+                if (opt1Idx !== -1 && cols[opt1Idx] && cols[opt1Idx].trim() !== '' && cols[opt1Idx] !== 'TEXT') {
+                    options = [cols[opt1Idx], cols[opt2Idx] || '', cols[opt3Idx] || '', cols[opt4Idx] || ''].filter(o => o.trim() !== '');
+                }
+
+                let correctVal = 0;
+                if (ansIdx !== -1 && cols[ansIdx]) {
+                    const parsedAns = parseInt(cols[ansIdx]);
+                    if (!isNaN(parsedAns)) correctVal = parsedAns - 1;
+                }
+
+                if (question && question.trim() !== '') {
                     imported.push({ 
                         branch: branchVal,
                         setGroup: setVal,
                         category: category, 
-                        question: question, 
+                        question: question,
+                        mediaUrl: mediaUrl,
                         options: options, 
                         correct: correctVal 
                     });
@@ -1022,33 +1036,70 @@
             const optionsContainer = document.getElementById('options-container');
             optionsContainer.innerHTML = '';
 
-            const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+            // 1. แสดงผลสื่อประกอบ (รูปภาพ / วิดีโอ YouTube)
+            if (q.mediaUrl && q.mediaUrl.trim() !== '') {
+                const mediaDiv = document.createElement('div');
+                mediaDiv.className = "mb-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 flex justify-center items-center max-h-80 shadow-inner";
+                
+                if (q.mediaUrl.includes('youtube.com') || q.mediaUrl.includes('youtu.be')) {
+                    let embedUrl = q.mediaUrl;
+                    if (embedUrl.includes('watch?v=')) {
+                        embedUrl = embedUrl.replace("watch?v=", "embed/");
+                    } else if (embedUrl.includes('youtu.be/')) {
+                        embedUrl = embedUrl.replace("youtu.be/", "www.youtube.com/embed/");
+                    }
+                    mediaDiv.innerHTML = `<iframe class="w-full h-64 sm:h-72" src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                } else {
+                    mediaDiv.innerHTML = `<img src="${q.mediaUrl}" class="max-h-80 object-contain w-auto rounded-lg" alt="สื่อประกอบข้อสอบ" onerror="this.style.display='none'" />`;
+                }
+                optionsContainer.appendChild(mediaDiv);
+            }
 
-            q.options.forEach((opt, idx) => {
-                const isSelected = userAnswers[currentQuestionIndex] === opt.originalIndex;
-                const optionDiv = document.createElement('div');
-                optionDiv.onclick = () => selectOption(opt.originalIndex);
-                optionDiv.className = `p-4 rounded-xl border-2 cursor-pointer transition flex items-center justify-between ${
-                    isSelected 
-                    ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-sm' 
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700'
-                }`;
+            // 2. ตรวจสอบว่าเป็นข้อสอบ "เขียนบรรยาย" หรือ "ปรนัย (ตัวเลือก A-D)"
+            const isEssay = !q.options || q.options.length === 0;
 
-                optionDiv.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <span class="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center ${
-                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
-                        }">${optionLabels[idx] || idx+1}</span>
-                        <span class="text-sm font-medium leading-relaxed">${opt.text}</span>
-                    </div>
-                    <div class="w-5 h-5 rounded-full border flex items-center justify-center ${
-                        isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'
-                    }">
-                        ${isSelected ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
-                    </div>
+            if (isEssay) {
+                const currentAnswerText = userAnswers[currentQuestionIndex] || '';
+                const essayDiv = document.createElement('div');
+                essayDiv.className = "space-y-2 pt-2";
+                essayDiv.innerHTML = `
+                    <label class="block text-xs font-bold text-slate-600 flex items-center">
+                        <i class="fa-solid fa-pen-to-square mr-1.5 text-indigo-600"></i> พิมพ์คำตอบบรรยายของคุณที่นี่:
+                    </label>
+                    <textarea id="essay-input-${currentQuestionIndex}" rows="5" 
+                              oninput="saveEssayAnswer(this.value)"
+                              placeholder="กรอกคำตอบอย่างละเอียด..." 
+                              class="w-full p-3.5 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition">${currentAnswerText}</textarea>
                 `;
-                optionsContainer.appendChild(optionDiv);
-            });
+                optionsContainer.appendChild(essayDiv);
+            } else {
+                const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+                q.options.forEach((opt, idx) => {
+                    const isSelected = userAnswers[currentQuestionIndex] === opt.originalIndex;
+                    const optionDiv = document.createElement('div');
+                    optionDiv.onclick = () => selectOption(opt.originalIndex);
+                    optionDiv.className = `p-4 rounded-xl border-2 cursor-pointer transition flex items-center justify-between ${
+                        isSelected 
+                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-sm' 
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700'
+                    }`;
+
+                    optionDiv.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <span class="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center ${
+                                isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                            }">${optionLabels[idx] || idx+1}</span>
+                            <span class="text-sm font-medium leading-relaxed">${opt.text}</span>
+                        </div>
+                        <div class="w-5 h-5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'
+                        }">
+                            ${isSelected ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                        </div>
+                    `;
+                    optionsContainer.appendChild(optionDiv);
+                });
+            }
 
             document.getElementById('btn-prev-question').disabled = currentQuestionIndex === 0;
             const nextBtn = document.getElementById('btn-next-question');
@@ -1066,6 +1117,15 @@
         function selectOption(originalOptionIndex) {
             userAnswers[currentQuestionIndex] = originalOptionIndex;
             renderCurrentQuestion();
+        }
+
+        function saveEssayAnswer(textValue) {
+            if (textValue && textValue.trim() !== '') {
+                userAnswers[currentQuestionIndex] = textValue.trim();
+            } else {
+                delete userAnswers[currentQuestionIndex];
+            }
+            renderQuestionNavGrid();
         }
 
         function navigateQuestion(direction) {
@@ -1151,8 +1211,10 @@
 
             let rawScore = 0;
             activeQuestions.forEach((q, idx) => {
-                if (userAnswers[idx] === q.correctOriginalIndex) {
-                    rawScore++;
+                if (q.options && q.options.length > 0) {
+                    if (userAnswers[idx] === q.correctOriginalIndex) {
+                        rawScore++;
+                    }
                 }
             });
 
