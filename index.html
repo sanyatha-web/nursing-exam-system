@@ -62,8 +62,14 @@
     <!-- Main Container -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
 
-        <!-- STEP 1: LOGIN SECTION (ใส่ hidden ไว้เพื่อป้องกันเด้งชั่วคราว) -->
-        <section id="section-login" class="hidden max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300">
+        <!-- INITIAL LOADING SCREEN (ป้องกันหน้า Login เด้งกระพริบขณะโหลด) -->
+        <div id="app-loading-spinner" class="flex flex-col items-center justify-center py-20 space-y-3">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-indigo-600"></i>
+            <p class="text-sm font-medium text-slate-500">กำลังโหลดข้อมูลระบบ...</p>
+        </div>
+
+        <!-- STEP 1: LOGIN SECTION (ซ่อนด้วย style="display: none;" ป้องกันการกระพริบ) -->
+        <section id="section-login" style="display: none;" class="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300">
             <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 px-6 py-6 text-white text-center">
                 <i class="fa-solid fa-right-to-bracket text-4xl mb-2 text-indigo-200"></i>
                 <h2 class="text-2xl font-bold">เข้าสู่ระบบทำแบบทดสอบ</h2>
@@ -106,7 +112,7 @@
         </section>
 
         <!-- STEP 2A: STUDENT DASHBOARD SECTION -->
-        <section id="section-dashboard-student" class="hidden max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden space-y-4 p-6">
+        <section id="section-dashboard-student" style="display: none;" class="max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden space-y-4 p-6">
             <div class="flex items-center space-x-3 border-b pb-4">
                 <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xl font-bold">
                     <i class="fa-solid fa-user-check"></i>
@@ -153,7 +159,7 @@
         </section>
 
         <!-- STEP 2B: INSTRUCTOR DASHBOARD & SETTINGS SECTION -->
-        <section id="section-dashboard-admin" class="hidden max-w-5xl mx-auto space-y-6">
+        <section id="section-dashboard-admin" style="display: none;" class="max-w-5xl mx-auto space-y-6">
             <div class="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-xl flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <div class="w-14 h-14 bg-amber-400/20 text-amber-300 rounded-2xl flex items-center justify-center text-2xl border border-amber-400/30">
@@ -308,7 +314,7 @@
         </section>
 
         <!-- STEP 3: EXAM WORKSPACE SECTION -->
-        <section id="section-exam" class="hidden space-y-6">
+        <section id="section-exam" style="display: none;" class="space-y-6">
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div class="flex items-center space-x-3">
                     <div class="bg-indigo-100 p-2.5 rounded-xl text-indigo-700">
@@ -401,7 +407,7 @@
         </section>
 
         <!-- STEP 4: EXAM RESULT SECTION -->
-        <section id="section-result" class="hidden max-w-2xl mx-auto space-y-6">
+        <section id="section-result" style="display: none;" class="max-w-2xl mx-auto space-y-6">
             <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden text-center p-8">
                 <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                     <i class="fa-solid fa-circle-check"></i>
@@ -552,9 +558,13 @@
             // 1. ตรวจสอบสถานะการ Login ค้างไว้เมื่อมีการ Refresh ก่อน
             const isLogged = checkPersistedSession();
 
-            // 2. ถ้าไม่ได้เข้าสู่ระบบอยู่ ค่อยปลดล็อกให้แสดงหน้า Login
+            // 2. ซ่อน Spinner โหลด
+            const spinner = document.getElementById('app-loading-spinner');
+            if (spinner) spinner.style.display = 'none';
+
+            // 3. ถ้าไม่ได้เข้าสู่ระบบอยู่ ค่อยสั่งเปิดหน้า Login
             if (!isLogged) {
-                document.getElementById('section-login').classList.remove('hidden');
+                showSection('section-login');
             }
 
             if (settings.sheetCsvUrl) {
@@ -588,6 +598,22 @@
             return false;
         }
 
+        function showSection(sectionId) {
+            hideAllSections();
+            const target = document.getElementById(sectionId);
+            if (target) {
+                target.style.display = 'block';
+            }
+        }
+
+        function hideAllSections() {
+            document.getElementById('section-login').style.display = 'none';
+            document.getElementById('section-dashboard-student').style.display = 'none';
+            document.getElementById('section-dashboard-admin').style.display = 'none';
+            document.getElementById('section-exam').style.display = 'none';
+            document.getElementById('section-result').style.display = 'none';
+        }
+
         function handleLogin(e) {
             e.preventDefault();
             const userVal = document.getElementById('login-username').value.trim();
@@ -612,8 +638,7 @@
         }
 
         function showAdminDashboard() {
-            hideAllSections();
-            document.getElementById('section-dashboard-admin').classList.remove('hidden');
+            showSection('section-dashboard-admin');
             document.getElementById('btn-admin-nav').classList.remove('hidden');
 
             document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : "อาจารย์ผู้ดูแลระบบ";
@@ -621,8 +646,7 @@
         }
 
         function showStudentDashboard() {
-            hideAllSections();
-            document.getElementById('section-dashboard-student').classList.remove('hidden');
+            showSection('section-dashboard-student');
             document.getElementById('btn-admin-nav').classList.add('hidden');
 
             document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname;
@@ -633,22 +657,13 @@
             loadCategoriesForLoggedInUser();
         }
 
-        function hideAllSections() {
-            document.getElementById('section-login').classList.add('hidden');
-            document.getElementById('section-dashboard-student').classList.add('hidden');
-            document.getElementById('section-dashboard-admin').classList.add('hidden');
-            document.getElementById('section-exam').classList.add('hidden');
-            document.getElementById('section-result').classList.add('hidden');
-        }
-
         function handleLogout() {
             loggedInUser = null;
             localStorage.removeItem('online_exam_logged_user');
 
-            hideAllSections();
             document.getElementById('btn-admin-nav').classList.add('hidden');
             document.getElementById('btn-header-logout').classList.add('hidden');
-            document.getElementById('section-login').classList.remove('hidden');
+            showSection('section-login');
             document.getElementById('login-username').value = '';
             document.getElementById('login-password').value = '';
         }
@@ -782,8 +797,7 @@
             document.getElementById('exam-current-category').textContent = `${studentData.branch} > ${selectedCategory}`;
             updateAntiCheatStatusTag();
 
-            hideAllSections();
-            document.getElementById('section-exam').classList.remove('hidden');
+            showSection('section-exam');
 
             renderQuestionNavGrid();
             renderCurrentQuestion();
@@ -1269,8 +1283,7 @@
             document.getElementById('result-tab-switches').textContent = settings.antiCheatEnable ? `${tabSwitchCount} ครั้ง` : "ไม่ได้เปิดตรวจจับ";
             document.getElementById('result-status-subtext').textContent = isAutoSubmitted ? "ระบบส่งข้อสอบให้อัตโนมัติเนื่องจากหมดเวลาหรือทำผิดเงื่อนไข" : "คุณส่งแบบทดสอบเรียบร้อยแล้ว";
 
-            hideAllSections();
-            document.getElementById('section-result').classList.remove('hidden');
+            showSection('section-result');
 
             postResultToGoogleSheets({
                 timestamp: new Date().toLocaleString('th-TH'),
@@ -1349,7 +1362,7 @@
                     showStudentDashboard();
                 }
             } else {
-                document.getElementById('section-login').classList.remove('hidden');
+                showSection('section-login');
             }
         }
     </script>
