@@ -557,7 +557,29 @@
 
             renderInitialSetupNotice();
             setupAntiCheatListeners();
+
+            // ตรวจสอบการ Login ค้างไว้เมื่อมีการ Refresh หน้าเว็บ
+            checkPersistedSession();
         });
+
+        // ฟังก์ชันตรวจสอบ Session ที่บันทึกไว้เมื่อมีการ Refresh
+        function checkPersistedSession() {
+            const savedUser = localStorage.getItem('online_exam_logged_user');
+            if (savedUser) {
+                try {
+                    loggedInUser = JSON.parse(savedUser);
+                    document.getElementById('btn-header-logout').classList.remove('hidden');
+
+                    if (loggedInUser.role === 'admin') {
+                        showAdminDashboard();
+                    } else {
+                        showStudentDashboard();
+                    }
+                } catch (e) {
+                    handleLogout();
+                }
+            }
+        }
 
         function handleLogin(e) {
             e.preventDefault();
@@ -568,6 +590,9 @@
 
             if (foundUser) {
                 loggedInUser = foundUser;
+                // บันทึกสถานะการ Login ลงใน localStorage
+                localStorage.setItem('online_exam_logged_user', JSON.stringify(loggedInUser));
+
                 document.getElementById('btn-header-logout').classList.remove('hidden');
 
                 if (loggedInUser.role === 'admin') {
@@ -612,6 +637,9 @@
 
         function handleLogout() {
             loggedInUser = null;
+            // ลบ Session จาก localStorage เมื่อกดออกจากระบบ
+            localStorage.removeItem('online_exam_logged_user');
+
             hideAllSections();
             document.getElementById('btn-admin-nav').classList.add('hidden');
             document.getElementById('btn-header-logout').classList.add('hidden');
@@ -859,7 +887,6 @@
                 const question = cols[qIdx];
                 const mediaUrl = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
 
-                // ตรวจสอบว่ามีตัวเลือก 1-4 หรือไม่
                 let options = [];
                 if (opt1Idx !== -1 && cols[opt1Idx] && cols[opt1Idx].trim() !== '' && cols[opt1Idx] !== 'TEXT') {
                     options = [cols[opt1Idx], cols[opt2Idx] || '', cols[opt3Idx] || '', cols[opt4Idx] || ''].filter(o => o.trim() !== '');
