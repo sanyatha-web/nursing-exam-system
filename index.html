@@ -640,11 +640,59 @@
 
         function showStudentDashboard() {
             showSection('section-dashboard-student');
-            document.getElementById('btn-admin-nav').classList.add('hidden');
+            
+            // 🔓 ถ้าบัญชีเป็น admin ให้แสดงปุ่ม "จัดการระบบอาจารย์" ที่ Navbar เสมอ
+            if (loggedInUser && loggedInUser.role === 'admin') {
+                document.getElementById('btn-admin-nav').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-admin-nav').classList.add('hidden');
+            }
 
             document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname;
             document.getElementById('dashboard-user-id').textContent = loggedInUser.username;
             document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch;
+            document.getElementById('dashboard-active-set-badge').textContent = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
+
+            // ดึงข้อมูลข้อสอบมาแสดงใน Dropdown
+            if (settings.sheetCsvUrl) {
+                fetchAndSyncGoogleSheets().then(() => {
+                    loadCategoriesForLoggedInUser();
+                });
+            } else {
+                loadCategoriesForLoggedInUser();
+            }
+        }
+
+        function loadCategoriesForLoggedInUser() {
+            if (!loggedInUser) return;
+
+            // ถ้าเป็น admin ให้แสดงข้อสอบทั้งหมดได้เลย ไม่ถูกจำกัดตามสาขา
+            let userPool = masterQuestions;
+            if (loggedInUser.role !== 'admin') {
+                userPool = masterQuestions.filter(q => 
+                    !q.branch || 
+                    q.branch === 'ข้อสอบกลาง' || 
+                    q.branch === 'ทุกสาขา' || 
+                    q.branch === loggedInUser.branch ||
+                    q.setGroup === loggedInUser.branch
+                );
+            }
+
+            if (settings.selectedSet && settings.selectedSet !== 'ทั้งหมด (ทุกชุดการเรียนรู้)') {
+                userPool = userPool.filter(q => q.setGroup === settings.selectedSet || q.branch === settings.selectedSet);
+            }
+
+            const availableCategories = Array.from(new Set(userPool.map(q => q.category).filter(Boolean)));
+            availableCategories.unshift('ทำทุกหน่วยการเรียนรู้ในชุดนี้');
+
+            const selectElem = document.getElementById('dashboard-category-select');
+            if (availableCategories.length === 1 && userPool.length === 0) {
+                selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีแบบทดสอบเปิดให้ทำ --</option>`;
+            } else {
+                selectElem.innerHTML = availableCategories.map(cat => 
+                    `<option value="${cat}">${cat}</option>`
+                ).join('');
+            }
         }
 
         function handleLogout() {
