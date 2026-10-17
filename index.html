@@ -62,8 +62,8 @@
     <!-- Main Container -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
 
-        <!-- STEP 1: LOGIN SECTION -->
-        <section id="section-login" class="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300">
+        <!-- STEP 1: LOGIN SECTION (ใส่ hidden ไว้เพื่อป้องกันเด้งชั่วคราว) -->
+        <section id="section-login" class="hidden max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300">
             <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 px-6 py-6 text-white text-center">
                 <i class="fa-solid fa-right-to-bracket text-4xl mb-2 text-indigo-200"></i>
                 <h2 class="text-2xl font-bold">เข้าสู่ระบบทำแบบทดสอบ</h2>
@@ -549,6 +549,14 @@
         window.addEventListener('DOMContentLoaded', async () => {
             loadSettings();
             
+            // 1. ตรวจสอบสถานะการ Login ค้างไว้เมื่อมีการ Refresh ก่อน
+            const isLogged = checkPersistedSession();
+
+            // 2. ถ้าไม่ได้เข้าสู่ระบบอยู่ ค่อยปลดล็อกให้แสดงหน้า Login
+            if (!isLogged) {
+                document.getElementById('section-login').classList.remove('hidden');
+            }
+
             if (settings.sheetCsvUrl) {
                 await fetchAndSyncGoogleSheets();
             } else {
@@ -557,12 +565,8 @@
 
             renderInitialSetupNotice();
             setupAntiCheatListeners();
-
-            // ตรวจสอบการ Login ค้างไว้เมื่อมีการ Refresh หน้าเว็บ
-            checkPersistedSession();
         });
 
-        // ฟังก์ชันตรวจสอบ Session ที่บันทึกไว้เมื่อมีการ Refresh
         function checkPersistedSession() {
             const savedUser = localStorage.getItem('online_exam_logged_user');
             if (savedUser) {
@@ -575,10 +579,13 @@
                     } else {
                         showStudentDashboard();
                     }
+                    return true;
                 } catch (e) {
                     handleLogout();
+                    return false;
                 }
             }
+            return false;
         }
 
         function handleLogin(e) {
@@ -590,7 +597,6 @@
 
             if (foundUser) {
                 loggedInUser = foundUser;
-                // บันทึกสถานะการ Login ลงใน localStorage
                 localStorage.setItem('online_exam_logged_user', JSON.stringify(loggedInUser));
 
                 document.getElementById('btn-header-logout').classList.remove('hidden');
@@ -637,7 +643,6 @@
 
         function handleLogout() {
             loggedInUser = null;
-            // ลบ Session จาก localStorage เมื่อกดออกจากระบบ
             localStorage.removeItem('online_exam_logged_user');
 
             hideAllSections();
@@ -1063,7 +1068,6 @@
             const optionsContainer = document.getElementById('options-container');
             optionsContainer.innerHTML = '';
 
-            // 1. แสดงผลสื่อประกอบ (รูปภาพ / วิดีโอ YouTube)
             if (q.mediaUrl && q.mediaUrl.trim() !== '') {
                 const mediaDiv = document.createElement('div');
                 mediaDiv.className = "mb-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 flex justify-center items-center max-h-80 shadow-inner";
@@ -1082,7 +1086,6 @@
                 optionsContainer.appendChild(mediaDiv);
             }
 
-            // 2. ตรวจสอบว่าเป็นข้อสอบ "เขียนบรรยาย" หรือ "ปรนัย (ตัวเลือก A-D)"
             const isEssay = !q.options || q.options.length === 0;
 
             if (isEssay) {
