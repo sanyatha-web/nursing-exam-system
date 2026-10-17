@@ -81,7 +81,7 @@
                     <label class="block text-sm font-medium text-slate-700 mb-1">SAP-ID / รหัสประจำตัว <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-id-card"></i></span>
-                        <input type="text" id="login-username" required placeholder="เช่น 650001 หรือ admin1" 
+                        <input type="text" id="login-username" required placeholder="เช่น 650001" 
                                onpaste="return false;" oncopy="return false;" oncut="return false;" oncontextmenu="return false;"
                                autocomplete="off"
                                class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
@@ -141,13 +141,10 @@
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-book-bookmark"></i></span>
                     <select id="dashboard-category-select" class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="">กำลังโหลดคลังข้อสอบ...</option>
                     </select>
                 </div>
                 <p class="text-[11px] text-slate-500">* แสดงเฉพาะแบบทดสอบที่ตรงกับสาขาของคุณและเปิดให้ทำในขณะนี้</p>
-            </div>
-
-            <!-- Anti-Cheat Status Notice -->
-            <div id="notice-anti-cheat" class="p-3.5 rounded-lg text-xs space-y-1 transition-all">
             </div>
 
             <button onclick="startExamFromDashboard()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-lg shadow-emerald-200 transition duration-200 flex items-center justify-center space-x-2">
@@ -173,36 +170,6 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center space-x-4">
-                    <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
-                        <i class="fa-solid fa-file-lines"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">ข้อสอบทั้งหมดในคลัง</p>
-                        <h3 class="text-2xl font-extrabold text-slate-800" id="stat-total-questions">0</h3>
-                    </div>
-                </div>
-                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center space-x-4">
-                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
-                        <i class="fa-solid fa-layer-group"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">ชุดการเรียนรู้ทั้งหมด</p>
-                        <h3 class="text-2xl font-extrabold text-slate-800" id="stat-total-sets">0</h3>
-                    </div>
-                </div>
-                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center space-x-4">
-                    <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
-                        <i class="fa-solid fa-graduation-cap"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">สาขาวิชาที่รองรับ</p>
-                        <h3 class="text-2xl font-extrabold text-slate-800" id="stat-total-branches">0</h3>
-                    </div>
-                </div>
-            </div>
-
             <!-- Settings Form -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
@@ -212,78 +179,9 @@
                 </div>
 
                 <div class="p-6 space-y-6">
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                                <i class="fa-solid fa-power-off text-rose-600 mr-2"></i>
-                                สถานะการเปิด-ปิดระบบสอบทั้งหมด
-                            </h4>
-                            <p class="text-xs text-slate-500 mt-0.5">ปิดเมื่อต้องการล็อกไม่ให้ใครเข้าสอบ หรือเปิดเมื่อพร้อมจัดสอบ</p>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="setting-exam-global-enable" checked class="sr-only peer">
-                            <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                        </label>
-                    </div>
-
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                                    <i class="fa-solid fa-shield-halved text-indigo-600 mr-2"></i>
-                                    ตรวจจับการเปลี่ยนหน้าจอ / สลับ Tab (Anti-Cheating)
-                                </h4>
-                                <p class="text-xs text-slate-500 mt-0.5">เปิดเมื่อต้องการสอบจริง ปิดเมื่อเปิดเป็นแบบฝึกหัดทบทวน</p>
-                            </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="setting-anti-cheat-enable" class="sr-only peer" onchange="toggleAntiCheatSettingsUI()">
-                                <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                            </label>
-                        </div>
-
-                        <div id="sub-anti-cheat-options" class="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">จำนวนครั้งสูงสุดที่สลับจอได้</label>
-                                <input type="number" id="setting-max-tab-switches" min="1" max="10" value="3" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
-                            </div>
-                            <div class="flex items-center space-x-2 pt-5">
-                                <input type="checkbox" id="setting-auto-submit-cheat" class="rounded text-indigo-600 focus:ring-indigo-500">
-                                <label for="setting-auto-submit-cheat" class="text-xs text-slate-700">ส่งข้อสอบอัตโนมัติทันทีหากสลับเกินกำหนด</label>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="space-y-1">
                         <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (คลังข้อสอบ)</label>
                         <input type="url" id="setting-sheet-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="sm:col-span-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                            <label class="block text-sm font-bold text-indigo-900 mb-1">
-                                <i class="fa-solid fa-list-check text-indigo-600 mr-1"></i> เลือกชุดข้อสอบ/ชุดการเรียนรู้ที่เปิดให้ทำขณะนี้
-                            </label>
-                            <select id="setting-exam-set" class="w-full px-3 py-2 border border-indigo-300 rounded-lg text-sm bg-white font-semibold text-indigo-900">
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">จำนวนข้อที่จะสุ่มดึงมาออกสอบ</label>
-                            <input type="number" id="setting-question-count" min="1" max="100" value="20" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">เวลาในการทำข้อสอบ (นาที)</label>
-                            <input type="number" id="setting-time-limit" min="0" max="180" value="20" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">สับเปลี่ยนลำดับตัวเลือก (A, B, C, D)</label>
-                            <select id="setting-shuffle-options" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                                <option value="true">สลับตัวเลือกคำตอบ</option>
-                                <option value="false">คงลำดับตัวเลือกเดิม</option>
-                            </select>
-                        </div>
                     </div>
 
                     <div class="space-y-1">
@@ -296,125 +194,6 @@
                             <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการตั้งค่าระบบ
                         </button>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- STEP 3: EXAM WORKSPACE SECTION -->
-        <section id="section-exam" style="display: none;" class="space-y-6">
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div class="flex items-center space-x-3">
-                    <div class="bg-indigo-100 p-2.5 rounded-xl text-indigo-700">
-                        <i class="fa-solid fa-layer-group text-xl"></i>
-                    </div>
-                    <div>
-                        <span id="exam-current-category" class="text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">หมวดหมู่</span>
-                        <h2 id="exam-student-heading" class="text-base font-bold text-slate-800">ผู้สอบ: -</h2>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between md:justify-end gap-3 border-t md:border-t-0 pt-3 md:pt-0">
-                    <div id="tag-anti-cheat-status" class="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1.5">
-                    </div>
-
-                    <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl font-mono text-lg font-bold flex items-center space-x-2 shadow-inner">
-                        <i class="fa-solid fa-clock text-amber-400 text-sm animate-pulse"></i>
-                        <span id="exam-timer">00:00</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div class="lg:col-span-3 space-y-4">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 relative">
-                        <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
-                            <span id="question-number-badge" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                                ข้อที่ 1 / 20
-                            </span>
-                            <span class="text-xs text-slate-400 font-mono" id="question-id-display">ID: #Q1</span>
-                        </div>
-
-                        <div class="mb-6">
-                            <h3 id="question-text" class="text-lg sm:text-xl font-semibold text-slate-800 leading-relaxed">
-                                กำลังโหลดโจทย์คำถาม...
-                            </h3>
-                        </div>
-
-                        <div id="options-container" class="space-y-3">
-                        </div>
-
-                        <div class="flex justify-between items-center mt-8 pt-4 border-t border-slate-100">
-                            <button id="btn-prev-question" onclick="navigateQuestion(-1)" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-2">
-                                <i class="fa-solid fa-chevron-left text-xs"></i>
-                                <span>ข้อก่อนหน้า</span>
-                            </button>
-
-                            <button id="btn-next-question" onclick="navigateQuestion(1)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition shadow-md shadow-indigo-100 flex items-center space-x-2">
-                                <span>ข้อถัดไป</span>
-                                <i class="fa-solid fa-chevron-right text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-1 space-y-4">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-                        <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center justify-between">
-                            <span><i class="fa-solid fa-grip mr-2 text-indigo-500"></i>ผังข้อสอบทั้งหมด</span>
-                            <span id="answered-count-text" class="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-normal">ทำแล้ว 0/20</span>
-                        </h3>
-
-                        <div id="questions-nav-grid" class="grid grid-cols-5 gap-2 max-h-64 overflow-y-auto custom-scrollbar p-1">
-                        </div>
-
-                        <button onclick="confirmSubmitExam()" class="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl shadow-md shadow-emerald-100 transition flex items-center justify-center space-x-2">
-                            <i class="fa-solid fa-paper-plane"></i>
-                            <span>ส่งข้อสอบ</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- STEP 4: EXAM RESULT SECTION -->
-        <section id="section-result" style="display: none;" class="max-w-2xl mx-auto space-y-6">
-            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden text-center p-8">
-                <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-800">ส่งแบบทดสอบเรียบร้อยแล้ว</h2>
-                <p class="text-sm text-slate-500 mt-1" id="result-status-subtext">ระบบได้ทำการบันทึกและส่งผลคะแนนของคุณเรียบร้อยแล้ว</p>
-
-                <div class="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
-                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest">คะแนนที่ได้</p>
-                    <div class="text-5xl font-extrabold text-indigo-600 my-2" id="result-score-display">0 / 20</div>
-                    <p class="text-sm font-medium text-slate-600" id="result-percentage">คิดเป็น 0.00%</p>
-                </div>
-
-                <div class="mt-6 grid grid-cols-2 gap-4 text-left text-sm border-t border-slate-100 pt-6">
-                    <div>
-                        <span class="text-slate-400 block text-xs">ชื่อ-นามสกุล:</span>
-                        <span class="font-medium text-slate-700" id="result-student-name">-</span>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 block text-xs">SAP-ID:</span>
-                        <span class="font-medium text-slate-700" id="result-student-id">-</span>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 block text-xs">หมวดหมู่/ชุดข้อสอบ:</span>
-                        <span class="font-medium text-slate-700" id="result-category">-</span>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 block text-xs">สถานะระบบส่งข้อมูล:</span>
-                        <span class="font-medium text-emerald-600" id="result-sync-status">กำลังประมวลผล...</span>
-                    </div>
-                </div>
-
-                <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                    <button onclick="restartSystem()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-xl shadow transition text-sm flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-rotate-left"></i>
-                        <span>กลับสู่หน้าแรก (เลือกหน่วยการเรียนรู้)</span>
-                    </button>
                 </div>
             </div>
         </section>
@@ -469,28 +248,11 @@
 
     <script>
         let masterQuestions = [];
-        let activeQuestions = [];
         let loggedInUser = null;
-        let currentQuestionIndex = 0;
-        let userAnswers = {};
-        let timerInterval = null;
-        let timeRemainingSeconds = 0;
-        let tabSwitchCount = 0;
-        let lastTabSwitchTime = 0;
-        let isExamActive = false;
-        let studentData = {};
 
         let settings = {
             sheetCsvUrl: "",
-            globalExamEnable: true,
-            antiCheatEnable: true,
-            maxTabSwitches: 3,
-            autoSubmitOnCheat: true,
             selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
-            questionCount: 15,
-            timeLimitMinutes: 15,
-            shuffleOptions: true,
-            // 📍 แก้ไขวาง Web App URL ของคุณที่นี่เพื่อป้องกัน 400
             webAppUrl: ""
         };
 
@@ -538,18 +300,16 @@
             document.getElementById('section-login').style.display = 'none';
             document.getElementById('section-dashboard-student').style.display = 'none';
             document.getElementById('section-dashboard-admin').style.display = 'none';
-            document.getElementById('section-exam').style.display = 'none';
-            document.getElementById('section-result').style.display = 'none';
         }
 
-        // 🟢 แก้ไขปัญหาส่ง Request 400 ปรับใช้ text/plain;charset=utf-8
+        // 🟢 เข้าสู่ระบบ (ป้องกัน HTTP 400 ด้วย text/plain)
         async function handleLogin(e) {
             e.preventDefault();
             const userVal = document.getElementById('login-username').value.trim();
             const passVal = document.getElementById('login-password').value.trim();
 
             if (!settings.webAppUrl) {
-                showAlertModal('error', 'ไม่ได้ตั้งค่า Web App URL', 'กรุณาใส่ Google Sheets Web App URL ก่อน');
+                showAlertModal('error', 'ไม่ได้ตั้งค่า Web App URL', 'กรุณาใส่ Google Sheets Web App URL ในระบบก่อน');
                 return;
             }
 
@@ -625,7 +385,6 @@
             }
         }
 
-        // 🔒 บล็อกการเข้าถึงหน้าจัดการ Admin สำหรับนักเรียน
         function showAdminDashboard() {
             if (!loggedInUser || loggedInUser.role !== 'admin') {
                 showAlertModal('error', 'ปฏิเสธการเข้าถึง', 'คุณไม่มีสิทธิ์เข้าถึงหน้าจัดการสำหรับอาจารย์');
@@ -641,58 +400,104 @@
         function showStudentDashboard() {
             showSection('section-dashboard-student');
             
-            // 🔓 ถ้าบัญชีเป็น admin ให้แสดงปุ่ม "จัดการระบบอาจารย์" ที่ Navbar เสมอ
             if (loggedInUser && loggedInUser.role === 'admin') {
                 document.getElementById('btn-admin-nav').classList.remove('hidden');
             } else {
                 document.getElementById('btn-admin-nav').classList.add('hidden');
             }
 
-            document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname;
+            document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname || loggedInUser.username;
             document.getElementById('dashboard-user-id').textContent = loggedInUser.username;
-            document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch;
+            document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch || 'ไม่ระบุ';
             document.getElementById('dashboard-active-set-badge').textContent = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
 
-            // ดึงข้อมูลข้อสอบมาแสดงใน Dropdown
-            if (settings.sheetCsvUrl) {
-                fetchAndSyncGoogleSheets().then(() => {
-                    loadCategoriesForLoggedInUser();
-                });
-            } else {
-                loadCategoriesForLoggedInUser();
+            loadExamCategories();
+        }
+
+        // 🟢 โหลดคลังข้อสอบและสลับกรองสิทธิ์ตามประเภทผู้ใช้งาน
+        async function loadExamCategories() {
+            const selectElem = document.getElementById('dashboard-category-select');
+            if (!selectElem) return;
+
+            selectElem.innerHTML = `<option value="">กำลังโหลดคลังข้อสอบ...</option>`;
+
+            if (!settings.sheetCsvUrl) {
+                selectElem.innerHTML = `<option value="">-- ยังไม่ได้ตั้งค่าลิงก์ CSV คลังข้อสอบ --</option>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(settings.sheetCsvUrl);
+                const csvText = await response.text();
+                
+                masterQuestions = parseCSVQuestions(csvText);
+
+                if (masterQuestions.length === 0) {
+                    selectElem.innerHTML = `<option value="">-- ไม่พบข้อมูลข้อสอบใน Google Sheets --</option>`;
+                    return;
+                }
+
+                let filteredQuestions = masterQuestions;
+
+                // กรณีผู้ใช้ทั่วไปที่ไม่ใช่ admin ให้กรองตามสาขา
+                if (loggedInUser && loggedInUser.role !== 'admin') {
+                    filteredQuestions = masterQuestions.filter(q => {
+                        const qBranch = (q.branch || '').trim();
+                        const userBranch = (loggedInUser.branch || '').trim();
+                        return !qBranch || 
+                               qBranch === 'ข้อสอบกลาง' || 
+                               qBranch === 'ทุกสาขา' || 
+                               qBranch === userBranch;
+                    });
+                }
+
+                const categories = Array.from(new Set(filteredQuestions.map(q => q.category).filter(Boolean)));
+
+                if (categories.length === 0) {
+                    selectElem.innerHTML = `<option value="">-- ไม่มีแบบทดสอบที่เปิดให้ทำในสาขาของคุณ --</option>`;
+                } else {
+                    let optionsHTML = `<option value="ทำทุกหน่วยการเรียนรู้ในชุดนี้">ทำทุกหน่วยการเรียนรู้ในชุดนี้ (รวม ${filteredQuestions.length} ข้อ)</option>`;
+                    categories.forEach(cat => {
+                        const count = filteredQuestions.filter(q => q.category === cat).length;
+                        optionsHTML += `<option value="${cat}">${cat} (${count} ข้อ)</option>`;
+                    });
+                    selectElem.innerHTML = optionsHTML;
+                }
+
+            } catch (err) {
+                console.error("Error loading CSV:", err);
+                selectElem.innerHTML = `<option value="">-- เกิดข้อผิดพลาดในการดึงคลังข้อสอบ --</option>`;
             }
         }
 
-        function loadCategoriesForLoggedInUser() {
-            if (!loggedInUser) return;
+        function parseCSVQuestions(csvText) {
+            const lines = csvText.split(/\r\n|\n/);
+            if (lines.length < 2) return [];
 
-            // ถ้าเป็น admin ให้แสดงข้อสอบทั้งหมดได้เลย ไม่ถูกจำกัดตามสาขา
-            let userPool = masterQuestions;
-            if (loggedInUser.role !== 'admin') {
-                userPool = masterQuestions.filter(q => 
-                    !q.branch || 
-                    q.branch === 'ข้อสอบกลาง' || 
-                    q.branch === 'ทุกสาขา' || 
-                    q.branch === loggedInUser.branch ||
-                    q.setGroup === loggedInUser.branch
-                );
+            const questions = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
+                const cleanRow = row.map(cell => cell.replace(/^"|"$/g, '').trim());
+
+                if (cleanRow.length >= 6) {
+                    questions.push({
+                        id: cleanRow[0] || `Q${i}`,
+                        category: cleanRow[1] || 'ทั่วไป',
+                        question: cleanRow[2] || '',
+                        optionA: cleanRow[3] || '',
+                        optionB: cleanRow[4] || '',
+                        optionC: cleanRow[5] || '',
+                        optionD: cleanRow[6] || '',
+                        correct: (cleanRow[7] || '').toUpperCase(),
+                        branch: cleanRow[8] || 'ข้อสอบกลาง',
+                        setGroup: cleanRow[9] || ''
+                    });
+                }
             }
-
-            if (settings.selectedSet && settings.selectedSet !== 'ทั้งหมด (ทุกชุดการเรียนรู้)') {
-                userPool = userPool.filter(q => q.setGroup === settings.selectedSet || q.branch === settings.selectedSet);
-            }
-
-            const availableCategories = Array.from(new Set(userPool.map(q => q.category).filter(Boolean)));
-            availableCategories.unshift('ทำทุกหน่วยการเรียนรู้ในชุดนี้');
-
-            const selectElem = document.getElementById('dashboard-category-select');
-            if (availableCategories.length === 1 && userPool.length === 0) {
-                selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีแบบทดสอบเปิดให้ทำ --</option>`;
-            } else {
-                selectElem.innerHTML = availableCategories.map(cat => 
-                    `<option value="${cat}">${cat}</option>`
-                ).join('');
-            }
+            return questions;
         }
 
         function handleLogout() {
@@ -730,31 +535,8 @@
             settings.webAppUrl = document.getElementById('setting-webapp-url').value.trim();
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'การตั้งค่าระบบถูกอัปเดตเรียบร้อยแล้ว');
-        }
-
-        // 🟢 แก้ไขปัญหาส่งคะแนน 400 ใช้ text/plain;charset=utf-8
-        function postResultToGoogleSheets(payload) {
-            const syncTag = document.getElementById('result-sync-status');
-            if (!settings.webAppUrl) {
-                syncTag.textContent = "ไม่ได้ตั้งค่า Google Sheets URL";
-                syncTag.className = "font-medium text-amber-600";
-                return;
-            }
-
-            syncTag.textContent = "กำลังส่งข้อมูลเข้า Google Sheets...";
-
-            fetch(settings.webAppUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            }).then(() => {
-                syncTag.textContent = "ส่งข้อมูลเข้า Google Sheets สำเร็จ";
-                syncTag.className = "font-medium text-emerald-600";
-            }).catch(err => {
-                console.error(err);
-                syncTag.textContent = "ส่งข้อมูลไม่สำเร็จ (เกิดข้อผิดพลาดในการเชื่อมต่อ)";
-                syncTag.className = "font-medium text-rose-600";
-            });
+            
+            showStudentDashboard();
         }
 
         function showAlertModal(type, title, message) {
@@ -776,16 +558,6 @@
 
         function closeAlertModal() {
             document.getElementById('modal-alert').classList.add('hidden');
-        }
-
-        function restartSystem() {
-            hideAllSections();
-            if (loggedInUser) {
-                if (loggedInUser.role === 'admin') showAdminDashboard();
-                else showStudentDashboard();
-            } else {
-                showSection('section-login');
-            }
         }
     </script>
 </body>
