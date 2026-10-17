@@ -105,57 +105,53 @@
             </form>
         </section>
 
-        <!-- STEP 2A: STUDENT DASHBOARD SECTION -->
-        <section id="section-dashboard-student" class="hidden max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden space-y-4 p-6">
-            <div class="flex justify-between items-center border-b pb-4">
-                <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xl font-bold">
-                        <i class="fa-solid fa-user-check"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-lg" id="dashboard-user-fullname">กำลังโหลด...</h3>
-                        <p class="text-xs text-slate-500">SAP-ID: <span id="dashboard-user-id" class="font-mono font-bold text-indigo-600">-</span></p>
-                    </div>
-                </div>
-                <button onclick="handleLogout()" class="text-xs bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-3 py-1.5 rounded-lg border border-slate-200 transition">
-                    <i class="fa-solid fa-right-from-bracket mr-1"></i> ออกจากระบบ
-                </button>
-            </div>
+       <!-- STEP 2A: STUDENT DASHBOARD SECTION -->
+<section id="section-dashboard-student" class="hidden max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden space-y-4 p-6">
+    <!-- Header Card (ลบปุ่มออกจากระบบที่ซ้ำออกแล้ว) -->
+    <div class="flex items-center space-x-3 border-b pb-4">
+        <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xl font-bold">
+            <i class="fa-solid fa-user-check"></i>
+        </div>
+        <div>
+            <h3 class="font-bold text-slate-800 text-lg" id="dashboard-user-fullname">กำลังโหลด...</h3>
+            <p class="text-xs text-slate-500">SAP-ID: <span id="dashboard-user-id" class="font-mono font-bold text-indigo-600">-</span></p>
+        </div>
+    </div>
 
-            <!-- Profile Details Card -->
-            <div class="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100 space-y-2">
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-500">สาขาวิชา:</span>
-                    <span class="font-bold text-indigo-900" id="dashboard-user-branch">-</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-500">ชุดการเรียนรู้ที่เปิดสอบขณะนี้:</span>
-                    <span class="font-bold text-emerald-700" id="dashboard-active-set-badge">กำลังตรวจสอบ...</span>
-                </div>
-            </div>
+    <!-- Profile Details Card -->
+    <div class="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100 space-y-2">
+        <div class="flex justify-between text-sm">
+            <span class="text-slate-500">สาขาวิชา:</span>
+            <span class="font-bold text-indigo-900" id="dashboard-user-branch">-</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-slate-500">ชุดการเรียนรู้ที่เปิดสอบขณะนี้:</span>
+            <span class="font-bold text-emerald-700" id="dashboard-active-set-badge">กำลังตรวจสอบ...</span>
+        </div>
+    </div>
 
-            <!-- Exam Category Select -->
-            <div class="space-y-1 pt-2">
-                <label class="block text-sm font-medium text-slate-700 mb-1">เลือกแบบทดสอบ / หน่วยการเรียนรู้ที่ต้องการทำ <span class="text-red-500">*</span></label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-book-bookmark"></i></span>
-                    <select id="dashboard-category-select" class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <!-- Dynamic Available Categories -->
-                    </select>
-                </div>
-                <p class="text-[11px] text-slate-500">* แสดงเฉพาะแบบทดสอบที่ตรงกับสาขาของคุณและเปิดให้ทำในขณะนี้</p>
-            </div>
+    <!-- Exam Category Select -->
+    <div class="space-y-1 pt-2">
+        <label class="block text-sm font-medium text-slate-700 mb-1">เลือกแบบทดสอบ / หน่วยการเรียนรู้ที่ต้องการทำ <span class="text-red-500">*</span></label>
+        <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-book-bookmark"></i></span>
+            <select id="dashboard-category-select" class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                <!-- Dynamic Available Categories -->
+            </select>
+        </div>
+        <p class="text-[11px] text-slate-500">* แสดงเฉพาะแบบทดสอบที่ตรงกับสาขาของคุณและเปิดให้ทำในขณะนี้</p>
+    </div>
 
-            <!-- Anti-Cheat Status Notice -->
-            <div id="notice-anti-cheat" class="p-3.5 rounded-lg text-xs space-y-1 transition-all">
-                <!-- Dynamic Notice -->
-            </div>
+    <!-- Anti-Cheat Status Notice -->
+    <div id="notice-anti-cheat" class="p-3.5 rounded-lg text-xs space-y-1 transition-all">
+        <!-- Dynamic Notice -->
+    </div>
 
-            <button onclick="startExamFromDashboard()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-lg shadow-emerald-200 transition duration-200 flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-play"></i>
-                <span>เริ่มทำแบบทดสอบ</span>
-            </button>
-        </section>
+    <button onclick="startExamFromDashboard()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-lg shadow-emerald-200 transition duration-200 flex items-center justify-center space-x-2">
+        <i class="fa-solid fa-play"></i>
+        <span>เริ่มทำแบบทดสอบ</span>
+    </button>
+</section>
 
         <!-- STEP 2B: INSTRUCTOR DASHBOARD & SETTINGS SECTION -->
         <section id="section-dashboard-admin" class="hidden max-w-5xl mx-auto space-y-6">
