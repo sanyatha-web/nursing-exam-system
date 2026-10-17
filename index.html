@@ -540,17 +540,19 @@
         let studentData = {};
 
         let settings = {
-            sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?output=csv",
-            globalExamEnable: true,
-            antiCheatEnable: true,
-            maxTabSwitches: 3,
-            autoSubmitOnCheat: true,
-            selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
-            questionCount: 15,
-            timeLimitMinutes: 15,
-            shuffleOptions: true,
-            webAppUrl: ""
-        };
+    // 📍 วางลิงก์ CSV คลังข้อสอบของคุณที่นี่
+    sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?output=csv",
+    globalExamEnable: true,
+    antiCheatEnable: true,
+    maxTabSwitches: 3,
+    autoSubmitOnCheat: true,
+    selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
+    questionCount: 15,
+    timeLimitMinutes: 15,
+    shuffleOptions: true,
+    // 📍 วาง Web App URL สำหรับ Login/บันทึกผล ที่นี่
+    webAppUrl: "https://script.google.com/macros/s/AKfycbwcCPJEw4YQ9caoqG2b-Yri-Ckkrh7sLzs2mH8vNSY8a6RYdfPM_xE_2q7gHDcFJ8Hk6Q/exec"
+};
 
         window.addEventListener('DOMContentLoaded', async () => {
             loadSettings();
