@@ -62,13 +62,13 @@
     <!-- Main Container -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
 
-        <!-- INITIAL LOADING SCREEN (ป้องกันหน้า Login เด้งกระพริบขณะโหลด) -->
+        <!-- INITIAL LOADING SCREEN (ป้องกันการกระพริบขณะโหลดข้อมูล) -->
         <div id="app-loading-spinner" class="flex flex-col items-center justify-center py-20 space-y-3">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-indigo-600"></i>
             <p class="text-sm font-medium text-slate-500">กำลังโหลดข้อมูลระบบ...</p>
         </div>
 
-        <!-- STEP 1: LOGIN SECTION (ซ่อนด้วย style="display: none;" ป้องกันการกระพริบ) -->
+        <!-- STEP 1: LOGIN SECTION -->
         <section id="section-login" style="display: none;" class="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300">
             <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 px-6 py-6 text-white text-center">
                 <i class="fa-solid fa-right-to-bracket text-4xl mb-2 text-indigo-200"></i>
@@ -555,22 +555,31 @@
         window.addEventListener('DOMContentLoaded', async () => {
             loadSettings();
             
-            // 1. ตรวจสอบสถานะการ Login ค้างไว้เมื่อมีการ Refresh ก่อน
+            // 1. ตรวจสอบสถานะการ Login
             const isLogged = checkPersistedSession();
 
-            // 2. ซ่อน Spinner โหลด
-            const spinner = document.getElementById('app-loading-spinner');
-            if (spinner) spinner.style.display = 'none';
-
-            // 3. ถ้าไม่ได้เข้าสู่ระบบอยู่ ค่อยสั่งเปิดหน้า Login
+            // 2. ถ้าไม่ได้เข้าสู่ระบบอยู่ ให้เปิดหน้า Login ทันที
             if (!isLogged) {
                 showSection('section-login');
+                const spinner = document.getElementById('app-loading-spinner');
+                if (spinner) spinner.style.display = 'none';
+                return;
             }
 
+            // 3. ดึงข้อมูลคลังข้อสอบจาก Google Sheets ให้เสร็จสมบูรณ์ก่อน
             if (settings.sheetCsvUrl) {
                 await fetchAndSyncGoogleSheets();
             } else {
                 updateAdminSettingsUI();
+            }
+
+            // 4. ซ่อน Spinner โหลดข้อมูล
+            const spinner = document.getElementById('app-loading-spinner');
+            if (spinner) spinner.style.display = 'none';
+
+            // 5. เมื่อคลังข้อสอบพร้อมแล้ว ค่อยเรียกสร้างตัวเลือกแบบทดสอบให้นักศึกษา
+            if (loggedInUser && loggedInUser.role === 'student') {
+                loadCategoriesForLoggedInUser();
             }
 
             renderInitialSetupNotice();
