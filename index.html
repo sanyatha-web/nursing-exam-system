@@ -62,7 +62,7 @@
     <!-- Main Container -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
 
-        <!-- INITIAL LOADING SCREEN (ป้องกันการกระพริบขณะโหลดข้อมูล) -->
+        <!-- INITIAL LOADING SCREEN -->
         <div id="app-loading-spinner" class="flex flex-col items-center justify-center py-20 space-y-3">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-indigo-600"></i>
             <p class="text-sm font-medium text-slate-500">กำลังโหลดข้อมูลระบบ...</p>
@@ -558,7 +558,7 @@
             // 1. ตรวจสอบสถานะการ Login
             const isLogged = checkPersistedSession();
 
-            // 2. ถ้าไม่ได้เข้าสู่ระบบอยู่ ให้เปิดหน้า Login ทันที
+            // ถ้าไม่ได้เข้าสู่ระบบอยู่ ให้เปิดหน้า Login ทันที
             if (!isLogged) {
                 showSection('section-login');
                 const spinner = document.getElementById('app-loading-spinner');
@@ -566,20 +566,34 @@
                 return;
             }
 
-            // 3. ดึงข้อมูลคลังข้อสอบจาก Google Sheets ให้เสร็จสมบูรณ์ก่อน
-            if (settings.sheetCsvUrl) {
-                await fetchAndSyncGoogleSheets();
-            } else {
-                updateAdminSettingsUI();
+            // 2. ดึงข้อสอบจาก Local Cache ขึ้นมาแสดงก่อนทันทีเพื่อความรวดเร็ว
+            const localCachedQuestions = localStorage.getItem('online_exam_questions');
+            if (localCachedQuestions) {
+                try {
+                    masterQuestions = JSON.parse(localCachedQuestions);
+                } catch (e) {
+                    console.error("Failed to parse cached questions", e);
+                }
+            }
+
+            // 3. แสดงหน้าต่าง และสร้างตัวเลือกข้อสอบทันทีจากข้อมูล Cache
+            if (loggedInUser && loggedInUser.role === 'student') {
+                loadCategoriesForLoggedInUser();
             }
 
             // 4. ซ่อน Spinner โหลดข้อมูล
             const spinner = document.getElementById('app-loading-spinner');
             if (spinner) spinner.style.display = 'none';
 
-            // 5. เมื่อคลังข้อสอบพร้อมแล้ว ค่อยเรียกสร้างตัวเลือกแบบทดสอบให้นักศึกษา
-            if (loggedInUser && loggedInUser.role === 'student') {
-                loadCategoriesForLoggedInUser();
+            // 5. ดึงข้อมูลใหม่ล่าสุดจาก Google Sheets เบื้องหลังเพื่ออัปเดตระบบ
+            if (settings.sheetCsvUrl) {
+                fetchAndSyncGoogleSheets().then(() => {
+                    if (loggedInUser && loggedInUser.role === 'student') {
+                        loadCategoriesForLoggedInUser();
+                    }
+                });
+            } else {
+                updateAdminSettingsUI();
             }
 
             renderInitialSetupNotice();
