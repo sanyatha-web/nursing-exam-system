@@ -1224,41 +1224,43 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
         }
 
         async function saveSettings() {
-            const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
-            
-            // 1. บันทึก Master Switch รายสาขา/ชุด
-            branchSettings[currentSelectedBranch] = {
-                globalExamEnable: document.getElementById('setting-exam-global-enable').checked,
-                selectedSet: selectedSet
-            };
+    const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
+    
+    // 1. บันทึก Master Switch รายสาขา
+    const globalElem = document.getElementById('setting-exam-global-enable');
+    branchSettings[currentSelectedBranch] = {
+        globalExamEnable: globalElem ? globalElem.checked : true,
+        selectedSet: selectedSet
+    };
 
-            // 2. บันทึกค่าตั้งค่าของแต่ละหน่วยการเรียนรู้
-            const pool = masterQuestions.filter(q => 
-                (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
-                (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
-            );
-            const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
+    // 2. ดึงหน่วยการเรียนรู้
+    const pool = masterQuestions.filter(q => 
+        (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
+        (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
+    );
+    const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
 
-            categories.forEach((cat, idx) => {
-                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
-                unitSettings[uKey] = {
-                    enabled: document.getElementById(`unit-enable-${idx}`)?.checked || false,
-                    questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || 15,
-                    timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
-                    antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked || false,
-                    preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked || false,
-                    maxTabSwitches: 3,
-                    autoSubmitOnCheat: true
-                };
-            });
+    // 3. บันทึกค่ารายหน่วยแบบปลอดภัย (Null-Coalescing Operator '??')
+    categories.forEach((cat, idx) => {
+        const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
+        unitSettings[uKey] = {
+            enabled: document.getElementById(`unit-enable-${idx}`)?.checked ?? true,
+            questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || 15,
+            timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
+            antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked ?? false,
+            preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked ?? false,
+            maxTabSwitches: 3,
+            autoSubmitOnCheat: true
+        };
+    });
 
-            // เซฟลง LocalStorage
-            localStorage.setItem('online_exam_settings', JSON.stringify(settings));
-            localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
-            localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
+    // 4. บันทึกลง LocalStorage
+    localStorage.setItem('online_exam_settings', JSON.stringify(settings));
+    localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
+    localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
 
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะและเงื่อนไขการสอบเรียบร้อยแล้ว');
-        }
+    showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะและเงื่อนไขการสอบเรียบร้อยแล้ว');
+}
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
