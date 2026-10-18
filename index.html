@@ -658,7 +658,7 @@ function renderBranchButtons() {
     }).join('');
 }
         
-// ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (อัปเดตฟอร์มทันที + ไม่เด้ง Pop-up)
+// ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (ป้องกัน Error เรียกใช้ ID ที่ไม่มีอยู่จริง)
 function switchBranchSettings(branchName) {
     currentSelectedBranch = branchName;
     renderBranchButtons(); 
