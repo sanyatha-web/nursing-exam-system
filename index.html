@@ -262,7 +262,12 @@
                             </div>
                         </div>
                     </div>
-
+<!-- CSV Users Link -->
+<div class="space-y-1 mb-4">
+    <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (ข้อมูลผู้สอบ - Sheet Users)</label>
+    <input type="url" id="setting-users-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+    <p class="text-xs text-slate-500">เผยแพร่เฉพาะแผ่นงาน "Users" เป็น CSV แล้วนำลิงก์มาวาง</p>
+</div>
                     <!-- CSV Link -->
                     <div class="space-y-1">
                         <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (คลังข้อสอบ)</label>
@@ -551,31 +556,35 @@
 
         // Settings State
         let settings = {
-            sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?output=csv",
-            globalExamEnable: true,
-            antiCheatEnable: true,
-            maxTabSwitches: 3,
-            autoSubmitOnCheat: true,
-            selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
-            questionCount: 15,
-            timeLimitMinutes: 15,
-            shuffleOptions: true,
-            webAppUrl: ""
-        };
+    sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=0&single=true&output=csv", // ลิงก์ข้อสอบ (Questions)
+    usersCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=2036632186&single=true&output=csv", // <--- [เพิ่มบรรทัดนี้] ลิงก์ CSV สำหรับ Users Sheet
+    globalExamEnable: true,
+    antiCheatEnable: true,
+    maxTabSwitches: 3,
+    autoSubmitOnCheat: true,
+    selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
+    questionCount: 15,
+    timeLimitMinutes: 15,
+    shuffleOptions: true,
+    webAppUrl: ""
+};
 
         // Initialize Application
         window.addEventListener('DOMContentLoaded', async () => {
-            loadSettings();
-            
-            if (settings.sheetCsvUrl) {
-                await fetchAndSyncGoogleSheets();
-            } else {
-                updateAdminSettingsUI();
-            }
+    loadSettings();
+    
+    // [เพิ่มบรรทัดนี้] ดึงรายชื่อผู้ใช้จาก Google Sheets
+    await fetchAndSyncUsers();
 
-            renderInitialSetupNotice();
-            setupAntiCheatListeners();
-        });
+    if (settings.sheetCsvUrl) {
+        await fetchAndSyncGoogleSheets();
+    } else {
+        updateAdminSettingsUI();
+    }
+
+    renderInitialSetupNotice();
+    setupAntiCheatListeners();
+});
 
         // 1. LOGIN & ROLE-BASED ROUTING SYSTEM
         function handleLogin(e) {
@@ -821,7 +830,103 @@
                 updateAdminSettingsUI();
             }
         }
+// ฟังก์ชันดึงรายชื่อผู้ใช้จาก Google Sheets (Sheet: Users)
+async function fetchAndSyncUsers() {
+    if (!settings.usersCsvUrl) return;
 
+    const cacheBusterUrl = settings.usersCsvUrl + (settings.usersCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+    
+    try {
+        let res = await fetch(cacheBusterUrl);
+        let csvText = "";
+
+        if (res.ok) {
+            csvText = await res.text();
+        }
+
+        if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
+            const proxyRes = await fetch(proxyUrl);
+            if (proxyRes.ok) csvText = await proxyRes.text();
+        }
+
+        if (csvText && !csvText.includes('<!DOCTYPE html>')) {
+            parseCSVToUsers(csvText);
+        }
+    } catch (err) {
+        console.error("Failed to sync Users CSV:", err);
+    }
+}
+
+// ฟังก์ชันแปลงข้อความ CSV มาเป็นข้อมูลผู้ใช้งานในระบบ
+function parseCSVToUsers(csvText) {
+    if (!csvText || csvText.trim() === '') return;
+
+    if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
+
+    function parseCSVLine(text) {
+        let p = '', c = '', r = [];
+        let q = false;
+        for (let i = 0; i < text.length; i++) {
+            c = text[i];
+            if (c === '"') {
+                if (q && text[i+1] === '"') { p += '"'; i++; }
+                else { q = !q; }
+            } else if (c === ',' && !q) {
+                r.push(p.trim());
+                p = '';
+            } else {
+                p += c;
+            }
+        }
+        r.push(p.trim());
+        return r;
+    }
+
+    const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
+    if (lines.length < 2) return;
+
+    const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
+    
+    // ค้นหาตำแหน่งคอลัมน์ตามหัวข้อของคุณ
+    const sapIdx = headerCols.findIndex(h => h.includes('sap-id') || h.includes('sap') || h.includes('รหัส'));
+    const prefixIdx = headerCols.findIndex(h => h.includes('คำนำหน้า'));
+    const fnameIdx = headerCols.findIndex(h => h.includes('ชื่อ') && !h.includes('คำนำหน้า') && !h.includes('นามสกุล'));
+    const lnameIdx = headerCols.findIndex(h => h.includes('นามสกุล'));
+    const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
+    const roleIdx = headerCols.findIndex(h => h.includes('บทบาท'));
+    const passIdx = headerCols.findIndex(h => h.includes('password') || h.includes('รหัสผ่าน'));
+
+    const fetchedUsers = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.length < 3) continue;
+
+        const sapId = sapIdx !== -1 ? cols[sapIdx] : '';
+        const prefix = prefixIdx !== -1 ? cols[prefixIdx] : '';
+        const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
+        const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
+        const branch = branchIdx !== -1 ? cols[branchIdx] : '';
+        const role = roleIdx !== -1 ? cols[roleIdx] : 'student';
+        const password = passIdx !== -1 ? cols[passIdx] : '';
+
+        if (sapId && password) {
+            fetchedUsers.push({
+                username: sapId,
+                password: password,
+                fullname: `${prefix}${fname} ${lname}`.trim(),
+                branch: branch || 'ทั่วไป',
+                role: role.toLowerCase().includes('admin') || role.toLowerCase().includes('อาจารย์') ? 'admin' : 'student'
+            });
+        }
+    }
+
+    if (fetchedUsers.length > 0) {
+        // อัปเดตรายชื่อผู้ใช้ในระบบ (โดยคง default admin ไว้กันระบบล็อก)
+        userDatabase = fetchedUsers;
+    }
+}
         function parseCSVToQuestions(csvText, isOverwrite = false) {
             if (!csvText || csvText.trim() === '') return false;
 
@@ -929,6 +1034,7 @@
             if (saved) {
                 try { settings = { ...settings, ...JSON.parse(saved) }; } catch (e) {}
             }
+            document.getElementById('setting-users-csv-url').value = settings.usersCsvUrl || "";
             document.getElementById('setting-exam-global-enable').checked = settings.globalExamEnable !== false;
             document.getElementById('setting-sheet-csv-url').value = settings.sheetCsvUrl || "";
             document.getElementById('setting-anti-cheat-enable').checked = settings.antiCheatEnable;
@@ -943,6 +1049,7 @@
         }
 
         async function saveSettings() {
+            settings.usersCsvUrl = document.getElementById('setting-users-csv-url').value.trim();
             settings.globalExamEnable = document.getElementById('setting-exam-global-enable').checked;
             settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url').value.trim();
             settings.antiCheatEnable = document.getElementById('setting-anti-cheat-enable').checked;
