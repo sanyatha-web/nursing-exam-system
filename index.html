@@ -1092,6 +1092,9 @@ function parseCSVToUsers(csvText) {
             }
 
             updateAdminStats();
+
+            // [เพิ่มบรรทัดนี้] เรียกสร้างปุ่มเลือกสาขาให้อัตโนมัติ
+            renderBranchButtons();
         }
 
         function loadSettings() {
@@ -1099,6 +1102,13 @@ function parseCSVToUsers(csvText) {
             if (saved) {
                 try { settings = { ...settings, ...JSON.parse(saved) }; } catch (e) {}
             }
+
+            // โหลดการตั้งค่าแยกตามสาขาที่เคยเซฟไว้
+            const savedBranchSettings = localStorage.getItem('online_exam_branch_settings');
+            if (savedBranchSettings) {
+                try { branchSettings = JSON.parse(savedBranchSettings); } catch (e) {}
+            }
+
             document.getElementById('setting-users-csv-url').value = settings.usersCsvUrl || "";
             document.getElementById('setting-exam-global-enable').checked = settings.globalExamEnable !== false;
             document.getElementById('setting-sheet-csv-url').value = settings.sheetCsvUrl || "";
@@ -1114,19 +1124,25 @@ function parseCSVToUsers(csvText) {
         }
 
         async function saveSettings() {
+            // บันทึกการตั้งค่าลงในสาขาที่กำลังเลือกอยู่ปัจจุบัน
+            branchSettings[currentSelectedBranch] = {
+                globalExamEnable: document.getElementById('setting-exam-global-enable').checked,
+                antiCheatEnable: document.getElementById('setting-anti-cheat-enable').checked,
+                maxTabSwitches: parseInt(document.getElementById('setting-max-tab-switches').value) || 3,
+                autoSubmitOnCheat: document.getElementById('setting-auto-submit-cheat').checked,
+                selectedSet: document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)",
+                questionCount: parseInt(document.getElementById('setting-question-count').value) || 15,
+                timeLimitMinutes: parseInt(document.getElementById('setting-time-limit').value) || 15,
+                shuffleOptions: document.getElementById('setting-shuffle-options').value === 'true'
+            };
+
+            // บันทึกการตั้งค่าลิงก์ส่วนกลาง
             settings.usersCsvUrl = document.getElementById('setting-users-csv-url').value.trim();
-            settings.globalExamEnable = document.getElementById('setting-exam-global-enable').checked;
             settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url').value.trim();
-            settings.antiCheatEnable = document.getElementById('setting-anti-cheat-enable').checked;
-            settings.maxTabSwitches = parseInt(document.getElementById('setting-max-tab-switches').value) || 3;
-            settings.autoSubmitOnCheat = document.getElementById('setting-auto-submit-cheat').checked;
-            settings.selectedSet = document.getElementById('setting-exam-set').value;
-            settings.questionCount = parseInt(document.getElementById('setting-question-count').value) || 15;
-            settings.timeLimitMinutes = parseInt(document.getElementById('setting-time-limit').value) || 15;
-            settings.shuffleOptions = document.getElementById('setting-shuffle-options').value === 'true';
             settings.webAppUrl = document.getElementById('setting-webapp-url').value.trim();
 
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
+            localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             
             if (settings.sheetCsvUrl) {
                 await fetchAndSyncGoogleSheets();
@@ -1135,7 +1151,7 @@ function parseCSVToUsers(csvText) {
             }
 
             renderInitialSetupNotice();
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'การตั้งค่าระบบถูกอัปเดตเรียบร้อยแล้ว');
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', `บันทึกการตั้งค่าสำหรับ "${currentSelectedBranch}" เรียบร้อยแล้ว`);
         }
 
         function renderInitialSetupNotice() {
