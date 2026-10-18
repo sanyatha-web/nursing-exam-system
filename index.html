@@ -1415,38 +1415,56 @@ function parseCSVToUsers(csvText) {
                 `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        setupAntiCheatListeners()
+        function setupAntiCheatListeners() {
+            const handleVisibilityChange = () => {
+                if (!isExamActive || !settings.antiCheatEnable) return;
+                if (document.hidden || !document.hasFocus()) {
+                    tabSwitchCount++;
+                    const countElem = document.getElementById('tab-switch-count-num');
+                    if (countElem) countElem.textContent = tabSwitchCount;
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleVisibilityChange);
+                    if (settings.autoSubmitOnCheat && tabSwitchCount >= settings.maxTabSwitches) {
+                        isExamActive = false;
+                        showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอเกินกำหนด (${settings.maxTabSwitches} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
+                        submitExam(true);
+                    } else {
+                        showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาต ${settings.maxTabSwitches} ครั้ง`);
+                    }
+                }
+            };
 
-    // ดักจับการกดปุ่ม PrintScreen
-    window.addEventListener('keyup', (e) => {
-        const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
-        if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('blur', handleVisibilityChange);
 
-        if (e.key === 'PrintScreen' || e.keyCode === 44) {
-            navigator.clipboard.writeText(''); // ล้างข้อมูลภาพในคลิปบอร์ด
-            showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้จับภาพหน้าจอขณะทำข้อสอบ');
+            // ดักจับการกดปุ่ม PrintScreen (ปรับปรุงเพิ่ม try-catch เพื่อป้องกัน Error ในบางเบราว์เซอร์)
+            window.addEventListener('keyup', (e) => {
+                const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
+                if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
+
+                if (e.key === 'PrintScreen' || e.keyCode === 44) {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText('').catch(() => {});
+                    }
+                    showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้จับภาพหน้าจอขณะทำข้อสอบ');
+                }
+            });
+
+            // ดักจับคีย์ลัดแคปจอต่างๆ (Win+Shift+S, Cmd+Shift+3/4, Ctrl+P)
+            window.addEventListener('keydown', (e) => {
+                const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
+                if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
+
+                if (
+                    (e.key === 'PrintScreen') ||
+                    (e.ctrlKey && e.key === 'p') ||
+                    (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) ||
+                    (e.key === 'Meta' && e.shiftKey && e.key === 'S')
+                ) {
+                    e.preventDefault();
+                    showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้ใช้คีย์ลัดจับภาพหน้าจอขณะทำข้อสอบ');
+                }
+            });
         }
-    });
-
-    // ดักจับคีย์ลัดแคปจอต่างๆ (Win+Shift+S, Cmd+Shift+3/4, Ctrl+P)
-    window.addEventListener('keydown', (e) => {
-        const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
-        if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
-
-        if (
-            (e.key === 'PrintScreen') ||
-            (e.ctrlKey && e.key === 'p') ||
-            (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) ||
-            (e.key === 'Meta' && e.shiftKey && e.key === 'S')
-        ) {
-            e.preventDefault();
-            showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้ใช้คีย์ลัดจับภาพหน้าจอขณะทำข้อสอบ');
-        }
-    });
-}
 
         function confirmSubmitExam() {
             const unanswered = activeQuestions.length - Object.keys(userAnswers).length;
