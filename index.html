@@ -913,41 +913,37 @@ function switchBranchSettings(branchName) {
             startTimer();
         }
 
-        // Fetch CSV & Parser
         async function fetchAndSyncGoogleSheets() {
-            if (!settings.sheetCsvUrl) return;
+    if (!settings.sheetCsvUrl) return;
 
-            const cacheBusterUrl = settings.sheetCsvUrl + (settings.sheetCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-            
-            try {
-                let res = await fetch(cacheBusterUrl);
-                let csvText = "";
+    const cacheBusterUrl = settings.sheetCsvUrl + (settings.sheetCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+    
+    try {
+        let res = await fetch(cacheBusterUrl);
+        let csvText = "";
 
-                if (res.ok) {
-                    csvText = await res.text();
-                }
+        if (res.ok) {
+            csvText = await res.text();
+        }
 
-                if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
-                    const proxyRes = await fetch(proxyUrl);
-                    if (proxyRes.ok) {
-                        csvText = await proxyRes.text();
-                    }
-                }
-
-                if (csvText && !csvText.includes('<!DOCTYPE html>')) {
-                    parseCSVToQuestions(csvText, true);
-                }
-            } catch (err) {
-                console.error("Failed to sync Google Sheets CSV, trying proxy...", err);
-            } finally {
-                // อัปเดต UI Dropdown และรายการหน่วยการเรียนรู้ทันทีที่โหลดข้อมูลเสร็จ
-                updateAdminSettingsUI();
-                if (typeof renderUnitSettingsList === 'function') {
-                    renderUnitSettingsList();
-                }
+        if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
+            const proxyRes = await fetch(proxyUrl);
+            if (proxyRes.ok) {
+                csvText = await proxyRes.text();
             }
         }
+
+        if (csvText && !csvText.includes('<!DOCTYPE html>')) {
+            parseCSVToQuestions(csvText, true);
+        }
+    } catch (err) {
+        console.error("Failed to sync Google Sheets CSV, trying proxy...", err);
+    } finally {
+        // อัปเดต UI Dropdown เมื่อกระบวนการดึงข้อมูลทั้งหมดเสร็จสมบูรณ์
+        updateAdminSettingsUI();
+    }
+}
         
 // ฟังก์ชันดึงรายชื่อผู้ใช้จาก Google Sheets (Sheet: Users - รองรับ Proxy และ Asynchronous)
 async function fetchAndSyncUsers() {
@@ -1147,23 +1143,31 @@ function parseCSVToUsers(csvText) {
     return false;
 }
 
-        // 1. ฟังก์ชันดึงรายชื่อชุดข้อสอบจากคลังข้อสอบ (คอลัมน์ "ชุดข้อสอบ") มาใส่ใน Dropdown
-function updateAdminSettingsUI() {
+        function updateAdminSettingsUI() {
     const setSelect = document.getElementById('setting-exam-set');
     if (!setSelect) return;
 
-    // ดึงค่าจาก q.setGroup ซึ่งถูกแมปมาจากคอลัมน์ "ชุดข้อสอบ"
+    // ดึงชุดข้อสอบทั้งหมดจาก masterQuestions
     const allSets = Array.from(new Set(masterQuestions.map(q => q.setGroup).filter(Boolean)));
     
-    // ใส่ตัวเลือกเริ่มต้น
+    // หากยังไม่มีชุดข้อมูลเลย ให้ใส่ชุดเริ่มต้นไว้
+    if (allSets.length === 0) {
+        allSets.push('ชุดการเรียนรู้ทั่วไป');
+    }
+
     allSets.unshift('ทั้งหมด (ทุกชุดการเรียนรู้)');
 
-    // สร้างตัวเลือก <option> ลงใน Select
+    // สร้างตัวเลือก <option>
     setSelect.innerHTML = allSets.map(s => 
         `<option value="${s}" ${s === settings.selectedSet ? 'selected' : ''}>${s}</option>`
     ).join('');
 
     renderBranchButtons();
+    
+    // เรียกเรนเดอร์หน่วยการเรียนรู้ต่อทันทีหลังดึงชุดข้อสอบเสร็จ
+    if (typeof renderUnitSettingsList === 'function') {
+        renderUnitSettingsList();
+    }
 }
 
         function loadSettings() {
