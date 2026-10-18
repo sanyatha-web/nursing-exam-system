@@ -675,7 +675,7 @@ function switchBranchSettings(branchName) {
     
     // โหลดค่าสวิตช์ป้องกันการจับภาพหน้าจอ
     if (document.getElementById('setting-prevent-screenshot')) {
-        document.getElementById('setting-prevent-screenshot').checked = bSet.preventScreenshot !== false;
+        document.getElementById('setting-prevent-screenshot').checked = settings.preventScreenshot !== false;
     }
 
     document.getElementById('setting-question-count').value = bSet.questionCount || 15;
