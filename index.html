@@ -940,7 +940,7 @@ function switchBranchSettings(branchName) {
     } catch (err) {
         console.error("Failed to sync Google Sheets CSV, trying proxy...", err);
     } finally {
-        // อัปเดต UI Dropdown เมื่อกระบวนการดึงข้อมูลทั้งหมดเสร็จสมบูรณ์
+        // เรียกอัปเดต UI Dropdown และรายการหน่วยการเรียนรู้เมื่อประมวลผล CSV เสร็จเรียบร้อย
         updateAdminSettingsUI();
     }
 }
@@ -1147,24 +1147,27 @@ function parseCSVToUsers(csvText) {
     const setSelect = document.getElementById('setting-exam-set');
     if (!setSelect) return;
 
-    // ดึงชุดข้อสอบทั้งหมดจาก masterQuestions
+    // ดึงค่าจาก q.setGroup ซึ่งถูกแมปมาจากคอลัมน์ "ชุดข้อสอบ"
     const allSets = Array.from(new Set(masterQuestions.map(q => q.setGroup).filter(Boolean)));
     
-    // หากยังไม่มีชุดข้อมูลเลย ให้ใส่ชุดเริ่มต้นไว้
+    // หากยังไม่มีชุดข้อมูล ให้ใส่ชุดเริ่มต้นไว้
     if (allSets.length === 0) {
         allSets.push('ชุดการเรียนรู้ทั่วไป');
     }
 
-    allSets.unshift('ทั้งหมด (ทุกชุดการเรียนรู้)');
+    // ใส่ตัวเลือกเริ่มต้น
+    if (!allSets.includes('ทั้งหมด (ทุกชุดการเรียนรู้)')) {
+        allSets.unshift('ทั้งหมด (ทุกชุดการเรียนรู้)');
+    }
 
-    // สร้างตัวเลือก <option>
+    // สร้างตัวเลือก <option> ลงใน Select
     setSelect.innerHTML = allSets.map(s => 
         `<option value="${s}" ${s === settings.selectedSet ? 'selected' : ''}>${s}</option>`
     ).join('');
 
     renderBranchButtons();
-    
-    // เรียกเรนเดอร์หน่วยการเรียนรู้ต่อทันทีหลังดึงชุดข้อสอบเสร็จ
+
+    // สั่งวาดรายการหน่วยการเรียนรู้ต่อทันทีหลังดึงชุดข้อสอบใส่ Dropdown เสร็จ
     if (typeof renderUnitSettingsList === 'function') {
         renderUnitSettingsList();
     }
