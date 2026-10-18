@@ -65,13 +65,13 @@
                             <i class="fa-solid fa-sliders w-5 text-indigo-500"></i>
                             <span>2. ตั้งค่าการสอบรายสาขา</span>
                         </a>
-                        <a href="javascript:void(0)" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
-                            <i class="fa-solid fa-database w-5 text-indigo-500"></i>
-                            <span>3. แหล่งข้อมูลนำเข้า/ออก</span>
-                        </a>
                         <a href="javascript:void(0)" onclick="switchAdminTab('student-tracker')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-user-check w-5 text-indigo-500"></i>
-                            <span>4. ติดตามการสอบรายบุคคล</span>
+                            <span>3. ติดตามการสอบรายบุคคล</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                            <i class="fa-solid fa-database w-5 text-indigo-500"></i>
+                            <span>4. แหล่งข้อมูลนำเข้า/ออก</span>
                         </a>
                     <div class="border-t border-slate-100 my-1"></div>
                         <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
@@ -251,7 +251,7 @@
                 <div id="branch-buttons-container" class="flex flex-wrap gap-2"></div>
             </div>
             
-            <!-- ---------------- แท็บที่ 1: ตั้งค่าการสอบ ---------------- -->
+            <!-- ---------------- แท็บที่ 2: ตั้งค่าการสอบ ---------------- -->
             <div id="tab-admin-exam-settings" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
                     <h3 class="font-bold text-base flex items-center">
@@ -308,56 +308,7 @@
                 </div>
             </div>
 
-            <!-- ---------------- แท็บที่ 2: แหล่งข้อมูลนำเข้า/ออก (ย้ายลิงก์เข้าในนี้) ---------------- -->
-            <div id="tab-admin-data-sources" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="bg-slate-900 text-white px-6 py-4">
-                    <h3 class="font-bold text-base flex items-center">
-                        <i class="fa-solid fa-database text-amber-400 mr-2"></i> แหล่งข้อมูลนำเข้า/ออก (Google Sheets Integration)
-                    </h3>
-                </div>
-
-                <div class="p-6 space-y-6">
-                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 space-y-1">
-                        <p class="font-bold text-amber-900"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ข้อควรระวัง:</p>
-                        <p>ส่วนนี้ไว้สำหรับตั้งค่าการเชื่อมต่อลิงก์ระบบ Google Sheets โปรดระมัดระวังในการแก้ไข เพื่อป้องกันระบบดึงข้อมูลผู้สอบหรือดึงข้อสอบผิดพลาด</p>
-                    </div>
-
-                    <!-- CSV Users Link -->
-                    <div class="space-y-1">
-                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (ข้อมูลผู้สอบ - Sheet Users)</label>
-                        <input type="url" id="setting-users-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
-                        <p class="text-xs text-slate-500">เผยแพร่เฉพาะแผ่นงาน "Users" เป็น CSV แล้วนำลิงก์มาวาง</p>
-                    </div>
-                    
-                    <!-- CSV Link -->
-                    <div class="space-y-1">
-                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (คลังข้อสอบ)</label>
-                        <input type="url" id="setting-sheet-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
-                        <p class="text-xs text-slate-500">นำลิงก์ที่เผยแพร่บนเว็บแบบ CSV จาก Google Sheets มาวางเพื่อดึงข้อสอบอัตโนมัติ</p>
-                    </div>
-
-                    <!-- CSV Results Link (เพิ่มต่อจาก Apps Script WebApp Link) -->
-                    <div class="space-y-1">
-                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (บันทึกผลการสอบ - Sheet Results)</label>
-                        <input type="url" id="setting-results-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
-                        <p class="text-xs text-slate-500">เผยแพร่แผ่นงานบันทึกผลสอบเป็น CSV แล้วนำลิงก์มาวางเพื่อดึงประวัติการสอบติดตามรายบุคคล</p>
-                    </div>
-                    
-                    <!-- Apps Script WebApp Link -->
-                    <div class="space-y-1">
-                        <label class="block text-sm font-medium text-slate-700">Google Sheets Web App URL (สำหรับบันทึกผล)</label>
-                        <input type="url" id="setting-webapp-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
-                        <p class="text-xs text-slate-500">นำ URL จากการ Deploy Web App ใน Google Apps Script มาวางตรงนี้</p>
-                    </div>
-
-                    <div class="pt-4 border-t border-slate-200 flex justify-end">
-                        <button onclick="saveSettings()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg transition">
-                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการเชื่อมต่อข้อมูล
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <!-- ---------------- แท็บที่ 4: ติดตามการสอบรายบุคคล ---------------- -->
+            <!-- ---------------- แท็บที่ 3: ติดตามการสอบรายบุคคล (ย้ายขึ้นมา) ---------------- -->
             <div id="tab-admin-student-tracker" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-6">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
@@ -366,22 +317,22 @@
                         </h3>
                         <p class="text-xs text-slate-500 mt-0.5">ตรวจสอบประวัติการทำข้อสอบ จำนวนครั้งที่สอบ และสถานะผ่าน/ไม่ผ่าน (เกณฑ์ผ่าน 80%)</p>
                     </div>
-
+            
                     <!-- ตัวกรองข้อมูล -->
                     <div class="flex flex-wrap items-center gap-2 text-xs">
                         <input type="text" id="tracker-search-input" oninput="renderStudentTrackerTable()" placeholder="ค้นหา รหัส/ชื่อ-นามสกุล..." class="px-3 py-1.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
-                            <select id="tracker-branch-filter" onchange="renderStudentTrackerTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
-                                <option value="ทั้งหมด">ทุกสาขา</option>
-                            </select>
-                            <select id="tracker-status-filter" onchange="renderStudentTrackerTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
-                                <option value="ทั้งหมด">ทุกสถานะ</option>
-                                <option value="ผ่าน">ผ่าน (≥ 80%)</option>
-                                <option value="ไม่ผ่าน">ไม่ผ่าน (< 80%)</option>
-                                <option value="ยังไม่ได้สอบ">ยังไม่ได้สอบ</option>
-                            </select>
+                        <select id="tracker-branch-filter" onchange="renderStudentTrackerTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
+                            <option value="ทั้งหมด">ทุกสาขา</option>
+                        </select>
+                        <select id="tracker-status-filter" onchange="renderStudentTrackerTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
+                            <option value="ทั้งหมด">ทุกสถานะ</option>
+                            <option value="ผ่าน">ผ่าน (≥ 80%)</option>
+                            <option value="ไม่ผ่าน">ไม่ผ่าน (< 80%)</option>
+                            <option value="ยังไม่ได้สอบ">ยังไม่ได้สอบ</option>
+                        </select>
                     </div>
                 </div>
-
+            
                 <!-- ตารางแสดงรายงาน -->
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-max text-left text-xs text-slate-700 border-collapse">
@@ -399,9 +350,59 @@
                             </tr>
                         </thead>
                         <tbody id="tracker-table-body" class="divide-y divide-slate-100">
-                        <!-- Dynamic Rows -->
+                            <!-- Dynamic Rows -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+            
+            <!-- ---------------- แท็บที่ 4: แหล่งข้อมูลนำเข้า/ออก (ย้ายลงมา) ---------------- -->
+            <div id="tab-admin-data-sources" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white px-6 py-4">
+                    <h3 class="font-bold text-base flex items-center">
+                        <i class="fa-solid fa-database text-amber-400 mr-2"></i> แหล่งข้อมูลนำเข้า/ออก (Google Sheets Integration)
+                    </h3>
+                </div>
+            
+                <div class="p-6 space-y-6">
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 space-y-1">
+                        <p class="font-bold text-amber-900"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ข้อควรระวัง:</p>
+                        <p>ส่วนนี้ไว้สำหรับตั้งค่าการเชื่อมต่อลิงก์ระบบ Google Sheets โปรดระมัดระวังในการแก้ไข เพื่อป้องกันระบบดึงข้อมูลผู้สอบหรือดึงข้อสอบผิดพลาด</p>
+                    </div>
+            
+                    <!-- CSV Users Link -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (ข้อมูลผู้สอบ - Sheet Users)</label>
+                        <input type="url" id="setting-users-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+                        <p class="text-xs text-slate-500">เผยแพร่เฉพาะแผ่นงาน "Users" เป็น CSV แล้วนำลิงก์มาวาง</p>
+                    </div>
+                    
+                    <!-- CSV Link -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (คลังข้อสอบ)</label>
+                        <input type="url" id="setting-sheet-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+                        <p class="text-xs text-slate-500">นำลิงก์ที่เผยแพร่บนเว็บแบบ CSV จาก Google Sheets มาวางเพื่อดึงข้อสอบอัตโนมัติ</p>
+                    </div>
+            
+                    <!-- CSV Results Link -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (บันทึกผลการสอบ - Sheet Results)</label>
+                        <input type="url" id="setting-results-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+                        <p class="text-xs text-slate-500">เผยแพร่แผ่นงานบันทึกผลสอบเป็น CSV แล้วนำลิงก์มาวางเพื่อดึงประวัติการสอบติดตามรายบุคคล</p>
+                    </div>
+                    
+                    <!-- Apps Script WebApp Link -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-slate-700">Google Sheets Web App URL (สำหรับบันทึกผล)</label>
+                        <input type="url" id="setting-webapp-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+                        <p class="text-xs text-slate-500">นำ URL จากการ Deploy Web App ใน Google Apps Script มาวางตรงนี้</p>
+                    </div>
+            
+                    <div class="pt-4 border-t border-slate-200 flex justify-end">
+                        <button onclick="saveSettings()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg transition">
+                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการเชื่อมต่อข้อมูล
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
