@@ -1103,6 +1103,122 @@ async function fetchAndSyncUsers() {
     }
 }
 
+        // ตัวแปรจัดเก็บประวัติผลการสอบทั้งหมดที่ดึงมาจาก Google Sheets
+        let examResultsHistory = [];
+        
+        // ฟังก์ชันดึงประวัติผลการสอบจาก Google Sheets CSV (เรียงลำดับ ล่าสุด -> เก่าสุด)
+        async function fetchAndSyncResults() {
+            if (!settings.resultsCsvUrl) return;
+        
+            const cacheBusterUrl = settings.resultsCsvUrl + (settings.resultsCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+            
+            try {
+                let csvText = "";
+        
+                try {
+                    let res = await fetch(cacheBusterUrl);
+                    if (res.ok) {
+                        csvText = await res.text();
+                    }
+                } catch (e) {
+                    console.warn("Direct fetch results failed, trying proxy...", e);
+                }
+        
+                if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
+                    const proxyRes = await fetch(proxyUrl);
+                    if (proxyRes.ok) {
+                        csvText = await proxyRes.text();
+                    }
+                }
+        
+                if (csvText && !csvText.includes('<!DOCTYPE html>')) {
+                    parseCSVToResults(csvText);
+                }
+            } catch (err) {
+                console.error("Failed to sync Results CSV:", err);
+            }
+        }
+        
+        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ
+        function parseCSVToResults(csvText) {
+            if (!csvText || csvText.trim() === '') return;
+            if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
+        
+            function parseCSVLine(text) {
+                let p = '', c = '', r = [];
+                let q = false;
+                for (let i = 0; i < text.length; i++) {
+                    c = text[i];
+                    if (c === '"') {
+                        if (q && text[i+1] === '"') { p += '"'; i++; }
+                        else { q = !q; }
+                    } else if (c === ',' && !q) {
+                        r.push(p.trim());
+                        p = '';
+                    } else {
+                        p += c;
+                    }
+                }
+                r.push(p.trim());
+                return r;
+            }
+        
+            const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
+            if (lines.length < 2) return;
+        
+            const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
+            
+            const timeIdx = headerCols.findIndex(h => h.includes('timestamp') || h.includes('เวลา') || h.includes('วันที่'));
+            const sapIdx = headerCols.findIndex(h => h.includes('studentid') || h.includes('sap-id') || h.includes('รหัส'));
+            const fnameIdx = headerCols.findIndex(h => h.includes('fname') || h.includes('ชื่อ'));
+            const lnameIdx = headerCols.findIndex(h => h.includes('lname') || h.includes('นามสกุล'));
+            const setIdx = headerCols.findIndex(h => h.includes('examset') || h.includes('ชุดข้อสอบ') || h.includes('ชุด'));
+            const branchIdx = headerCols.findIndex(h => h.includes('branch') || h.includes('สาขา'));
+            const yearIdx = headerCols.findIndex(h => h.includes('yearlevel') || h.includes('ชั้นปี') || h.includes('ปี'));
+            const catIdx = headerCols.findIndex(h => h.includes('category') || h.includes('หมวดหมู่') || h.includes('หน่วย'));
+            const scoreIdx = headerCols.findIndex(h => h.includes('score') || h.includes('คะแนน'));
+            const totalIdx = headerCols.findIndex(h => h.includes('totalquestions') || h.includes('ข้อเต็ม') || h.includes('จำนวนข้อ'));
+            const percentIdx = headerCols.findIndex(h => h.includes('percentage') || h.includes('เปอร์เซ็นต์') || h.includes('%'));
+        
+            const parsedResults = [];
+        
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCSVLine(lines[i]);
+                if (cols.length < 3) continue;
+        
+                const sapId = sapIdx !== -1 ? cols[sapIdx] : '';
+                if (!sapId) continue;
+        
+                const timestamp = timeIdx !== -1 ? cols[timeIdx] : '-';
+                const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
+                const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
+                const examSet = setIdx !== -1 ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
+                const branch = branchIdx !== -1 ? cols[branchIdx] : '';
+                const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
+                const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
+                const score = scoreIdx !== -1 ? parseFloat(cols[scoreIdx]) || 0 : 0;
+                const total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 15 : 15;
+                const percentage = percentIdx !== -1 ? parseFloat(cols[percentIdx]) || ((score / total) * 100) : ((score / total) * 100);
+        
+                parsedResults.push({
+                    timestamp,
+                    sapId,
+                    fullname: `${fname} ${lname}`.trim(),
+                    examSet,
+                    branch,
+                    yearLevel,
+                    category,
+                    score,
+                    total,
+                    percentage
+                });
+            }
+        
+            // เรียงลำดับจากรายการ ล่าสุด -> เก่าสุด (Newest First)
+            examResultsHistory = parsedResults.reverse();
+        }
+
 // ฟังก์ชันแปลง CSV เป็นข้อมูลผู้สอบ (ดึงชั้นปี และแยก ชื่อ/นามสกุล)
 function parseCSVToUsers(csvText) {
     if (!csvText || csvText.trim() === '') return;
@@ -1332,6 +1448,7 @@ function parseCSVToUsers(csvText) {
             safeSet('setting-time-limit', settings.timeLimitMinutes);
             safeSet('setting-shuffle-options', settings.shuffleOptions.toString());
             safeSet('setting-webapp-url', settings.webAppUrl || "");
+            safeSet('setting-results-csv-url', settings.resultsCsvUrl || "");
 
             toggleAntiCheatSettingsUI();
         }
@@ -1382,6 +1499,7 @@ function parseCSVToUsers(csvText) {
                     autoSubmitOnCheat: true,
                     accessMode: selectedAccessMode,                                            // บันทึกโหมดเข้าถึง (all / custom)
                     allowedUsers: unitSettings[uKey]?.allowedUsers || []                       // บันทึกรายชื่อ SAP-ID นักศึกษา
+                    settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || "";
                 };
             });
 
@@ -1753,28 +1871,35 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             switchAdminTab('overview');
         }
 
-        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์
+        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
         function switchAdminTab(tabName) {
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabData = document.getElementById('tab-admin-data-sources');
+            const tabTracker = document.getElementById('tab-admin-student-tracker');
             const branchWrapper = document.getElementById('branch-selector-wrapper');
-
+        
             // ซ่อนทุกแท็บก่อน
             if (tabOverview) tabOverview.classList.add('hidden');
             if (tabExam) tabExam.classList.add('hidden');
             if (tabData) tabData.classList.add('hidden');
+            if (tabTracker) tabTracker.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
-
+        
             if (tabName === 'data-sources') {
                 if (tabData) tabData.classList.remove('hidden');
             } else if (tabName === 'exam-settings') {
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
                 
-                // สั่งประมวลผลปุ่มสาขาและเลือกสาขาแรกให้อัตโนมัติก่อนเรนเดอร์รายการ
                 renderBranchButtons(); 
                 switchBranchSettings(currentSelectedBranch);
+            } else if (tabName === 'student-tracker') {
+                if (tabTracker) tabTracker.classList.remove('hidden');
+                // ดึงข้อมูลผลการสอบแล้วเรนเดอร์ตาราง
+                fetchAndSyncResults().then(() => {
+                    renderStudentTrackerTable();
+                });
             } else {
                 // Default Home: แท็บภาพรวมการตั้งค่า (Overview)
                 if (tabOverview) tabOverview.classList.remove('hidden');
@@ -1934,6 +2059,131 @@ function renderOverviewTable() {
 
     tableBody.innerHTML = tableRowsHtml;
 }
+        // ฟังก์ชันสร้างตารางติดตามการสอบรายบุคคล (เกณฑ์ผ่าน 80% เรียงลำดับล่าสุดลงไป)
+        function renderStudentTrackerTable() {
+            const tableBody = document.getElementById('tracker-table-body');
+            const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
+            const branchFilter = document.getElementById('tracker-branch-filter')?.value || 'ทั้งหมด';
+            const statusFilter = document.getElementById('tracker-status-filter')?.value || 'ทั้งหมด';
+
+            if (!tableBody) return;
+
+            // 1. อัปเดตตัวเลือกใน Dropdown สาขาวิชา
+            const filterSelect = document.getElementById('tracker-branch-filter');
+            if (filterSelect && filterSelect.options.length <= 1) {
+                const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
+                filterSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขา (${allBranches.length})</option>` + 
+                    allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+            }
+
+            // 2. ดึงนักศึกษาทั้งหมดจาก userDatabase (ไม่รวม Admin)
+            const students = userDatabase.filter(u => u.role === 'student');
+
+            if (students.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลผู้สอบในระบบ</td></tr>`;
+                return;
+            }
+
+            let rowsHtml = '';
+
+            // 3. วนลูปประมวลผลนักศึกษาทุกคน
+            students.forEach(student => {
+                // กรองสาขาวิชา
+                if (branchFilter !== 'ทั้งหมด' && student.branch !== branchFilter) return;
+
+                // ค้นหารายชื่อ หรือ SAP-ID
+                const matchSearch = student.username.toLowerCase().includes(searchVal) || 
+                                    student.fullname.toLowerCase().includes(searchVal);
+                if (!matchSearch) return;
+
+                // ดึงประวัติการสอบทั้งหมดของนักศึกษาคนนี้
+                const studentHistory = examResultsHistory.filter(r => r.sapId === student.username);
+
+                if (studentHistory.length === 0) {
+                    // กรณีนักศึกษายังไม่เคยสอบเลยสักวิชา
+                    if (statusFilter === 'ผ่าน' || statusFilter === 'ไม่ผ่าน') return;
+
+                    rowsHtml += `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-100 text-xs">
+                            <td class="p-3 text-slate-400 italic font-mono">-</td>
+                            <td class="p-3 font-mono font-bold text-indigo-600">${student.username}</td>
+                            <td class="p-3 font-bold text-slate-800">${student.fullname}</td>
+                            <td class="p-3 text-slate-600">${student.branch} (${student.yearLevel || 'ไม่ระบุ'})</td>
+                            <td class="p-3 text-slate-400 italic">-</td>
+                            <td class="p-3 text-slate-400 italic">-</td>
+                            <td class="p-3 text-center font-bold text-slate-400">0 ครั้ง</td>
+                            <td class="p-3 text-center font-bold text-slate-400">-</td>
+                            <td class="p-3 text-center">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                    ยังไม่ได้สอบ
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    // จัดกลุ่มประวัติการสอบแยกตามหน่วยการเรียนรู้ (Category)
+                    const categoriesMap = {};
+
+                    studentHistory.forEach(record => {
+                        const catKey = record.category || 'หน่วยการเรียนรู้ทั่วไป';
+                        if (!categoriesMap[catKey]) {
+                            categoriesMap[catKey] = [];
+                        }
+                        categoriesMap[catKey].push(record);
+                    });
+
+                    // แสดงรายการการสอบแยกตามหน่วยการเรียนรู้ (รายการล่าสุดจะอยู่ด้านบนสุด)
+                    Object.keys(categoriesMap).forEach(catKey => {
+                        const attempts = categoriesMap[catKey]; // อาร์เรย์ประวัติการสอบของหน่วยนี้ (เรียงล่าสุด->เก่าสุด)
+                        const latestAttempt = attempts[0];      // การสอบครั้งล่าสุด
+                        const attemptCount = attempts.length;  // จำนวนครั้งที่สอบทั้งหมด
+
+                        // คำนวณคะแนนสูงสุดที่ทำได้
+                        const maxScoreObj = attempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, attempts[0]);
+
+                        // คำนวณสถานะ ผ่าน/ไม่ผ่าน (เกณฑ์ 80%)
+                        const isPassed = latestAttempt.percentage >= 80;
+                        const statusLabel = isPassed ? 'ผ่าน' : 'ไม่ผ่าน';
+
+                        // กรองตามสถานะ
+                        if (statusFilter !== 'ทั้งหมด' && statusFilter !== statusLabel) return;
+
+                        rowsHtml += `
+                            <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100 text-xs">
+                                <td class="p-3 font-mono text-slate-500 whitespace-nowrap">${latestAttempt.timestamp}</td>
+                                <td class="p-3 font-mono font-bold text-indigo-600">${student.username}</td>
+                                <td class="p-3 font-bold text-slate-800">${student.fullname}</td>
+                                <td class="p-3 text-slate-600 whitespace-nowrap">${student.branch} <span class="text-[11px] text-indigo-600">(${student.yearLevel || 'ไม่ระบุ'})</span></td>
+                                <td class="p-3 font-semibold text-slate-700 whitespace-nowrap">
+                                    <i class="fa-solid fa-layer-group text-[10px] text-indigo-500 mr-1"></i>${latestAttempt.examSet}
+                                </td>
+                                <td class="p-3 font-bold text-indigo-900 whitespace-nowrap">
+                                    <i class="fa-solid fa-book-bookmark text-[10px] text-indigo-600 mr-1"></i>${catKey}
+                                </td>
+                                <td class="p-3 text-center font-bold text-indigo-700 whitespace-nowrap">
+                                    ${attemptCount} ครั้ง
+                                </td>
+                                <td class="p-3 text-center whitespace-nowrap">
+                                    <div class="font-bold text-slate-800">${latestAttempt.score}/${latestAttempt.total} (${latestAttempt.percentage.toFixed(1)}%)</div>
+                                    <div class="text-[10px] text-slate-400">สูงสุด: ${maxScoreObj.percentage.toFixed(1)}%</div>
+                                </td>
+                                <td class="p-3 text-center whitespace-nowrap">
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                        isPassed 
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                        : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                    }">
+                                        ${isPassed ? '✓ ผ่าน (≥80%)' : '✕ ไม่ผ่าน (<80%)'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            tableBody.innerHTML = rowsHtml || `<tr><td colspan="9" class="p-4 text-center text-slate-400">ไม่พบข้อมูลผลการสอบตามเงื่อนไขที่กรอง</td></tr>`;
+        }
 
         // 4. ฟังก์ชัน วาร์ปไปแก้ไขการตั้งค่าของสาขานั้นทันที
         function goToEditBranch(branchName) {
