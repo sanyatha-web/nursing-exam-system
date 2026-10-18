@@ -1601,7 +1601,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             switchAdminTab('overview');
         }
 
-        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (ไม่เรียก showAdminDashboard ซ้ำเพื่อป้องกันลูป)
+        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์
         function switchAdminTab(tabName) {
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
@@ -1619,11 +1619,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             } else if (tabName === 'exam-settings') {
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
-                renderUnitSettingsList();
+                
+                // สั่งประมวลผลปุ่มสาขาและเลือกสาขาแรกให้อัตโนมัติก่อนเรนเดอร์รายการ
+                renderBranchButtons(); 
+                switchBranchSettings(currentSelectedBranch);
             } else {
                 // Default Home: แท็บภาพรวมการตั้งค่า (Overview)
                 if (tabOverview) tabOverview.classList.remove('hidden');
-                renderOverviewTable(); // เรียกสร้าง/อัปเดตตารางภาพรวม
+                renderOverviewTable();
             }
         }
 
