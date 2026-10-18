@@ -1058,8 +1058,7 @@ function parseCSVToUsers(csvText) {
     }
 }
         
-        // ฟังก์ชันอ่านข้อสอบจาก Sheet Questions (ดึงชั้นปี และสื่อประกอบ)
-function parseCSVToQuestions(csvText, isOverwrite = false) {
+        function parseCSVToQuestions(csvText, isOverwrite = false) {
     if (!csvText || csvText.trim() === '') return false;
     if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
 
@@ -1089,10 +1088,7 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
     
     const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
     const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
-    
-    // ค้นหาคอลัมน์ "ชุดข้อสอบ" หรือ "ชุดการเรียนรู้" หรือ "ชุด"
     const setIdx = headerCols.findIndex(h => h.includes('ชุดข้อสอบ') || h.includes('ชุดการเรียนรู้') || h.includes('ชุด'));
-    
     const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย'));
     const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์'));
     const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ'));
@@ -1135,21 +1131,6 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
             });
         }
     }
-
-    if (imported.length > 0) {
-        if (isOverwrite) {
-            masterQuestions = imported;
-        } else {
-            masterQuestions = masterQuestions.concat(imported);
-        }
-
-        localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
-        updateAdminSettingsUI();
-        return true;
-    }
-
-    return false;
-}
 
     if (imported.length > 0) {
         if (isOverwrite) {
@@ -1295,21 +1276,7 @@ function updateAdminSettingsUI() {
             }
         }
 
-       function toggleAntiCheatSettingsUI() {
-    const checkElem = document.getElementById('setting-anti-cheat-enable');
-    const subOptions = document.getElementById('sub-anti-cheat-options');
-    
-    // ดักความปลอดภัย: ถ้าหา Element ตัวใดตัวหนึ่งไม่เจอ ให้ข้ามการทำงานทันที
-    if (!checkElem || !subOptions) return; 
-
-    if (checkElem.checked) {
-        subOptions.classList.remove('opacity-40', 'pointer-events-none');
-    } else {
-        subOptions.classList.add('opacity-40', 'pointer-events-none');
-    }
-}
-
-        function updateAntiCheatStatusTag() {
+       function updateAntiCheatStatusTag() {
             const tag = document.getElementById('tag-anti-cheat-status');
             if (settings.antiCheatEnable) {
                 tag.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 flex items-center space-x-1";
