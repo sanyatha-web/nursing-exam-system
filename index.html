@@ -534,7 +534,19 @@
                 </div>
             </div>
         </div>
-
+        <!-- แทรกส่วนนี้ใน Modal บริเวณ Search Bar & Filters -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div class="sm:col-span-2 relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" id="modal-student-search" oninput="filterModalStudentList()" placeholder="ค้นหาด้วย SAP-ID, ชื่อ หรือนามสกุล..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        <div>
+            <select id="modal-student-year-filter" onchange="filterModalStudentList()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="ทั้งหมด">ทุกชั้นปี</option>
+                <!-- Dynamic Options จะถูกดึงจากฐานข้อมูลให้อัตโนมัติ -->
+            </select>
+        </div>
+        </div>
         <!-- Student List Scroll Area -->
         <div id="modal-student-list-container" class="flex-grow overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl divide-y divide-slate-100 p-2 space-y-1 max-h-64">
             <!-- Dynamic Student Checkboxes -->
@@ -1980,31 +1992,40 @@ function openStudentSelectModal(uKey, idx) {
     document.getElementById('modal-student-unit-title').textContent = `หน่วย: ${uKey.split('__')[2] || uKey}`;
     document.getElementById('modal-student-search').value = '';
 
+    // สร้างตัวเลือก Dropdown ชั้นปีตามที่มีอยู่ในสาขานี้
+    const branchStudents = userDatabase.filter(u => u.role === 'student' && u.branch === currentSelectedBranch);
+    const availableYears = Array.from(new Set(branchStudents.map(s => s.yearLevel).filter(Boolean)));
+    
+    const yearSelect = document.getElementById('modal-student-year-filter');
+    if (yearSelect) {
+        yearSelect.innerHTML = `<option value="ทั้งหมด">ทุกชั้นปี (${branchStudents.length} คน)</option>` +
+            availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
+        yearSelect.value = "ทั้งหมด";
+    }
+
     renderModalStudentList();
     document.getElementById('modal-select-students').classList.remove('hidden');
-}
-
-function closeStudentSelectModal() {
-    document.getElementById('modal-select-students').classList.add('hidden');
-    currentEditingUnitKey = null;
-    currentEditingUnitIndex = null;
 }
 
 function renderModalStudentList() {
     const container = document.getElementById('modal-student-list-container');
     const searchVal = (document.getElementById('modal-student-search')?.value || '').toLowerCase().trim();
+    const selectedYear = document.getElementById('modal-student-year-filter')?.value || 'ทั้งหมด';
+    
     if (!container) return;
 
-    // ดึงนักเรียนเฉพาะในสาขาปัจจุบัน (ไม่รวมอาจารย์)
+    // 1. กรองนักศึกษาตามสาขาปัจจุบัน
     const branchStudents = userDatabase.filter(u => u.role === 'student' && u.branch === currentSelectedBranch);
 
-    const filtered = branchStudents.filter(s => 
-        s.username.toLowerCase().includes(searchVal) ||
-        s.fullname.toLowerCase().includes(searchVal)
-    );
+    // 2. กรองตาม คำค้นหา (Search) และ ชั้นปี (Year Filter)
+    const filtered = branchStudents.filter(s => {
+        const matchSearch = s.username.toLowerCase().includes(searchVal) || s.fullname.toLowerCase().includes(searchVal);
+        const matchYear = selectedYear === 'ทั้งหมด' || s.yearLevel === selectedYear;
+        return matchSearch && matchYear;
+    });
 
     if (filtered.length === 0) {
-        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบรายชื่อนักศึกษาที่ตรงตามคำค้นหา</div>`;
+        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบรายชื่อนักศึกษาที่ตรงตามเงื่อนไข</div>`;
     } else {
         container.innerHTML = filtered.map(s => {
             const isChecked = tempSelectedUsers.includes(s.username);
@@ -2017,7 +2038,7 @@ function renderModalStudentList() {
                             <span class="text-slate-400 text-[11px] ml-1">(${s.username})</span>
                         </div>
                     </div>
-                    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold text-[10px]">${s.yearLevel || 'ไม่ระบุชั้นปี'}</span>
+                    <span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-[10px] border border-indigo-100">${s.yearLevel || 'ไม่ระบุชั้นปี'}</span>
                 </label>
             `;
         }).join('');
@@ -2026,26 +2047,29 @@ function renderModalStudentList() {
     updateModalStudentCount();
 }
 
-function filterModalStudentList() {
-    renderModalStudentList();
-}
-
-function toggleModalUserSelection(username, isChecked) {
-    if (isChecked) {
-        if (!tempSelectedUsers.includes(username)) tempSelectedUsers.push(username);
-    } else {
-        tempSelectedUsers = tempSelectedUsers.filter(id => id !== username);
-    }
-    updateModalStudentCount();
-}
-
+// ปรับปรุงปุ่ม "เลือกทั้งหมด" ให้เลือกเฉพาะกลุ่มที่กำลัง Filter อยู่ในขณะนั้น
 function selectAllModalStudents(isSelectAll) {
-    const branchStudents = userDatabase.filter(u => u.role === 'student' && u.branch === currentSelectedBranch);
+    const searchVal = (document.getElementById('modal-student-search')?.value || '').toLowerCase().trim();
+    const selectedYear = document.getElementById('modal-student-year-filter')?.value || 'ทั้งหมด';
+
+    const currentFiltered = userDatabase.filter(u => {
+        if (u.role !== 'student' || u.branch !== currentSelectedBranch) return false;
+        const matchSearch = u.username.toLowerCase().includes(searchVal) || u.fullname.toLowerCase().includes(searchVal);
+        const matchYear = selectedYear === 'ทั้งหมด' || u.yearLevel === selectedYear;
+        return matchSearch && matchYear;
+    });
+
     if (isSelectAll) {
-        tempSelectedUsers = branchStudents.map(s => s.username);
+        currentFiltered.forEach(s => {
+            if (!tempSelectedUsers.includes(s.username)) {
+                tempSelectedUsers.push(s.username);
+            }
+        });
     } else {
-        tempSelectedUsers = [];
+        const filteredIds = currentFiltered.map(s => s.username);
+        tempSelectedUsers = tempSelectedUsers.filter(id => !filteredIds.includes(id));
     }
+
     renderModalStudentList();
 }
 
