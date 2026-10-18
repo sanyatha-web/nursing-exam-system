@@ -616,22 +616,24 @@ function switchBranchSettings(branchName) {
     currentSelectedBranch = branchName;
     renderBranchButtons();
     
-    // โหลดการตั้งค่าของสาขานั้นๆ มาแสดงในฟอร์ม (ถ้ามี)
-    if (branchSettings[branchName]) {
-        const bSet = branchSettings[branchName];
-        document.getElementById('setting-exam-global-enable').checked = bSet.globalExamEnable !== false;
-        document.getElementById('setting-anti-cheat-enable').checked = bSet.antiCheatEnable;
-        document.getElementById('setting-max-tab-switches').value = bSet.maxTabSwitches;
-        document.getElementById('setting-auto-submit-cheat').checked = bSet.autoSubmitOnCheat;
-        document.getElementById('setting-question-count').value = bSet.questionCount;
-        document.getElementById('setting-time-limit').value = bSet.timeLimitMinutes;
-        document.getElementById('setting-shuffle-options').value = bSet.shuffleOptions.toString();
-        if (document.getElementById('setting-exam-set')) {
-            document.getElementById('setting-exam-set').value = bSet.selectedSet || "ทั้งหมด (ทุกชุดการเรียนรู้)";
-        }
-    }
+    // ดึงค่าการตั้งค่าของสาขาที่เลือก (ถ้ายังไม่มี ให้ใช้ค่าตั้งต้นจาก settings)
+    const bSet = branchSettings[branchName] || settings;
+
+    // อัปเดตค่าลงในช่องฟอร์มหน้าเว็บ
+    document.getElementById('setting-exam-global-enable').checked = bSet.globalExamEnable !== false;
+    document.getElementById('setting-anti-cheat-enable').checked = bSet.antiCheatEnable;
+    document.getElementById('setting-max-tab-switches').value = bSet.maxTabSwitches || 3;
+    document.getElementById('setting-auto-submit-cheat').checked = bSet.autoSubmitOnCheat;
+    document.getElementById('setting-question-count').value = bSet.questionCount || 15;
+    document.getElementById('setting-time-limit').value = bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15;
+    document.getElementById('setting-shuffle-options').value = (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString();
     
-    showAlertModal('success', 'สลับสาขาสำเร็จ', `ขณะนี้กำลังตั้งค่าสำหรับ: ${branchName}`);
+    if (document.getElementById('setting-exam-set') && bSet.selectedSet) {
+        document.getElementById('setting-exam-set').value = bSet.selectedSet;
+    }
+
+    toggleAntiCheatSettingsUI();
+    showAlertModal('success', 'สลับสาขาสำเร็จ', `ขณะนี้กำลังจัดการตั้งค่าสำหรับ: ${branchName}`);
 }
         // Initialize Application
         window.addEventListener('DOMContentLoaded', async () => {
