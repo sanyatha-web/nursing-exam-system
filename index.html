@@ -196,8 +196,7 @@
                     </h3>
                     <div class="bg-indigo-900/80 border border-indigo-700/50 px-3 py-1.5 rounded-xl text-xs flex items-center space-x-2">
                         <span class="text-indigo-200 font-medium">กำลังตั้งค่าสำหรับ:</span>
-                        <span id="current-branch-label" class="font-bold text-amber-300 bg-amber-400/10 px-2.5 py-0.5 rounded-lg border border-amber-400/30">ภาพรวมทุกสาขา
-                        </span>
+                        <span id="current-branch-label" class="font-bold text-amber-300 bg-amber-400/10 px-2.5 py-0.5 rounded-lg border border-amber-400/30">ภาพรวมทุกสาขา</span>
                     </div>
                 </div>
 
@@ -666,9 +665,6 @@ function switchBranchSettings(branchName) {
             document.getElementById('btn-admin-nav').classList.remove('hidden');
 
             document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : "อาจารย์ผู้ดูแลระบบ";
-            
-            // อัปเดตสถิติคลังข้อสอบภาพรวม
-            updateAdminStats();
         }
 
         // หน้าสำหรับผู้เรียน (Student Dashboard)
@@ -701,16 +697,6 @@ function switchBranchSettings(branchName) {
             document.getElementById('section-login').classList.remove('hidden');
             document.getElementById('login-username').value = '';
             document.getElementById('login-password').value = '';
-        }
-
-        function updateAdminStats() {
-            document.getElementById('stat-total-questions').textContent = masterQuestions.length;
-            
-            const sets = new Set(masterQuestions.map(q => q.setGroup || q.branch).filter(Boolean));
-            document.getElementById('stat-total-sets').textContent = sets.size;
-
-            const branches = new Set(masterQuestions.map(q => q.branch).filter(Boolean));
-            document.getElementById('stat-total-branches').textContent = branches.size;
         }
 
         // Forgot Password Logic
@@ -1077,8 +1063,6 @@ function parseCSVToUsers(csvText) {
                     `<option value="${s}" ${s === settings.selectedSet ? 'selected' : ''}>${s}</option>`
                 ).join('');
             }
-
-            updateAdminStats();
 
             // [เพิ่มบรรทัดนี้] เรียกสร้างปุ่มเลือกสาขาให้อัตโนมัติ
             renderBranchButtons();
