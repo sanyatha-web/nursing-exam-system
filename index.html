@@ -817,31 +817,45 @@ function switchBranchSettings(branchName) {
         }
 
         function loadCategoriesForLoggedInUser() {
-            if (!loggedInUser) return;
+    if (!loggedInUser) return;
 
-            const selectedSet = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
-            let userPool = masterQuestions.filter(q => 
-                !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || 
-                q.branch === loggedInUser.branch || q.setGroup === loggedInUser.branch
-            );
+    // 1. กรองข้อสอบทั้งหมดที่เป็นของสาขานี้ (หรือข้อสอบกลาง)
+    let userPool = masterQuestions.filter(q => 
+        !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || 
+        q.branch === loggedInUser.branch
+    );
 
-            // กรองเฉพาะหน่วยที่มีการ ติ๊กถูก (enabled = true) เท่านั้น
-            const availableCategories = Array.from(new Set(userPool.map(q => q.category).filter(Boolean)))
-                .filter(cat => {
-                    const uKey = `${loggedInUser.branch}__${selectedSet}__${cat}`;
-                    const conf = unitSettings[uKey];
-                    return !conf || conf.enabled !== false; // แสดงเฉพาะหน่วยที่ไม่ได้สั่งปิด
-                });
+    // 2. วนลูปเช็กทุก (ชุดการเรียนรู้ + หน่วยการเรียนรู้) ว่าถูกติ๊กเปิดใช้งาน (enabled = true) หรือไม่
+    const availableCategories = [];
 
-            const selectElem = document.getElementById('dashboard-category-select');
-            if (availableCategories.length === 0) {
-                selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีหน่วยการเรียนรู้เปิดให้ทำ --</option>`;
-            } else {
-                selectElem.innerHTML = availableCategories.map(cat => 
-                    `<option value="${cat}">${cat}</option>`
-                ).join('');
+    userPool.forEach(q => {
+        const cat = q.category;
+        const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+        if (!cat) return;
+
+        const uKey = `${loggedInUser.branch}__${setGrp}__${cat}`;
+        const conf = unitSettings[uKey];
+
+        // แสดงเฉพาะหน่วยที่มีบันทึกการตั้งค่าไว้ และถูกติ๊กเปิด (enabled === true) เท่านั้น
+        if (conf && conf.enabled === true) {
+            const displayLabel = `${setGrp} - ${cat}`;
+            if (!availableCategories.includes(displayLabel)) {
+                availableCategories.push(displayLabel);
             }
         }
+    });
+
+    const selectElem = document.getElementById('dashboard-category-select');
+    if (!selectElem) return;
+
+    if (availableCategories.length === 0) {
+        selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีหน่วยการเรียนรู้เปิดให้ทำ --</option>`;
+    } else {
+        selectElem.innerHTML = availableCategories.map(item => 
+            `<option value="${item}">${item}</option>`
+        ).join('');
+    }
+}
 
         function startExamFromDashboard() {
             if (settings.globalExamEnable === false) {
@@ -1657,79 +1671,91 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
         // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา
         function renderOverviewTable() {
-            const tableBody = document.getElementById('overview-table-body');
-            const filterSelect = document.getElementById('overview-branch-filter');
-            if (!tableBody) return;
+    const tableBody = document.getElementById('overview-table-body');
+    const filterSelect = document.getElementById('overview-branch-filter');
+    if (!tableBody) return;
 
-            // ดึงรายชื่อสาขาทั้งหมดจากคลังข้อสอบและผู้ใช้งาน
-            const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
-            const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
-            const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]));
+    const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
+    const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
+    const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]));
 
-            // อัปเดตรายการตัวเลือกใน Filter Dropdown
-            if (filterSelect) {
-                const currentVal = filterSelect.value || "ทั้งหมด";
-                filterSelect.innerHTML = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
-                    allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
-                
-                if (allBranches.includes(currentVal) || currentVal === "ทั้งหมด") {
-                    filterSelect.value = currentVal;
+    if (filterSelect) {
+        const currentVal = filterSelect.value || "ทั้งหมด";
+        filterSelect.innerHTML = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
+            allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+        
+        if (allBranches.includes(currentVal) || currentVal === "ทั้งหมด") {
+            filterSelect.value = currentVal;
+        }
+    }
+
+    const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
+    const displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
+
+    if (displayBranches.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = displayBranches.map(bName => {
+        const bSet = branchSettings[bName] || settings;
+        const isGlobalEnable = bSet.globalExamEnable !== false;
+        const isAntiCheat = bSet.antiCheatEnable;
+        const isPreventScreenshot = bSet.preventScreenshot !== false;
+
+        // ค้นหาชุดการเรียนรู้ทั้งหมดที่มีหน่วยการเรียนรู้ถูกเปิดใช้งานอยู่จริงในสาขานี้
+        const activeSets = [];
+        Object.keys(unitSettings).forEach(uKey => {
+            if (uKey.startsWith(`${bName}__`)) {
+                const conf = unitSettings[uKey];
+                if (conf && conf.enabled) {
+                    const parts = uKey.split('__');
+                    if (parts[1] && !activeSets.includes(parts[1])) {
+                        activeSets.push(parts[1]);
+                    }
                 }
             }
+        });
 
-            const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
-            const displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
+        const activeSetsDisplay = activeSets.length > 0 ? activeSets.join(', ') : (bSet.selectedSet || 'ยังไม่มีชุดที่เปิดสอบ');
 
-            if (displayBranches.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
-                return;
-            }
-
-            // สร้างแถวข้อมูลในตาราง
-            tableBody.innerHTML = displayBranches.map(bName => {
-                const bSet = branchSettings[bName] || settings;
-                const isGlobalEnable = bSet.globalExamEnable !== false;
-                const isAntiCheat = bSet.antiCheatEnable;
-                const isPreventScreenshot = bSet.preventScreenshot !== false;
-
-                return `
-                    <tr class="hover:bg-indigo-50/30 transition">
-                        <td class="p-3 font-bold text-slate-800 flex items-center">
-                            <i class="fa-solid fa-graduation-cap text-indigo-500 mr-2"></i>
-                            ${bName}
-                        </td>
-                        <td class="p-3">
-                            <span class="font-semibold text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                                ${bSet.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)'}
-                            </span>
-                        </td>
-                        <td class="p-3 text-center font-bold">${bSet.questionCount || 15} ข้อ</td>
-                        <td class="p-3 text-center font-bold">${bSet.timeLimitMinutes ? bSet.timeLimitMinutes + ' นาที' : 'ไม่จำกัด'}</td>
-                        <td class="p-3 text-center">
-                            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isGlobalEnable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
-                                ${isGlobalEnable ? '● เปิดสอบ' : '○ ปิดระบบ'}
-                            </span>
-                        </td>
-                        <td class="p-3 text-center">
-                            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isAntiCheat ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
-                                ${isAntiCheat ? 'เปิดตรวจจับ' : 'ปิดตรวจจับ'}
-                            </span>
-                        </td>
-                        <!-- เพิ่มคอลัมน์แสดงสถานะป้องกันแคปจอ -->
-                        <td class="p-3 text-center">
-                            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isPreventScreenshot ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">
-                                ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
-                            </span>
-                        </td>
-                        <td class="p-3 text-center">
-                            <button onclick="goToEditBranch('${bName}')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition">
-                                <i class="fa-solid fa-pen-to-square mr-1"></i> แก้ไข
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
+        return `
+            <tr class="hover:bg-indigo-50/30 transition">
+                <td class="p-3 font-bold text-slate-800 flex items-center">
+                    <i class="fa-solid fa-graduation-cap text-indigo-500 mr-2"></i>
+                    ${bName}
+                </td>
+                <td class="p-3">
+                    <span class="font-semibold text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                        ${activeSetsDisplay}
+                    </span>
+                </td>
+                <td class="p-3 text-center font-bold">${bSet.questionCount || 15} ข้อ</td>
+                <td class="p-3 text-center font-bold">${bSet.timeLimitMinutes ? bSet.timeLimitMinutes + ' นาที' : 'ไม่จำกัด'}</td>
+                <td class="p-3 text-center">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isGlobalEnable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                        ${isGlobalEnable ? '● เปิดสอบ' : '○ ปิดระบบ'}
+                    </span>
+                </td>
+                <td class="p-3 text-center">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isAntiCheat ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
+                        ${isAntiCheat ? 'เปิดตรวจจับ' : 'ปิดตรวจจับ'}
+                    </span>
+                </td>
+                <td class="p-3 text-center">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isPreventScreenshot ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">
+                        ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
+                    </span>
+                </td>
+                <td class="p-3 text-center">
+                    <button onclick="goToEditBranch('${bName}')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i> แก้ไข
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
 
         // 4. ฟังก์ชัน วาร์ปไปแก้ไขการตั้งค่าของสาขานั้นทันที
         function goToEditBranch(branchName) {
