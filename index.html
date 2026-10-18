@@ -1572,10 +1572,21 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         }
     }
 }
-       // ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์
-        function switchAdminTab(tabName) {
-            showAdminDashboard();
+    
+        // 1. หน้าสำหรับอาจารย์ (Admin Dashboard & Overview)
+        function showAdminDashboard() {
+            hideAllSections();
+            document.getElementById('section-dashboard-admin').classList.remove('hidden');
+            document.getElementById('btn-admin-nav').classList.remove('hidden');
 
+            document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : "อาจารย์ผู้ดูแลระบบ";
+
+            // สลับไปหน้าแรก (Home Overview) ทันทีเมื่ออาจารย์เข้าสู่ระบบ
+            switchAdminTab('overview');
+        }
+
+        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (แก้ไขเพื่อป้องกัน Infinite Loop)
+        function switchAdminTab(tabName) {
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabData = document.getElementById('tab-admin-data-sources');
@@ -1595,25 +1606,30 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             } else {
                 // Default Home: แท็บภาพรวมการตั้งค่า (Overview)
                 if (tabOverview) tabOverview.classList.remove('hidden');
-                renderOverviewTable();
+                renderOverviewTable(); // สร้าง/อัปเดตตารางภาพรวม
             }
         }
 
-        // ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา
+        // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา
         function renderOverviewTable() {
             const tableBody = document.getElementById('overview-table-body');
             const filterSelect = document.getElementById('overview-branch-filter');
             if (!tableBody) return;
 
-            // 1. ดึงรายชื่อสาขาทั้งหมด
+            // ดึงรายชื่อสาขาทั้งหมดจากคลังข้อสอบและผู้ใช้งาน
             const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
             const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
             const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]));
 
-            // อัปเดต ตัวเลือก Filter
-            if (filterSelect && filterSelect.options.length <= 1) {
+            // อัปเดตรายการตัวเลือกใน Filter Dropdown
+            if (filterSelect) {
+                const currentVal = filterSelect.value || "ทั้งหมด";
                 filterSelect.innerHTML = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
                     allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+                
+                if (allBranches.includes(currentVal) || currentVal === "ทั้งหมด") {
+                    filterSelect.value = currentVal;
+                }
             }
 
             const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
@@ -1624,7 +1640,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 return;
             }
 
-            // 2. สร้างแถวข้อมูลตาราง
+            // สร้างแถวข้อมูลในตาราง
             tableBody.innerHTML = displayBranches.map(bName => {
                 const bSet = branchSettings[bName] || settings;
                 const isGlobalEnable = bSet.globalExamEnable !== false;
@@ -1663,23 +1679,11 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }).join('');
         }
 
-        // ฟังก์ชัน วาร์ปไปแก้ไขการตั้งค่าของสาขานั้นทันที
+        // 4. ฟังก์ชัน วาร์ปไปแก้ไขการตั้งค่าของสาขานั้นทันที
         function goToEditBranch(branchName) {
             switchAdminTab('exam-settings');
             switchBranchSettings(branchName);
         }
-
-        // ปรับปรุงฟังก์ชัน showAdminDashboard ให้เปิดหน้า Home เป็นอันดับแรกเสมอ
-        function showAdminDashboard() {
-            hideAllSections();
-            document.getElementById('section-dashboard-admin').classList.remove('hidden');
-            document.getElementById('btn-admin-nav').classList.remove('hidden');
-
-            document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : "อาจารย์ผู้ดูแลระบบ";
-
-            // สลับไปหน้าแรก (Home Overview)
-            switchAdminTab('overview');
-        } 
     </script>
 </body>
 </html>
