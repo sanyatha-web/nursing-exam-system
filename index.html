@@ -668,25 +668,39 @@ function switchBranchSettings(branchName) {
 
     const bSet = branchSettings[branchName] || settings;
 
-    document.getElementById('setting-exam-global-enable').checked = bSet.globalExamEnable !== false;
-    document.getElementById('setting-anti-cheat-enable').checked = bSet.antiCheatEnable;
-    document.getElementById('setting-max-tab-switches').value = bSet.maxTabSwitches || 3;
-    document.getElementById('setting-auto-submit-cheat').checked = bSet.autoSubmitOnCheat;
+    const globalElem = document.getElementById('setting-exam-global-enable');
+    if (globalElem) globalElem.checked = bSet.globalExamEnable !== false;
+
+    const antiCheatElem = document.getElementById('setting-anti-cheat-enable');
+    if (antiCheatElem) antiCheatElem.checked = bSet.antiCheatEnable;
+
+    const maxSwitchesElem = document.getElementById('setting-max-tab-switches');
+    if (maxSwitchesElem) maxSwitchesElem.value = bSet.maxTabSwitches || 3;
+
+    const autoSubmitElem = document.getElementById('setting-auto-submit-cheat');
+    if (autoSubmitElem) autoSubmitElem.checked = bSet.autoSubmitOnCheat;
     
-    // โหลดค่าสวิตช์ป้องกันการจับภาพหน้าจอ
-    if (document.getElementById('setting-prevent-screenshot')) {
-        document.getElementById('setting-prevent-screenshot').checked = settings.preventScreenshot !== false;
+    const preventScreenshotElem = document.getElementById('setting-prevent-screenshot');
+    if (preventScreenshotElem) preventScreenshotElem.checked = bSet.preventScreenshot !== false;
+
+    const qCountElem = document.getElementById('setting-question-count');
+    if (qCountElem) qCountElem.value = bSet.questionCount || 15;
+
+    const timeLimitElem = document.getElementById('setting-time-limit');
+    if (timeLimitElem) timeLimitElem.value = bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15;
+
+    const shuffleElem = document.getElementById('setting-shuffle-options');
+    if (shuffleElem) shuffleElem.value = (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString();
+    
+    const examSetElem = document.getElementById('setting-exam-set');
+    if (examSetElem && bSet.selectedSet) {
+        examSetElem.value = bSet.selectedSet;
     }
 
-    document.getElementById('setting-question-count').value = bSet.questionCount || 15;
-    document.getElementById('setting-time-limit').value = bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15;
-    document.getElementById('setting-shuffle-options').value = (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString();
-    
-    if (document.getElementById('setting-exam-set') && bSet.selectedSet) {
-        document.getElementById('setting-exam-set').value = bSet.selectedSet;
+    if (typeof toggleAntiCheatSettingsUI === 'function') {
+        toggleAntiCheatSettingsUI();
     }
-
-    toggleAntiCheatSettingsUI();
+    
     renderUnitSettingsList();
 }
         
