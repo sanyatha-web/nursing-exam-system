@@ -1198,16 +1198,18 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
         }
 
         function toggleAntiCheatSettingsUI() {
-            const checkElem = document.getElementById('setting-anti-cheat-enable');
-            const subOptions = document.getElementById('sub-anti-cheat-options');
-            if (!checkElem || !subOptions) return; // ถ้าหา Element ไม่เจอให้ข้ามทันที
+    const checkElem = document.getElementById('setting-anti-cheat-enable');
+    const subOptions = document.getElementById('sub-anti-cheat-options');
+    
+    // ดักความปลอดภัย: ถ้าหา Element ไม่เจอให้จบการทำงานทันที ไม่ต้องพ่น Error
+    if (!checkElem || !subOptions) return; 
 
-            if (checkElem.checked) {
-                subOptions.classList.remove('opacity-40', 'pointer-events-none');
-            } else {
-                subOptions.classList.add('opacity-40', 'pointer-events-none');
-            }
-        }
+    if (checkElem.checked) {
+        subOptions.classList.remove('opacity-40', 'pointer-events-none');
+    } else {
+        subOptions.classList.add('opacity-40', 'pointer-events-none');
+    }
+}
 
         async function saveSettings() {
     const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
