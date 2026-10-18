@@ -940,20 +940,15 @@ function switchBranchSettings(branchName) {
                 }
             } catch (err) {
                 console.error("Failed to sync Google Sheets CSV, trying proxy...", err);
-                try {
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
-                    const proxyRes = await fetch(proxyUrl);
-                    if (proxyRes.ok) {
-                        const csvText = await proxyRes.text();
-                        parseCSVToQuestions(csvText, true);
-                    }
-                } catch (proxyErr) {
-                    console.error("Proxy sync also failed:", proxyErr);
-                }
             } finally {
+                // อัปเดต UI Dropdown และรายการหน่วยการเรียนรู้ทันทีที่โหลดข้อมูลเสร็จ
                 updateAdminSettingsUI();
+                if (typeof renderUnitSettingsList === 'function') {
+                    renderUnitSettingsList();
+                }
             }
         }
+        
 // ฟังก์ชันดึงรายชื่อผู้ใช้จาก Google Sheets (Sheet: Users - รองรับ Proxy และ Asynchronous)
 async function fetchAndSyncUsers() {
     if (!settings.usersCsvUrl) return;
