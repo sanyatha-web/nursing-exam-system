@@ -1555,6 +1555,7 @@ function parseCSVToUsers(csvText) {
         function restartSystem() {
             window.location.reload();
         }
+        
         // ฟังก์ชัน เปิด-ปิด การแสดงรหัสผ่าน (Toggle Password Visibility)
 function togglePasswordVisibility(inputId, eyeIconId) {
     const inputElem = document.getElementById(inputId);
@@ -1573,6 +1574,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
     }
 }
     
+        // -------------------------------------------------------------
+        // ระบบจัดการหน้า Dashboard ของอาจารย์ และภาพรวมการตั้งค่า (Home)
+        // -------------------------------------------------------------
+
         // 1. หน้าสำหรับอาจารย์ (Admin Dashboard & Overview)
         function showAdminDashboard() {
             hideAllSections();
@@ -1585,7 +1590,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             switchAdminTab('overview');
         }
 
-        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (แก้ไขเพื่อป้องกัน Infinite Loop)
+        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (ไม่เรียก showAdminDashboard ซ้ำเพื่อป้องกันลูป)
         function switchAdminTab(tabName) {
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
@@ -1606,7 +1611,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             } else {
                 // Default Home: แท็บภาพรวมการตั้งค่า (Overview)
                 if (tabOverview) tabOverview.classList.remove('hidden');
-                renderOverviewTable(); // สร้าง/อัปเดตตารางภาพรวม
+                renderOverviewTable(); // เรียกสร้าง/อัปเดตตารางภาพรวม
             }
         }
 
@@ -1684,6 +1689,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             switchAdminTab('exam-settings');
             switchBranchSettings(branchName);
         }
+        
     </script>
 </body>
 </html>
