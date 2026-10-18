@@ -652,7 +652,8 @@ let settings = {
     shuffleOptions: true,
     webAppUrl: ""
 };
-// ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา (ดึงจากทั้งคลังข้อสอบ และรายชื่อผู้สอบ)
+        
+// ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา (ตัดปุ่มภาพรวมทุกสาขาออกแล้ว)
 function renderBranchButtons() {
     const container = document.getElementById('branch-buttons-container');
     if (!container) return;
@@ -663,14 +664,16 @@ function renderBranchButtons() {
     // 2. ดึงรายชื่อสาขาจากฐานข้อมูลผู้ใช้งาน (Users)
     const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
 
-    // รวมรายชื่อสาขาทั้งหมดเข้าด้วยกัน และตัดชื่อสาขาที่ซ้ำออก
-    const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]));
+    // รวมรายชื่อสาขาทั้งหมดเข้าด้วยกัน ตัดชื่อสาขาที่ซ้ำออก และตัดคำว่า "ภาพรวมทุกสาขา" ออก
+    const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]))
+                             .filter(b => b !== "ภาพรวมทุกสาขา");
 
-    if (!allBranches.includes("ภาพรวมทุกสาขา")) {
-        allBranches.unshift("ภาพรวมทุกสาขา");
+    // หากยังไม่ได้เลือกสาขาไหนเลย หรือสาขาเดิมที่เลือกไว้ถูกลบ ให้ตั้งค่าสาขาแรกเป็นสาขาเริ่มต้น
+    if ((currentSelectedBranch === "ภาพรวมทุกสาขา" || !allBranches.includes(currentSelectedBranch)) && allBranches.length > 0) {
+        currentSelectedBranch = allBranches[0];
     }
 
-    // สร้างปุ่ม HTML
+    // สร้างปุ่ม HTML แสดงเฉพาะรายชื่อสาขาวิชา
     container.innerHTML = allBranches.map(branch => {
         const isActive = branch === currentSelectedBranch;
         return `
@@ -686,7 +689,7 @@ function renderBranchButtons() {
         `;
     }).join('');
 }
-
+        
 // ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (อัปเดตฟอร์มทันที + ไม่เด้ง Pop-up)
 function switchBranchSettings(branchName) {
     currentSelectedBranch = branchName;
