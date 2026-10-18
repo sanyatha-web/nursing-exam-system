@@ -855,20 +855,25 @@ function switchBranchSettings(branchName) {
             }
 
             studentData = {
-                name: loggedInUser.fullname,
-                id: loggedInUser.username,
-                branch: loggedInUser.branch,
-                category: selectedCategory
-            };
+            name: loggedInUser.fullname,
+            fname: loggedInUser.fname || '',
+            lname: loggedInUser.lname || '',
+            id: loggedInUser.username,
+            branch: loggedInUser.branch,
+            yearLevel: loggedInUser.yearLevel || 'ไม่ระบุ',
+            category: selectedCategory
+        };
 
-            let pool = masterQuestions.filter(q => {
-                const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === loggedInUser.branch || q.setGroup === loggedInUser.branch;
-                const matchSet = !settings.selectedSet || settings.selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === settings.selectedSet || q.branch === settings.selectedSet;
-                const matchCat = selectedCategory === 'ทำทุกหน่วยการเรียนรู้ในชุดนี้' || q.category === selectedCategory;
-                return matchBranch && matchSet && matchCat;
-            });
+        // กรองข้อสอบที่ตรงทั้ง สาขา, ชั้นปี, ชุดการเรียนรู้ และ หน่วยการเรียนรู้
+        let pool = masterQuestions.filter(q => {
+            const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === loggedInUser.branch;
+            const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === loggedInUser.yearLevel;
+            const matchSet = !settings.selectedSet || settings.selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === settings.selectedSet;
+            const matchCat = selectedCategory === 'ทำทุกหน่วยการเรียนรู้ในชุดนี้' || q.category === selectedCategory;
+            return matchBranch && matchYear && matchSet && matchCat;
+        });
 
-            if (pool.length === 0) {
+           if (pool.length === 0) {
                 showAlertModal('error', 'ไม่พบข้อสอบ', 'ไม่พบข้อสอบในหน่วยการเรียนรู้ที่เลือก');
                 return;
             }
@@ -977,10 +982,9 @@ async function fetchAndSyncUsers() {
     }
 }
 
-// ฟังก์ชันแปลงข้อความ CSV มาเป็นข้อมูลผู้ใช้งานในระบบ
+// ฟังก์ชันแปลง CSV เป็นข้อมูลผู้สอบ (ดึงชั้นปี และแยก ชื่อ/นามสกุล)
 function parseCSVToUsers(csvText) {
     if (!csvText || csvText.trim() === '') return;
-
     if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
 
     function parseCSVLine(text) {
@@ -1007,12 +1011,12 @@ function parseCSVToUsers(csvText) {
 
     const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
     
-    // ค้นหาตำแหน่งคอลัมน์ตามหัวข้อของคุณ
     const sapIdx = headerCols.findIndex(h => h.includes('sap-id') || h.includes('sap') || h.includes('รหัส'));
     const prefixIdx = headerCols.findIndex(h => h.includes('คำนำหน้า'));
     const fnameIdx = headerCols.findIndex(h => h.includes('ชื่อ') && !h.includes('คำนำหน้า') && !h.includes('นามสกุล'));
     const lnameIdx = headerCols.findIndex(h => h.includes('นามสกุล'));
     const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
+    const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
     const roleIdx = headerCols.findIndex(h => h.includes('บทบาท'));
     const passIdx = headerCols.findIndex(h => h.includes('password') || h.includes('รหัสผ่าน'));
 
@@ -1027,6 +1031,7 @@ function parseCSVToUsers(csvText) {
         const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
         const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
         const branch = branchIdx !== -1 ? cols[branchIdx] : '';
+        const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
         const role = roleIdx !== -1 ? cols[roleIdx] : 'student';
         const password = passIdx !== -1 ? cols[passIdx] : '';
 
@@ -1034,107 +1039,113 @@ function parseCSVToUsers(csvText) {
             fetchedUsers.push({
                 username: sapId,
                 password: password,
+                prefix: prefix,
+                fname: fname,
+                lname: lname,
                 fullname: `${prefix}${fname} ${lname}`.trim(),
                 branch: branch || 'ทั่วไป',
+                yearLevel: yearLevel || 'ไม่ระบุ',
                 role: role.toLowerCase().includes('admin') || role.toLowerCase().includes('อาจารย์') ? 'admin' : 'student'
             });
         }
     }
 
     if (fetchedUsers.length > 0) {
-                // รวมผู้ใช้เดิม (DEFAULT_USERS) เข้ากับผู้ใช้ใหม่จาก Google Sheets เพื่อสำรองสิทธิ์ Admin ไว้เสมอ
-                const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'admin');
-                userDatabase = [...defaultAdmins, ...fetchedUsers];
-                renderBranchButtons(); // <--- [เพิ่มบรรทัดนี้] สร้างปุ่มใหม่ทันทีที่ดึงรายชื่อผู้ใช้จาก Google Sheets เสร็จ
-            }
+        const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'admin');
+        userDatabase = [...defaultAdmins, ...fetchedUsers];
+        renderBranchButtons();
+    }
 }
-        function parseCSVToQuestions(csvText, isOverwrite = false) {
-            if (!csvText || csvText.trim() === '') return false;
+        
+        // ฟังก์ชันอ่านข้อสอบจาก Sheet Questions (ดึงชั้นปี และสื่อประกอบ)
+function parseCSVToQuestions(csvText, isOverwrite = false) {
+    if (!csvText || csvText.trim() === '') return false;
+    if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
 
-            if (csvText.charCodeAt(0) === 0xFEFF) {
-                csvText = csvText.substr(1);
-            }
-
-            function parseCSVLine(text) {
-                let p = '', c = '', r = [];
-                let q = false;
-                for (let i = 0; i < text.length; i++) {
-                    c = text[i];
-                    if (c === '"') {
-                        if (q && text[i+1] === '"') { p += '"'; i++; }
-                        else { q = !q; }
-                    } else if (c === ',' && !q) {
-                        r.push(p.trim());
-                        p = '';
-                    } else {
-                        p += c;
-                    }
-                }
+    function parseCSVLine(text) {
+        let p = '', c = '', r = [];
+        let q = false;
+        for (let i = 0; i < text.length; i++) {
+            c = text[i];
+            if (c === '"') {
+                if (q && text[i+1] === '"') { p += '"'; i++; }
+                else { q = !q; }
+            } else if (c === ',' && !q) {
                 r.push(p.trim());
-                return r;
+                p = '';
+            } else {
+                p += c;
             }
-
-            const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
-            if (lines.length < 2) return false;
-
-            const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
-            
-            const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
-            let setIdx = headerCols.findIndex(h => h.includes('ชุดข้อสอบ') || h.includes('ชุด') || h.includes('เดือน'));
-            const catIdx = headerCols.findIndex(h => h.includes('หมวดหมู่') || h.includes('หน่วย'));
-            const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์'));
-            const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1'));
-            const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2'));
-            const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3'));
-            const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4'));
-            const ansIdx = headerCols.findIndex(h => h.includes('เฉลย'));
-
-            if (setIdx === -1 && headerCols.length >= 3) setIdx = 2;
-
-            if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
-                console.error("ไม่พบหัวคอลัมน์ที่จำเป็น โปรดตรวจสอบชื่อหัวคอลัมน์ใน Google Sheets");
-                return false;
-            }
-
-            const imported = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const cols = parseCSVLine(lines[i]);
-                if (cols.length < 6) continue;
-
-                const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx] : 'ข้อสอบกลาง';
-                const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ที่ 1';
-                const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
-                const question = cols[qIdx];
-                const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
-                const correctVal = parseInt(cols[ansIdx]) - 1;
-
-                if (question && options.every(o => o !== undefined && o !== '') && !isNaN(correctVal)) {
-                    imported.push({ 
-                        branch: branchVal,
-                        setGroup: setVal,
-                        category: category, 
-                        question: question, 
-                        options: options, 
-                        correct: correctVal 
-                    });
-                }
-            }
-
-            if (imported.length > 0) {
-                if (isOverwrite) {
-                    masterQuestions = imported;
-                } else {
-                    masterQuestions = masterQuestions.concat(imported);
-                }
-
-                localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
-                updateAdminSettingsUI();
-                return true;
-            }
-
-            return false;
         }
+        r.push(p.trim());
+        return r;
+    }
+
+    const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
+    if (lines.length < 2) return false;
+
+    const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
+    
+    const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
+    const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
+    const setIdx = headerCols.findIndex(h => h.includes('ชุดข้อสอบ') || h.includes('ชุด'));
+    const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย'));
+    const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์'));
+    const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ'));
+    const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1'));
+    const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2'));
+    const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3'));
+    const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4'));
+    const ansIdx = headerCols.findIndex(h => h.includes('เฉลย'));
+
+    if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
+        console.error("ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions");
+        return false;
+    }
+
+    const imported = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.length < 6) continue;
+
+        const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx] : 'ข้อสอบกลาง';
+        const yearVal = yearIdx !== -1 && cols[yearIdx] ? cols[yearIdx] : 'ทุกชั้นปี';
+        const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ที่ 1';
+        const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
+        const question = cols[qIdx];
+        const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
+        const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
+        const correctVal = parseInt(cols[ansIdx]) - 1;
+
+        if (question && options.every(o => o !== undefined && o !== '') && !isNaN(correctVal)) {
+            imported.push({ 
+                branch: branchVal,
+                yearLevel: yearVal,
+                setGroup: setVal,
+                category: category, 
+                question: question,
+                media: media,
+                options: options, 
+                correct: correctVal 
+            });
+        }
+    }
+
+    if (imported.length > 0) {
+        if (isOverwrite) {
+            masterQuestions = imported;
+        } else {
+            masterQuestions = masterQuestions.concat(imported);
+        }
+
+        localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
+        updateAdminSettingsUI();
+        return true;
+    }
+
+    return false;
+}
 
         function updateAdminSettingsUI() {
             const allSets = Array.from(new Set(masterQuestions.map(q => q.setGroup || q.branch).filter(Boolean)));
@@ -1477,20 +1488,23 @@ function parseCSVToUsers(csvText) {
             document.getElementById('section-result').classList.remove('hidden');
 
             postResultToGoogleSheets({
-                timestamp: new Date().toLocaleString('th-TH'),
-                studentId: studentData.id,
-                fullname: studentData.name,
-                examSet: settings.selectedSet,
-                branch: studentData.branch,
-                category: studentData.category,
-                score: rawScore,
-                totalQuestions: total,
-                percentage: percentage,
-                timeSpent: timeSpentFormatted,
-                tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
-                antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
-                autoSubmitted: isAutoSubmitted ? "ใช่" : "ปกติ"
-            });
+            timestamp: new Date().toLocaleString('th-TH'),
+            studentId: studentData.id,
+            fname: studentData.fname,
+            lname: studentData.lname,
+            examSet: settings.selectedSet,
+            branch: studentData.branch,
+            yearLevel: studentData.yearLevel,
+            category: studentData.category,
+            score: rawScore,
+            totalQuestions: total,
+            percentage: percentage,
+            timeSpent: timeSpentFormatted,
+            tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
+            antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
+            preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
+            autoSubmitted: isAutoSubmitted ? "สลับจอเกิน/หมดเวลา" : "ปกติ"
+        });
         }
 
         function postResultToGoogleSheets(payload) {
