@@ -558,22 +558,6 @@
         </div>
     </div>
 </div>
-        <!-- Student List Scroll Area -->
-        <div id="modal-student-list-container" class="flex-grow overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl divide-y divide-slate-100 p-2 space-y-1 max-h-64">
-            <!-- Dynamic Student Checkboxes -->
-        </div>
-
-        <!-- Modal Actions -->
-        <div class="flex justify-end space-x-2 pt-3 border-t">
-            <button type="button" onclick="closeStudentSelectModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg">
-                ยกเลิก
-            </button>
-            <button type="button" onclick="saveSelectedStudentsFromModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow">
-                บันทึกรายชื่อผู้สอบ
-            </button>
-        </div>
-    </div>
-</div>
     </main>
 
     <!-- Footer -->
@@ -2102,6 +2086,11 @@ function saveSelectedStudentsFromModal() {
     }
     closeStudentSelectModal();
 }
+        
+function closeStudentSelectModal() {
+    document.getElementById('modal-select-students').classList.add('hidden');
+}
+
 function closeStudentSelectModal() {
     document.getElementById('modal-select-students').classList.add('hidden');
 }
