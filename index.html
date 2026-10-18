@@ -1183,24 +1183,44 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
                 try { settings = { ...settings, ...JSON.parse(saved) }; } catch (e) {}
             }
 
-            // โหลดการตั้งค่าแยกตามสาขาที่เคยเซฟไว้
             const savedBranchSettings = localStorage.getItem('online_exam_branch_settings');
             if (savedBranchSettings) {
                 try { branchSettings = JSON.parse(savedBranchSettings); } catch (e) {}
             }
 
-            document.getElementById('setting-users-csv-url').value = settings.usersCsvUrl || "";
-            document.getElementById('setting-exam-global-enable').checked = settings.globalExamEnable !== false;
-            document.getElementById('setting-sheet-csv-url').value = settings.sheetCsvUrl || "";
-            document.getElementById('setting-anti-cheat-enable').checked = settings.antiCheatEnable;
-            document.getElementById('setting-max-tab-switches').value = settings.maxTabSwitches;
-            document.getElementById('setting-auto-submit-cheat').checked = settings.autoSubmitOnCheat;
-            document.getElementById('setting-question-count').value = settings.questionCount;
-            document.getElementById('setting-time-limit').value = settings.timeLimitMinutes;
-            document.getElementById('setting-shuffle-options').value = settings.shuffleOptions.toString();
-            document.getElementById('setting-webapp-url').value = settings.webAppUrl || "";
+            // ใช้การเช็กความปลอดภัย (Safe Call) ทุก Element เพื่อไม่ให้เกิด Error
+            const setVal = (id, val, isCheck = false) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (isCheck) el.checked = val;
+                    else el.value = val;
+                }
+            };
+
+            setVal('setting-users-csv-url', settings.usersCsvUrl || "");
+            setVal('setting-exam-global-enable', settings.globalExamEnable !== false, true);
+            setVal('setting-sheet-csv-url', settings.sheetCsvUrl || "");
+            setVal('setting-anti-cheat-enable', settings.antiCheatEnable, true);
+            setVal('setting-max-tab-switches', settings.maxTabSwitches);
+            setVal('setting-auto-submit-cheat', settings.autoSubmitOnCheat, true);
+            setVal('setting-question-count', settings.questionCount);
+            setVal('setting-time-limit', settings.timeLimitMinutes);
+            setVal('setting-shuffle-options', settings.shuffleOptions.toString());
+            setVal('setting-webapp-url', settings.webAppUrl || "");
 
             toggleAntiCheatSettingsUI();
+        }
+
+        function toggleAntiCheatSettingsUI() {
+            const checkElem = document.getElementById('setting-anti-cheat-enable');
+            const subOptions = document.getElementById('sub-anti-cheat-options');
+            if (!checkElem || !subOptions) return; // ถ้าหา Element ไม่เจอให้ข้ามทันที
+
+            if (checkElem.checked) {
+                subOptions.classList.remove('opacity-40', 'pointer-events-none');
+            } else {
+                subOptions.classList.add('opacity-40', 'pointer-events-none');
+            }
         }
 
         async function saveSettings() {
