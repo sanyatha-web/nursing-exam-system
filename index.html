@@ -1273,15 +1273,19 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
             }
         }
 
-        function toggleAntiCheatSettingsUI() {
-            const isChecked = document.getElementById('setting-anti-cheat-enable').checked;
-            const subOptions = document.getElementById('sub-anti-cheat-options');
-            if (isChecked) {
-                subOptions.classList.remove('opacity-40', 'pointer-events-none');
-            } else {
-                subOptions.classList.add('opacity-40', 'pointer-events-none');
-            }
-        }
+       function toggleAntiCheatSettingsUI() {
+    const checkElem = document.getElementById('setting-anti-cheat-enable');
+    const subOptions = document.getElementById('sub-anti-cheat-options');
+    
+    // ดักความปลอดภัย: ถ้าหา Element ตัวใดตัวหนึ่งไม่เจอ ให้ข้ามการทำงานทันที
+    if (!checkElem || !subOptions) return; 
+
+    if (checkElem.checked) {
+        subOptions.classList.remove('opacity-40', 'pointer-events-none');
+    } else {
+        subOptions.classList.add('opacity-40', 'pointer-events-none');
+    }
+}
 
         function updateAntiCheatStatusTag() {
             const tag = document.getElementById('tag-anti-cheat-status');
