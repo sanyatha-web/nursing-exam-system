@@ -520,10 +520,18 @@
         </div>
 
         <!-- Search Bar & Filters -->
+        <!-- Search Bar & Filters (ปรับปรุงส่วนนี้) -->
         <div class="space-y-2">
-            <div class="relative">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="modal-student-search" oninput="filterModalStudentList()" placeholder="ค้นหาด้วย SAP-ID, ชื่อ หรือนามสกุล..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div class="sm:col-span-2 relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" id="modal-student-search" oninput="filterModalStudentList()" placeholder="ค้นหาด้วย SAP-ID, ชื่อ หรือนามสกุล..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <select id="modal-student-year-filter" onchange="filterModalStudentList()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="ทั้งหมด">ทุกชั้นปี</option>
+                    </select>
+                </div>
             </div>
             <div class="flex justify-between items-center text-xs text-slate-500 pt-1">
                 <span id="modal-student-count-info">เลือกแล้ว 0 คน</span>
