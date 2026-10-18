@@ -55,28 +55,28 @@
                         <i class="fa-solid fa-chevron-down text-xs ml-1"></i>
                     </button>
 
-                    <!-- แถบเมนูย่อย 3 รายการ -->
-                    <div id="admin-dropdown-menu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-slate-100 py-2 z-50 text-slate-800">
+                    <!-- แถบเมนูย่อย 4 รายการ -->
+                    <div id="admin-dropdown-menu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-100 py-2 z-50 text-slate-800">
                         <a href="javascript:void(0)" onclick="switchAdminTab('overview')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-table-columns w-5 text-indigo-500"></i>
-                            <span>1. ภาพรวมการตั้งค่าทุกสาขา
-                            </span>
+                            <span>1. ภาพรวมการตั้งค่าทุกสาขา</span>
                         </a>
                         <a href="javascript:void(0)" onclick="switchAdminTab('exam-settings')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-sliders w-5 text-indigo-500"></i>
-                            <span>2. ตั้งค่าการสอบรายสาขา
-                            </span>
+                            <span>2. ตั้งค่าการสอบรายสาขา</span>
                         </a>
                         <a href="javascript:void(0)" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-database w-5 text-indigo-500"></i>
-                            <span>3. แหล่งข้อมูลนำเข้า/ออก
-                            </span>
+                            <span>3. แหล่งข้อมูลนำเข้า/ออก</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchAdminTab('student-tracker')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                            <i class="fa-solid fa-user-check w-5 text-indigo-500"></i>
+                            <span>4. ติดตามการสอบรายบุคคล</span>
                         </a>
                     <div class="border-t border-slate-100 my-1"></div>
                         <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
                             <i class="fa-solid fa-right-from-bracket w-5"></i>
-                            <span>ออกจากระบบ
-                            </span>
+                            <span>ออกจากระบบ</span>
                         </a>
                     </div>
                 </div>
@@ -335,6 +335,13 @@
                         <input type="url" id="setting-sheet-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
                         <p class="text-xs text-slate-500">นำลิงก์ที่เผยแพร่บนเว็บแบบ CSV จาก Google Sheets มาวางเพื่อดึงข้อสอบอัตโนมัติ</p>
                     </div>
+
+                    <!-- CSV Results Link (เพิ่มต่อจาก Apps Script WebApp Link) -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (บันทึกผลการสอบ - Sheet Results)</label>
+                        <input type="url" id="setting-results-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+                        <p class="text-xs text-slate-500">เผยแพร่แผ่นงานบันทึกผลสอบเป็น CSV แล้วนำลิงก์มาวางเพื่อดึงประวัติการสอบติดตามรายบุคคล</p>
+                    </div>
                     
                     <!-- Apps Script WebApp Link -->
                     <div class="space-y-1">
@@ -348,6 +355,53 @@
                             <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการเชื่อมต่อข้อมูล
                         </button>
                     </div>
+                </div>
+            </div>
+            <!-- ---------------- แท็บที่ 4: ติดตามการสอบรายบุคคล ---------------- -->
+            <div id="tab-admin-student-tracker" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base flex items-center">
+                            <i class="fa-solid fa-user-check text-indigo-600 mr-2"></i> รายงานติดตามสถานะการสอบรายบุคคล
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">ตรวจสอบประวัติการทำข้อสอบ จำนวนครั้งที่สอบ และสถานะผ่าน/ไม่ผ่าน (เกณฑ์ผ่าน 80%)</p>
+                    </div>
+
+                    <!-- ตัวกรองข้อมูล -->
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <input type="text" id="tracker-search-input" oninput="renderStudentTrackerTable()" placeholder="ค้นหา รหัส/ชื่อ-นามสกุล..." class="px-3 py-1.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
+                            <select id="tracker-branch-filter" onchange="renderStudentTrackerTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
+                                <option value="ทั้งหมด">ทุกสาขา</option>
+                            </select>
+                            <select id="tracker-status-filter" onchange="renderStudentTrackerTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
+                                <option value="ทั้งหมด">ทุกสถานะ</option>
+                                <option value="ผ่าน">ผ่าน (≥ 80%)</option>
+                                <option value="ไม่ผ่าน">ไม่ผ่าน (< 80%)</option>
+                                <option value="ยังไม่ได้สอบ">ยังไม่ได้สอบ</option>
+                            </select>
+                    </div>
+                </div>
+
+                <!-- ตารางแสดงรายงาน -->
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-max text-left text-xs text-slate-700 border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                                <th class="p-3 font-bold">วัน-เวลา ล่าสุด</th>
+                                <th class="p-3 font-bold">SAP-ID</th>
+                                <th class="p-3 font-bold">ชื่อ-นามสกุล</th>
+                                <th class="p-3 font-bold">สาขาวิชา / ชั้นปี</th>
+                                <th class="p-3 font-bold">ชุดการเรียนรู้</th>
+                                <th class="p-3 font-bold">หน่วยการเรียนรู้</th>
+                                <th class="p-3 font-bold text-center">จำนวนครั้งที่สอบ</th>
+                                <th class="p-3 font-bold text-center">คะแนนล่าสุด (สูงสุด)</th>
+                                <th class="p-3 font-bold text-center">สถานะ (เกณฑ์ 80%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracker-table-body" class="divide-y divide-slate-100">
+                        <!-- Dynamic Rows -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
