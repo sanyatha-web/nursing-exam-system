@@ -46,11 +46,31 @@
                 </div>
             </div>
             <div class="flex items-center space-x-2">
-                <!-- ปุ่มนี้จะแสดงเฉพาะเมื่อเข้าใช้งานในสิทธิ์อาจารย์เท่านั้น -->
-                <button id="btn-admin-nav" onclick="showAdminDashboard()" class="hidden inline-flex items-center space-x-1 sm:space-x-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-2 rounded-lg text-sm transition duration-150 shadow">
-                    <i class="fa-solid fa-sliders"></i>
-                    <span class="hidden sm:inline">จัดการระบบอาจารย์</span>
-                </button>
+                <!-- ปุ่มเมนูตั้งค่าสำหรับอาจารย์ (ไอคอนฟันเฟือง + Dropdown) -->
+                <div id="btn-admin-nav" class="relative hidden">
+                    <button onclick="toggleAdminDropdown(event)" class="inline-flex items-center space-x-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-2 rounded-lg text-sm transition duration-150 shadow">
+                        <i class="fa-solid fa-gear text-base"></i>
+                        <span class="hidden sm:inline">จัดการระบบ</span>
+                        <i class="fa-solid fa-chevron-down text-xs ml-1"></i>
+                    </button>
+
+                    <!-- แถบเมนูย่อย 3 รายการ -->
+                <div id="admin-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 py-2 z-50 text-slate-800">
+                    <a href="javascript:void(0)" onclick="switchAdminTab('exam-settings')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                        <i class="fa-solid fa-sliders w-5 text-indigo-500"></i>
+                        <span>1. ตั้งค่าการสอบ</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                        <i class="fa-solid fa-database w-5 text-indigo-500"></i>
+                        <span>2. แหล่งข้อมูลนำเข้า/ออก</span>
+                    </a>
+                <div class="border-t border-slate-100 my-1"></div>
+                    <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
+                        <i class="fa-solid fa-right-from-bracket w-5"></i>
+                        <span>ออกจากระบบ</span>
+                    </a>
+                </div>
+            </div>
                 
                 <button id="btn-header-logout" onclick="handleLogout()" class="hidden inline-flex items-center space-x-1 bg-indigo-800 hover:bg-indigo-900 text-indigo-100 px-3 py-2 rounded-lg text-sm transition border border-indigo-600">
                     <i class="fa-solid fa-right-from-bracket"></i>
@@ -109,53 +129,6 @@
             </form>
         </section>
 
-        <!-- STEP 2A: STUDENT DASHBOARD SECTION (สำหรับผู้เรียน) -->
-        <section id="section-dashboard-student" class="hidden max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden space-y-4 p-6">
-            <div class="flex items-center space-x-3 border-b pb-4">
-                <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xl font-bold">
-                    <i class="fa-solid fa-user-check"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-800 text-lg" id="dashboard-user-fullname">กำลังโหลด...</h3>
-                    <p class="text-xs text-slate-500">รหัสประจำตัว: <span id="dashboard-user-id" class="font-mono font-bold text-indigo-600">-</span></p>
-                </div>
-            </div>
-
-            <!-- Profile Details Card -->
-            <div class="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100 space-y-2">
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-500">สาขาวิชา:</span>
-                    <span class="font-bold text-indigo-900" id="dashboard-user-branch">-</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-500">ชุดการเรียนรู้ที่เปิดสอบขณะนี้:</span>
-                    <span class="font-bold text-emerald-700" id="dashboard-active-set-badge">กำลังตรวจสอบ...</span>
-                </div>
-            </div>
-
-            <!-- Exam Category Select -->
-            <div class="space-y-1 pt-2">
-                <label class="block text-sm font-medium text-slate-700 mb-1">เลือกแบบทดสอบ / หน่วยการเรียนรู้ที่ต้องการทำ <span class="text-red-500">*</span></label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-book-bookmark"></i></span>
-                    <select id="dashboard-category-select" class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <!-- Dynamic Available Categories -->
-                    </select>
-                </div>
-                <p class="text-[11px] text-slate-500">* แสดงเฉพาะแบบทดสอบที่ตรงกับสาขาของคุณและเปิดให้ทำในขณะนี้</p>
-            </div>
-
-            <!-- Anti-Cheat Status Notice -->
-            <div id="notice-anti-cheat" class="p-3.5 rounded-lg text-xs space-y-1 transition-all">
-                <!-- Dynamic Notice -->
-            </div>
-
-            <button onclick="startExamFromDashboard()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-lg shadow-emerald-200 transition duration-200 flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-play"></i>
-                <span>เริ่มทำแบบทดสอบ</span>
-            </button>
-        </section>
-
         <!-- STEP 2B: INSTRUCTOR DASHBOARD & SETTINGS SECTION (สำหรับอาจารย์) -->
         <section id="section-dashboard-admin" class="hidden max-w-5xl mx-auto space-y-6">
             <!-- Header Banner สำหรับอาจารย์ -->
@@ -174,18 +147,16 @@
                 </div>
             </div>
 
-            <!-- Branch Selector Bar (แถบเลือกสาขาสำหรับตั้งค่า) -->
-            <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+            <!-- Branch Selector Bar (แสดงเฉพาะเมนูตั้งค่าการสอบ) -->
+            <div id="branch-selector-wrapper" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
                 <label class="block text-sm font-bold text-slate-800 flex items-center">
-                <i class="fa-solid fa-building-user text-indigo-600 mr-2"></i> เลือกสาขาวิชาที่ต้องการจัดการตั้งค่า:
+                    <i class="fa-solid fa-building-user text-indigo-600 mr-2"></i> เลือกสาขาวิชาที่ต้องการจัดการตั้งค่า:
                 </label>
-                <div id="branch-buttons-container" class="flex flex-wrap gap-2">
-                <!-- ปุ่มสาขาวิชาจะถูกสร้างขึ้นตรงนี้โดยอัตโนมัติ -->
-                </div>
+                <div id="branch-buttons-container" class="flex flex-wrap gap-2"></div>
             </div>
             
-            <!-- Admin Settings Form Container -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <!-- ---------------- แท็บที่ 1: ตั้งค่าการสอบ ---------------- -->
+            <div id="tab-admin-exam-settings" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
                     <h3 class="font-bold text-base flex items-center">
                         <i class="fa-solid fa-sliders text-amber-400 mr-2"></i> ตั้งค่าการจัดสอบปัจจุบัน
@@ -201,8 +172,7 @@
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
                         <div>
                             <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                                <i class="fa-solid fa-power-off text-rose-600 mr-2"></i>
-                                สถานะการเปิด-ปิดระบบสอบทั้งหมด
+                                <i class="fa-solid fa-power-off text-rose-600 mr-2"></i> สถานะการเปิด-ปิดระบบสอบทั้งหมด
                             </h4>
                             <p class="text-xs text-slate-500 mt-0.5">ปิดเมื่อต้องการล็อกไม่ให้ใครเข้าสอบ หรือเปิดเมื่อพร้อมจัดสอบ</p>
                         </div>
@@ -217,8 +187,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                                    <i class="fa-solid fa-shield-halved text-indigo-600 mr-2"></i>
-                                    ตรวจจับการเปลี่ยนหน้าจอ / สลับ Tab (Anti-Cheating)
+                                    <i class="fa-solid fa-shield-halved text-indigo-600 mr-2"></i> ตรวจจับการเปลี่ยนหน้าจอ / สลับ Tab (Anti-Cheating)
                                 </h4>
                                 <p class="text-xs text-slate-500 mt-0.5">เปิดเมื่อต้องการสอบจริง ปิดเมื่อเปิดเป็นแบบฝึกหัดทบทวน</p>
                             </div>
@@ -246,9 +215,7 @@
                             <label class="block text-sm font-bold text-indigo-900 mb-1">
                                 <i class="fa-solid fa-list-check text-indigo-600 mr-1"></i> เลือกชุดข้อสอบ/ชุดการเรียนรู้ที่เปิดให้ทำขณะนี้
                             </label>
-                            <select id="setting-exam-set" class="w-full px-3 py-2 border border-indigo-300 rounded-lg text-sm bg-white font-semibold text-indigo-900">
-                                <!-- Dynamic Options -->
-                            </select>
+                            <select id="setting-exam-set" class="w-full px-3 py-2 border border-indigo-300 rounded-lg text-sm bg-white font-semibold text-indigo-900"></select>
                             <p class="text-[11px] text-indigo-600 mt-1">* ผู้เรียนจะเห็นเฉพาะหน่วยการเรียนรู้ในชุดการเรียนรู้ที่เลือกเปิดไว้ขณะนี้เท่านั้น</p>
                         </div>
 
@@ -271,9 +238,31 @@
                             </select>
                         </div>
                     </div>
-                    
+
+                    <div class="pt-4 border-t border-slate-200 flex justify-end">
+                        <button onclick="saveSettings()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg transition">
+                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการตั้งค่าการสอบ
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ---------------- แท็บที่ 2: แหล่งข้อมูลนำเข้า/ออก (ย้ายลิงก์เข้าในนี้) ---------------- -->
+            <div id="tab-admin-data-sources" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white px-6 py-4">
+                    <h3 class="font-bold text-base flex items-center">
+                        <i class="fa-solid fa-database text-amber-400 mr-2"></i> แหล่งข้อมูลนำเข้า/ออก (Google Sheets Integration)
+                    </h3>
+                </div>
+
+                <div class="p-6 space-y-6">
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 space-y-1">
+                        <p class="font-bold text-amber-900"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ข้อควรระวัง:</p>
+                        <p>ส่วนนี้ไว้สำหรับตั้งค่าการเชื่อมต่อลิงก์ระบบ Google Sheets โปรดระมัดระวังในการแก้ไข เพื่อป้องกันระบบดึงข้อมูลผู้สอบหรือดึงข้อสอบผิดพลาด</p>
+                    </div>
+
                     <!-- CSV Users Link -->
-                    <div class="space-y-1 mb-4">
+                    <div class="space-y-1">
                         <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (ข้อมูลผู้สอบ - Sheet Users)</label>
                         <input type="url" id="setting-users-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
                         <p class="text-xs text-slate-500">เผยแพร่เฉพาะแผ่นงาน "Users" เป็น CSV แล้วนำลิงก์มาวาง</p>
@@ -295,7 +284,7 @@
 
                     <div class="pt-4 border-t border-slate-200 flex justify-end">
                         <button onclick="saveSettings()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg transition">
-                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการตั้งค่าระบบ
+                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการเชื่อมต่อข้อมูล
                         </button>
                     </div>
                 </div>
@@ -519,6 +508,42 @@
             { username: "650002", password: "123", fullname: "นางสาวสมหญิง รักดี", branch: "การพยาบาลออร์โธปิดิกส์", role: "student" },
             { username: "admin1", password: "123", fullname: "อาจารย์ผู้ดูแลระบบ", branch: "อาจารย์ผู้สอน", role: "admin" }
         ];
+        
+        // ฟังก์ชัน เปิด-ปิด Dropdown Menu ของอาจารย์
+        function toggleAdminDropdown(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('admin-dropdown-menu');
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        }
+
+        // ปิด Dropdown เมื่อคลิกพื้นที่อื่นบนหน้าจอ
+        window.addEventListener('click', () => {
+            const menu = document.getElementById('admin-dropdown-menu');
+            if (menu && !menu.classList.contains('hidden')) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์
+        function switchAdminTab(tabName) {
+            showAdminDashboard(); // เปิดหน้าอาจารย์ก่อน
+
+            const tabExam = document.getElementById('tab-admin-exam-settings');
+            const tabData = document.getElementById('tab-admin-data-sources');
+            const branchWrapper = document.getElementById('branch-selector-wrapper');
+
+            if (tabName === 'data-sources') {
+                if (tabExam) tabExam.classList.add('hidden');
+                if (tabData) tabData.classList.remove('hidden');
+                if (branchWrapper) branchWrapper.classList.add('hidden'); // ซ่อนแถบเลือกสาขาเมื่ออยู่ในแท็บแหล่งข้อมูล
+            } else {
+                if (tabExam) tabExam.classList.remove('hidden');
+                if (tabData) tabData.classList.add('hidden');
+                if (branchWrapper) branchWrapper.classList.remove('hidden'); // แสดงแถบเลือกสาขา
+            }
+        }
 
         // Global State Variables
         let userDatabase = [...DEFAULT_USERS];
@@ -641,12 +666,17 @@ function switchBranchSettings(branchName) {
 
             if (foundUser) {
                 loggedInUser = foundUser;
-                document.getElementById('btn-header-logout').classList.remove('hidden');
 
-                // แยกหน้าตามสิทธิ์ของผู้ใช้ (Role-based Routing)
+                // แยกการแสดงปุ่มบน Header ตามสิทธิ์ผู้ใช้งาน
                 if (loggedInUser.role === 'admin') {
+                    // ถ้าเป็นอาจารย์: แสดงปุ่มฟันเฟืองจัดการระบบ และซ่อนปุ่มออกจากระบบเดี่ยว
+                    document.getElementById('btn-admin-nav').classList.remove('hidden');
+                    document.getElementById('btn-header-logout').classList.add('hidden');
                     showAdminDashboard();
                 } else {
+                    // ถ้าเป็นผู้สอบ: ซ่อนปุ่มฟันเฟืองอาจารย์ และแสดงปุ่ม "ออกจากระบบ" บน Header
+                    document.getElementById('btn-admin-nav').classList.add('hidden');
+                    document.getElementById('btn-header-logout').classList.remove('hidden');
                     showStudentDashboard();
                 }
             } else {
@@ -688,8 +718,12 @@ function switchBranchSettings(branchName) {
         function handleLogout() {
             loggedInUser = null;
             hideAllSections();
+            
+            // ซ่อนปุ่มบน Header ทั้งหมด
             document.getElementById('btn-admin-nav').classList.add('hidden');
             document.getElementById('btn-header-logout').classList.add('hidden');
+            
+            // แสดงหน้าล็อกอินกลับมา
             document.getElementById('section-login').classList.remove('hidden');
             document.getElementById('login-username').value = '';
             document.getElementById('login-password').value = '';
