@@ -584,18 +584,26 @@ let settings = {
     shuffleOptions: true,
     webAppUrl: ""
 };
-// ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา
+// ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา (ดึงจากทั้งคลังข้อสอบ และรายชื่อผู้สอบ)
 function renderBranchButtons() {
     const container = document.getElementById('branch-buttons-container');
     if (!container) return;
 
-    // ดึงรายชื่อสาขาที่มีในคลังข้อสอบทั้งหมด
-    const branches = Array.from(new Set(masterQuestions.map(q => q.branch).filter(Boolean)));
-    if (!branches.includes("ภาพรวมทุกสาขา")) {
-        branches.unshift("ภาพรวมทุกสาขา");
+    // 1. ดึงรายชื่อสาขาจากคลังข้อสอบ
+    const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
+    
+    // 2. ดึงรายชื่อสาขาจากฐานข้อมูลผู้ใช้งาน (Users)
+    const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
+
+    // รวมรายชื่อสาขาทั้งหมดเข้าด้วยกัน และตัดชื่อสาขาที่ซ้ำออก
+    const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]));
+
+    if (!allBranches.includes("ภาพรวมทุกสาขา")) {
+        allBranches.unshift("ภาพรวมทุกสาขา");
     }
 
-    container.innerHTML = branches.map(branch => {
+    // สร้างปุ่ม HTML
+    container.innerHTML = allBranches.map(branch => {
         const isActive = branch === currentSelectedBranch;
         return `
             <button type="button" onclick="switchBranchSettings('${branch}')" 
@@ -638,8 +646,6 @@ function switchBranchSettings(branchName) {
         // Initialize Application
         window.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
-    
-    // [เพิ่มบรรทัดนี้] ดึงรายชื่อผู้ใช้จาก Google Sheets
     await fetchAndSyncUsers();
 
     if (settings.sheetCsvUrl) {
@@ -648,6 +654,7 @@ function switchBranchSettings(branchName) {
         updateAdminSettingsUI();
     }
 
+    renderBranchButtons(); // <--- [เพิ่มบรรทัดนี้] สั่งสร้างปุ่มสาขาทันทีเมื่อเปิดหน้าเว็บ
     renderInitialSetupNotice();
     setupAntiCheatListeners();
 });
@@ -992,6 +999,7 @@ function parseCSVToUsers(csvText) {
                 // รวมผู้ใช้เดิม (DEFAULT_USERS) เข้ากับผู้ใช้ใหม่จาก Google Sheets เพื่อสำรองสิทธิ์ Admin ไว้เสมอ
                 const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'admin');
                 userDatabase = [...defaultAdmins, ...fetchedUsers];
+                renderBranchButtons(); // <--- [เพิ่มบรรทัดนี้] สร้างปุ่มใหม่ทันทีที่ดึงรายชื่อผู้ใช้จาก Google Sheets เสร็จ
             }
 }
         function parseCSVToQuestions(csvText, isOverwrite = false) {
