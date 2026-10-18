@@ -1089,7 +1089,10 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
     
     const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
     const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
-    const setIdx = headerCols.findIndex(h => h.includes('ชุดข้อสอบ') || h.includes('ชุด'));
+    
+    // ค้นหาคอลัมน์ "ชุดข้อสอบ" หรือ "ชุดการเรียนรู้" หรือ "ชุด"
+    const setIdx = headerCols.findIndex(h => h.includes('ชุดข้อสอบ') || h.includes('ชุดการเรียนรู้') || h.includes('ชุด'));
+    
     const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย'));
     const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์'));
     const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ'));
@@ -1112,7 +1115,7 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
 
         const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx] : 'ข้อสอบกลาง';
         const yearVal = yearIdx !== -1 && cols[yearIdx] ? cols[yearIdx] : 'ทุกชั้นปี';
-        const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ที่ 1';
+        const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
         const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
         const question = cols[qIdx];
         const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
@@ -1148,20 +1151,39 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
     return false;
 }
 
-        function updateAdminSettingsUI() {
-            const allSets = Array.from(new Set(masterQuestions.map(q => q.setGroup || q.branch).filter(Boolean)));
-            allSets.unshift('ทั้งหมด (ทุกชุดการเรียนรู้)');
-
-            const setSelect = document.getElementById('setting-exam-set');
-            if (setSelect) {
-                setSelect.innerHTML = allSets.map(s => 
-                    `<option value="${s}" ${s === settings.selectedSet ? 'selected' : ''}>${s}</option>`
-                ).join('');
-            }
-
-            // [เพิ่มบรรทัดนี้] เรียกสร้างปุ่มเลือกสาขาให้อัตโนมัติ
-            renderBranchButtons();
+    if (imported.length > 0) {
+        if (isOverwrite) {
+            masterQuestions = imported;
+        } else {
+            masterQuestions = masterQuestions.concat(imported);
         }
+
+        localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
+        updateAdminSettingsUI();
+        return true;
+    }
+
+    return false;
+}
+
+        // 1. ฟังก์ชันดึงรายชื่อชุดข้อสอบจากคลังข้อสอบ (คอลัมน์ "ชุดข้อสอบ") มาใส่ใน Dropdown
+function updateAdminSettingsUI() {
+    const setSelect = document.getElementById('setting-exam-set');
+    if (!setSelect) return;
+
+    // ดึงค่าจาก q.setGroup ซึ่งถูกแมปมาจากคอลัมน์ "ชุดข้อสอบ"
+    const allSets = Array.from(new Set(masterQuestions.map(q => q.setGroup).filter(Boolean)));
+    
+    // ใส่ตัวเลือกเริ่มต้น
+    allSets.unshift('ทั้งหมด (ทุกชุดการเรียนรู้)');
+
+    // สร้างตัวเลือก <option> ลงใน Select
+    setSelect.innerHTML = allSets.map(s => 
+        `<option value="${s}" ${s === settings.selectedSet ? 'selected' : ''}>${s}</option>`
+    ).join('');
+
+    renderBranchButtons();
+}
 
         function loadSettings() {
             const saved = localStorage.getItem('online_exam_settings');
