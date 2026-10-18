@@ -1080,20 +1080,16 @@ function parseCSVToUsers(csvText) {
     const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
     if (lines.length < 2) return false;
 
-    // แปลงหัวคอลัมน์เป็นตัวพิมพ์เล็กและตัดคราบขยะ/เครื่องหมายคำพูดออก
     const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
     
-    // พิมพ์ตรวจสอบชื่อคอลัมน์ใน Console เพื่อเช็กความถูกต้อง
-    console.log("Header Columns Found:", headerCols);
+    // พิมพ์ตรวจสอบหัวคอลัมน์เฉพาะของฝั่ง Questions
+    console.log("=== QUESTIONS Sheet Headers ===", headerCols);
 
     const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
     const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
-    
-    // ค้นหาคอลัมน์ "ชุดข้อสอบ" / "ชุดการเรียนรู้" / "ชุด" / "set" อย่างละเอียด
     const setIdx = headerCols.findIndex(h => 
         h.includes('ชุดข้อสอบ') || h.includes('ชุดการเรียนรู้') || h.includes('ชุด') || h.includes('set')
     );
-    
     const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย') || h.includes('หมวด'));
     const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์') || h.includes('question'));
     const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ') || h.includes('รูป') || h.includes('media'));
@@ -1104,7 +1100,7 @@ function parseCSVToUsers(csvText) {
     const ansIdx = headerCols.findIndex(h => h.includes('เฉลย') || h.includes('answer') || h.includes('correct'));
 
     if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
-        console.error("ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions");
+        console.error("❌ ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions โปรดตรวจสอบลิงก์ CSV");
         return false;
     }
 
@@ -1116,10 +1112,7 @@ function parseCSVToUsers(csvText) {
 
         const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx] : 'ข้อสอบกลาง';
         const yearVal = yearIdx !== -1 && cols[yearIdx] ? cols[yearIdx] : 'ทุกชั้นปี';
-        
-        // หากเจอคอลัมน์ชุดข้อสอบ ให้ดึงค่านั้นมาใช้ หากไม่เจอถึงจะใช้ 'ชุดการเรียนรู้ทั่วไป'
         const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
-        
         const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
         const question = cols[qIdx];
         const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
