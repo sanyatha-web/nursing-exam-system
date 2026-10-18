@@ -1419,17 +1419,25 @@ function parseCSVToUsers(csvText) {
 }
 
         function loadSettings() {
+            // 1. ดึงค่าการตั้งค่าทั่วไป (Global Settings)
             const saved = localStorage.getItem('online_exam_settings');
             if (saved) {
                 try { settings = { ...settings, ...JSON.parse(saved) }; } catch (e) {}
             }
-
+        
+            // 2. ดึงค่าการตั้งค่ารายสาขา (Branch Settings)
             const savedBranchSettings = localStorage.getItem('online_exam_branch_settings');
             if (savedBranchSettings) {
                 try { branchSettings = JSON.parse(savedBranchSettings); } catch (e) {}
             }
-
-            // ฟังก์ชันช่วยตั้งค่าแบบปลอดภัย (ไม่เด้ง Error หากหา ID ไม่เจอ)
+        
+            // 3. ดึงค่าการตั้งค่ารายหน่วยการเรียนรู้ (Unit Settings)
+            const savedUnitSettings = localStorage.getItem('online_exam_unit_settings');
+            if (savedUnitSettings) {
+                try { unitSettings = JSON.parse(savedUnitSettings); } catch (e) {}
+            }
+        
+            // ฟังก์ชันช่วยตั้งค่าลงใน Input HTML แบบปลอดภัย
             const safeSet = (id, val, isCheck = false) => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -1437,7 +1445,7 @@ function parseCSVToUsers(csvText) {
                     else el.value = val;
                 }
             };
-
+        
             safeSet('setting-users-csv-url', settings.usersCsvUrl || "");
             safeSet('setting-exam-global-enable', settings.globalExamEnable !== false, true);
             safeSet('setting-sheet-csv-url', settings.sheetCsvUrl || "");
@@ -1449,7 +1457,7 @@ function parseCSVToUsers(csvText) {
             safeSet('setting-shuffle-options', settings.shuffleOptions.toString());
             safeSet('setting-webapp-url', settings.webAppUrl || "");
             safeSet('setting-results-csv-url', settings.resultsCsvUrl || "");
-
+        
             toggleAntiCheatSettingsUI();
         }
 
@@ -1470,48 +1478,59 @@ function parseCSVToUsers(csvText) {
         function saveSettings() {
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
             
-            // 1. บันทึก Master Switch รายสาขา
+            // 1. ดึงค่าจำนวนข้อและเวลาทำสอบจาก Input (ถ้ามี)
+            const globalQCount = parseInt(document.getElementById('setting-question-count')?.value) || settings.questionCount || 15;
+            const globalTimeLimit = parseInt(document.getElementById('setting-time-limit')?.value) ?? settings.timeLimitMinutes;
+        
+            // อัปเดตลงตัวแปร Global settings
+            settings.questionCount = globalQCount;
+            settings.timeLimitMinutes = globalTimeLimit;
+            settings.selectedSet = selectedSet;
+        
+            // 2. บันทึก Master Switch รายสาขา
             const globalElem = document.getElementById('setting-exam-global-enable');
             branchSettings[currentSelectedBranch] = {
                 globalExamEnable: globalElem ? globalElem.checked : true,
-                selectedSet: selectedSet
+                selectedSet: selectedSet,
+                questionCount: globalQCount,
+                timeLimitMinutes: globalTimeLimit
             };
         
-            // 2. บันทึกลิงก์ Google Sheets CSV Results
+            // 3. บันทึกลิงก์ Google Sheets CSV Results
             settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || "";
         
-            // 3. ดึงหน่วยการเรียนรู้
+            // 4. ดึงหน่วยการเรียนรู้
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
             );
             const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
         
-            // 4. บันทึกค่ารายหน่วยรวมถึงสิทธิ์การเข้าถึงรายบุคคล (accessMode & allowedUsers)
+            // 5. บันทึกค่ารายหน่วยรวมถึงสิทธิ์การเข้าถึงรายบุคคล
             categories.forEach((cat, idx) => {
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 const selectedAccessMode = document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all';
         
                 unitSettings[uKey] = {
                     enabled: document.getElementById(`unit-enable-${idx}`)?.checked ?? true,
-                    questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || 15,
-                    timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
+                    questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || globalQCount,
+                    timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) ?? globalTimeLimit,
                     antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked ?? false,
                     preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked ?? false,
                     maxTabSwitches: 3,
                     autoSubmitOnCheat: true,
-                    accessMode: selectedAccessMode,                                            // บันทึกโหมดเข้าถึง (all / custom)
-                    allowedUsers: unitSettings[uKey]?.allowedUsers || []                       // บันทึกรายชื่อ SAP-ID นักศึกษา
+                    accessMode: selectedAccessMode,
+                    allowedUsers: unitSettings[uKey]?.allowedUsers || []
                 };
             });
         
-            // 5. บันทึกลง LocalStorage
+            // 6. บันทึกลง LocalStorage ให้ครบทุกตัวแปร
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะ เงื่อนไข และสิทธิ์ผู้เข้าสอบเรียบร้อยแล้ว');
-        }
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะ เงื่อนไข และเวลาทำสอบเรียบร้อยแล้ว');
+        }                                
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
