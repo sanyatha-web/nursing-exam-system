@@ -262,19 +262,7 @@
                             </div>
                         </div>
                     </div>
-<!-- CSV Users Link -->
-<div class="space-y-1 mb-4">
-    <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (ข้อมูลผู้สอบ - Sheet Users)</label>
-    <input type="url" id="setting-users-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
-    <p class="text-xs text-slate-500">เผยแพร่เฉพาะแผ่นงาน "Users" เป็น CSV แล้วนำลิงก์มาวาง</p>
-</div>
-                    <!-- CSV Link -->
-                    <div class="space-y-1">
-                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (คลังข้อสอบ)</label>
-                        <input type="url" id="setting-sheet-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
-                        <p class="text-xs text-slate-500">นำลิงก์ที่เผยแพร่บนเว็บแบบ CSV จาก Google Sheets มาวางเพื่อดึงข้อสอบอัตโนมัติ</p>
-                    </div>
-
+                   
                     <!-- Exam Set Selection -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="sm:col-span-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
@@ -306,7 +294,21 @@
                             </select>
                         </div>
                     </div>
-
+                    
+                    <!-- CSV Users Link -->
+                    <div class="space-y-1 mb-4">
+                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (ข้อมูลผู้สอบ - Sheet Users)</label>
+                        <input type="url" id="setting-users-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=...&single=true&output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+                        <p class="text-xs text-slate-500">เผยแพร่เฉพาะแผ่นงาน "Users" เป็น CSV แล้วนำลิงก์มาวาง</p>
+                    </div>
+                    
+                    <!-- CSV Link -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-slate-700">ลิงก์ Google Sheets CSV (คลังข้อสอบ)</label>
+                        <input type="url" id="setting-sheet-csv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+                        <p class="text-xs text-slate-500">นำลิงก์ที่เผยแพร่บนเว็บแบบ CSV จาก Google Sheets มาวางเพื่อดึงข้อสอบอัตโนมัติ</p>
+                    </div>
+                    
                     <!-- Apps Script WebApp Link -->
                     <div class="space-y-1">
                         <label class="block text-sm font-medium text-slate-700">Google Sheets Web App URL (สำหรับบันทึกผล)</label>
@@ -923,9 +925,10 @@ function parseCSVToUsers(csvText) {
     }
 
     if (fetchedUsers.length > 0) {
-        // อัปเดตรายชื่อผู้ใช้ในระบบ (โดยคง default admin ไว้กันระบบล็อก)
-        userDatabase = fetchedUsers;
-    }
+                // รวมผู้ใช้เดิม (DEFAULT_USERS) เข้ากับผู้ใช้ใหม่จาก Google Sheets เพื่อสำรองสิทธิ์ Admin ไว้เสมอ
+                const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'admin');
+                userDatabase = [...defaultAdmins, ...fetchedUsers];
+            }
 }
         function parseCSVToQuestions(csvText, isOverwrite = false) {
             if (!csvText || csvText.trim() === '') return false;
