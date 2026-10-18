@@ -111,19 +111,14 @@
 
         <!-- STEP 2A: STUDENT DASHBOARD SECTION (สำหรับผู้เรียน) -->
         <section id="section-dashboard-student" class="hidden max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden space-y-4 p-6">
-            <div class="flex justify-between items-center border-b pb-4">
-                <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xl font-bold">
-                        <i class="fa-solid fa-user-check"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-lg" id="dashboard-user-fullname">กำลังโหลด...</h3>
-                        <p class="text-xs text-slate-500">รหัสประจำตัว: <span id="dashboard-user-id" class="font-mono font-bold text-indigo-600">-</span></p>
-                    </div>
+            <div class="flex items-center space-x-3 border-b pb-4">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-user-check"></i>
                 </div>
-                <button onclick="handleLogout()" class="text-xs bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-3 py-1.5 rounded-lg border border-slate-200 transition">
-                    <i class="fa-solid fa-right-from-bracket mr-1"></i> ออกจากระบบ
-                </button>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg" id="dashboard-user-fullname">กำลังโหลด...</h3>
+                    <p class="text-xs text-slate-500">รหัสประจำตัว: <span id="dashboard-user-id" class="font-mono font-bold text-indigo-600">-</span></p>
+                </div>
             </div>
 
             <!-- Profile Details Card -->
