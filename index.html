@@ -504,7 +504,53 @@
                 </div>
             </div>
         </section>
+<!-- MODAL: SELECT INDIVIDUAL STUDENTS -->
+<div id="modal-select-students" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center border-b pb-3">
+            <div>
+                <h3 class="font-bold text-slate-800 text-lg flex items-center">
+                    <i class="fa-solid fa-user-check text-indigo-600 mr-2"></i> เลือกผู้สอบเจาะจงรายบุคคล
+                </h3>
+                <p id="modal-student-unit-title" class="text-xs text-indigo-600 font-semibold mt-0.5">-</p>
+            </div>
+            <button onclick="closeStudentSelectModal()" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
 
+        <!-- Search Bar & Filters -->
+        <div class="space-y-2">
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" id="modal-student-search" oninput="filterModalStudentList()" placeholder="ค้นหาด้วย SAP-ID, ชื่อ หรือนามสกุล..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="flex justify-between items-center text-xs text-slate-500 pt-1">
+                <span id="modal-student-count-info">เลือกแล้ว 0 คน</span>
+                <div class="space-x-2">
+                    <button type="button" onclick="selectAllModalStudents(true)" class="text-indigo-600 font-bold hover:underline">เลือกทั้งหมด</button>
+                    <span>|</span>
+                    <button type="button" onclick="selectAllModalStudents(false)" class="text-rose-600 font-bold hover:underline">ยกเลิกทั้งหมด</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student List Scroll Area -->
+        <div id="modal-student-list-container" class="flex-grow overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl divide-y divide-slate-100 p-2 space-y-1 max-h-64">
+            <!-- Dynamic Student Checkboxes -->
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="closeStudentSelectModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg">
+                ยกเลิก
+            </button>
+            <button type="button" onclick="saveSelectedStudentsFromModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow">
+                บันทึกรายชื่อผู้สอบ
+            </button>
+        </div>
+    </div>
+</div>
     </main>
 
     <!-- Footer -->
@@ -819,13 +865,11 @@ function switchBranchSettings(branchName) {
         function loadCategoriesForLoggedInUser() {
     if (!loggedInUser) return;
 
-    // 1. กรองข้อสอบทั้งหมดที่เป็นของสาขานี้ (หรือข้อสอบกลาง)
     let userPool = masterQuestions.filter(q => 
         !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || 
         q.branch === loggedInUser.branch
     );
 
-    // 2. วนลูปเช็กทุก (ชุดการเรียนรู้ + หน่วยการเรียนรู้) ว่าถูกติ๊กเปิดใช้งาน (enabled = true) หรือไม่
     const availableCategories = [];
 
     userPool.forEach(q => {
@@ -836,11 +880,16 @@ function switchBranchSettings(branchName) {
         const uKey = `${loggedInUser.branch}__${setGrp}__${cat}`;
         const conf = unitSettings[uKey];
 
-        // แสดงเฉพาะหน่วยที่มีบันทึกการตั้งค่าไว้ และถูกติ๊กเปิด (enabled === true) เท่านั้น
         if (conf && conf.enabled === true) {
-            const displayLabel = `${setGrp} - ${cat}`;
-            if (!availableCategories.includes(displayLabel)) {
-                availableCategories.push(displayLabel);
+            // เช็กสิทธิ์การเข้าถึงรายบุคคล
+            const isAllAccess = !conf.accessMode || conf.accessMode === 'all';
+            const isUserAllowed = conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
+
+            if (isAllAccess || isUserAllowed) {
+                const displayLabel = `${setGrp} - ${cat}`;
+                if (!availableCategories.includes(displayLabel)) {
+                    availableCategories.push(displayLabel);
+                }
             }
         }
     });
@@ -1241,44 +1290,48 @@ function parseCSVToUsers(csvText) {
     }
 }
 
-        async function saveSettings() {
-    const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
-    
-    // 1. บันทึก Master Switch รายสาขา
-    const globalElem = document.getElementById('setting-exam-global-enable');
-    branchSettings[currentSelectedBranch] = {
-        globalExamEnable: globalElem ? globalElem.checked : true,
-        selectedSet: selectedSet
-    };
+        function saveSettings() {
+            const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
+            
+            // 1. บันทึก Master Switch รายสาขา
+            const globalElem = document.getElementById('setting-exam-global-enable');
+            branchSettings[currentSelectedBranch] = {
+                globalExamEnable: globalElem ? globalElem.checked : true,
+                selectedSet: selectedSet
+            };
 
-    // 2. ดึงหน่วยการเรียนรู้
-    const pool = masterQuestions.filter(q => 
-        (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
-        (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
-    );
-    const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
+            // 2. ดึงหน่วยการเรียนรู้
+            const pool = masterQuestions.filter(q => 
+                (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
+                (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
+            );
+            const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
 
-    // 3. บันทึกค่ารายหน่วยแบบปลอดภัย (Null-Coalescing Operator '??')
-    categories.forEach((cat, idx) => {
-        const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
-        unitSettings[uKey] = {
-            enabled: document.getElementById(`unit-enable-${idx}`)?.checked ?? true,
-            questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || 15,
-            timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
-            antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked ?? false,
-            preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked ?? false,
-            maxTabSwitches: 3,
-            autoSubmitOnCheat: true
-        };
-    });
+            // 3. บันทึกค่ารายหน่วยรวมถึงสิทธิ์การเข้าถึงรายบุคคล (accessMode & allowedUsers)
+            categories.forEach((cat, idx) => {
+                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
+                const selectedAccessMode = document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all';
 
-    // 4. บันทึกลง LocalStorage
-    localStorage.setItem('online_exam_settings', JSON.stringify(settings));
-    localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
-    localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
+                unitSettings[uKey] = {
+                    enabled: document.getElementById(`unit-enable-${idx}`)?.checked ?? true,
+                    questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || 15,
+                    timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
+                    antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked ?? false,
+                    preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked ?? false,
+                    maxTabSwitches: 3,
+                    autoSubmitOnCheat: true,
+                    accessMode: selectedAccessMode,                                            // บันทึกโหมดเข้าถึง (all / custom)
+                    allowedUsers: unitSettings[uKey]?.allowedUsers || []                       // บันทึกรายชื่อ SAP-ID นักศึกษา
+                };
+            });
 
-    showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะและเงื่อนไขการสอบเรียบร้อยแล้ว');
-}
+            // 4. บันทึกลง LocalStorage
+            localStorage.setItem('online_exam_settings', JSON.stringify(settings));
+            localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
+            localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
+
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะ เงื่อนไข และสิทธิ์ผู้เข้าสอบเรียบร้อยแล้ว');
+        }
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
@@ -1813,67 +1866,207 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
         // 5. ฟังก์ชันเรนเดอร์รายการหน่วยการเรียนรู้พร้อม Checkbox และการตั้งค่า
         function renderUnitSettingsList() {
-            const container = document.getElementById('unit-settings-container');
-            const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
-            if (!container) return;
+    const container = document.getElementById('unit-settings-container');
+    const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
+    if (!container) return;
 
-            // ดึงหน่วยการเรียนรู้ทั้งหมดในชุดและสาขาที่เลือก
-            const pool = masterQuestions.filter(q => 
-                (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
-                (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
-            );
+    const pool = masterQuestions.filter(q => 
+        (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
+        (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
+    );
 
-            const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
+    const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
 
-            if (categories.length === 0) {
-                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">ไม่พบหน่วยการเรียนรู้ในชุดข้อสอบนี้</div>`;
-                return;
-            }
+    if (categories.length === 0) {
+        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">ไม่พบหน่วยการเรียนรู้ในชุดข้อสอบนี้</div>`;
+        return;
+    }
 
-            container.innerHTML = categories.map((cat, idx) => {
-                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
-                const uConf = unitSettings[uKey] || {
-                    enabled: true,
-                    questionCount: 15,
-                    timeLimitMinutes: 15,
-                    antiCheatEnable: false,       // Default: ปิด
-                    preventScreenshot: false,     // Default: ปิด
-                    maxTabSwitches: 3,
-                    autoSubmitOnCheat: true
-                };
+    container.innerHTML = categories.map((cat, idx) => {
+        const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
+        const uConf = unitSettings[uKey] || {
+            enabled: true,
+            questionCount: 15,
+            timeLimitMinutes: 15,
+            antiCheatEnable: false,
+            preventScreenshot: false,
+            maxTabSwitches: 3,
+            autoSubmitOnCheat: true,
+            accessMode: 'all',        // Default: ทุกคนเข้าทำได้
+            allowedUsers: []          // รายชื่อ SAP-ID ที่อนุญาต
+        };
 
-                return `
-                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
-                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                            <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" id="unit-enable-${idx}" ${uConf.enabled ? 'checked' : ''} class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
-                                <span class="font-bold text-sm text-slate-800">${cat}</span>
-                            </label>
-                            <span class="text-xs text-slate-400 font-mono">Key: ${cat}</span>
-                        </div>
+        const allowedCount = (uConf.allowedUsers || []).length;
 
-                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                            <div>
-                                <label class="block font-medium text-slate-600 mb-1">จำนวนข้อสอบ</label>
-                                <input type="number" id="unit-qcount-${idx}" value="${uConf.questionCount}" min="1" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-medium text-slate-600 mb-1">เวลาทำ (นาที)</label>
-                                <input type="number" id="unit-time-${idx}" value="${uConf.timeLimitMinutes}" min="0" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
-                            </div>
-                            <div class="flex items-center space-x-2 pt-4">
-                                <input type="checkbox" id="unit-anticheat-${idx}" ${uConf.antiCheatEnable ? 'checked' : ''} class="rounded text-indigo-600">
-                                <label class="font-semibold text-slate-700">เปิดตรวจจับสลับจอ</label>
-                            </div>
-                            <div class="flex items-center space-x-2 pt-4">
-                                <input type="checkbox" id="unit-screenshot-${idx}" ${uConf.preventScreenshot ? 'checked' : ''} class="rounded text-indigo-600">
-                                <label class="font-semibold text-slate-700">บล็อกการแคปจอ</label>
-                            </div>
+        return `
+            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="unit-enable-${idx}" ${uConf.enabled ? 'checked' : ''} class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                        <span class="font-bold text-sm text-slate-800">${cat}</span>
+                    </label>
+                    <span class="text-xs text-slate-400 font-mono">Key: ${cat}</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                        <label class="block font-medium text-slate-600 mb-1">จำนวนข้อสอบ</label>
+                        <input type="number" id="unit-qcount-${idx}" value="${uConf.questionCount}" min="1" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium text-slate-600 mb-1">เวลาทำ (นาที)</label>
+                        <input type="number" id="unit-time-${idx}" value="${uConf.timeLimitMinutes}" min="0" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+                    </div>
+                    <div class="flex items-center space-x-2 pt-4">
+                        <input type="checkbox" id="unit-anticheat-${idx}" ${uConf.antiCheatEnable ? 'checked' : ''} class="rounded text-indigo-600">
+                        <label class="font-semibold text-slate-700">เปิดตรวจจับสลับจอ</label>
+                    </div>
+                    <div class="flex items-center space-x-2 pt-4">
+                        <input type="checkbox" id="unit-screenshot-${idx}" ${uConf.preventScreenshot ? 'checked' : ''} class="rounded text-indigo-600">
+                        <label class="font-semibold text-slate-700">บล็อกการแคปจอ</label>
+                    </div>
+                </div>
+
+                <!-- เพิ่มส่วนตั้งค่าสิทธิ์ผู้เข้าสอบ (รายบุคคล) -->
+                <div class="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center space-x-4">
+                        <span class="font-bold text-slate-700"><i class="fa-solid fa-users-gear text-indigo-500 mr-1"></i> สิทธิ์ผู้เข้าสอบ:</span>
+                        <label class="inline-flex items-center space-x-1 cursor-pointer">
+                            <input type="radio" name="unit-access-${idx}" value="all" ${uConf.accessMode !== 'custom' ? 'checked' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
+                            <span>ทุกคน (Default)</span>
+                        </label>
+                        <label class="inline-flex items-center space-x-1 cursor-pointer">
+                            <input type="radio" name="unit-access-${idx}" value="custom" ${uConf.accessMode === 'custom' ? 'checked' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
+                            <span>เฉพาะบุคคล</span>
+                        </label>
+                    </div>
+
+                    <button type="button" id="btn-select-students-${idx}" onclick="openStudentSelectModal('${uKey}', ${idx})" 
+                        class="px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1.5 ${uConf.accessMode === 'custom' ? 'bg-amber-500 hover:bg-amber-600 text-slate-900' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"
+                        ${uConf.accessMode !== 'custom' ? 'disabled' : ''}>
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span id="btn-select-students-label-${idx}">จัดการผู้สอบ (${allowedCount} คน)</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ฟังก์ชันเปิด/ปิด ปุ่มเลือกนักศึกษาตาม Radio Button
+function toggleAccessModeUI(index) {
+    const isCustom = document.querySelector(`input[name="unit-access-${index}"][value="custom"]`)?.checked;
+    const btn = document.getElementById(`btn-select-students-${index}`);
+    if (btn) {
+        btn.disabled = !isCustom;
+        if (isCustom) {
+            btn.className = "px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900";
+        } else {
+            btn.className = "px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1.5 bg-slate-200 text-slate-400 cursor-not-allowed";
+        }
+    }
+}
+        let currentEditingUnitKey = null;
+let currentEditingUnitIndex = null;
+let tempSelectedUsers = [];
+
+function openStudentSelectModal(uKey, idx) {
+    currentEditingUnitKey = uKey;
+    currentEditingUnitIndex = idx;
+
+    const uConf = unitSettings[uKey] || {};
+    tempSelectedUsers = [...(uConf.allowedUsers || [])];
+
+    document.getElementById('modal-student-unit-title').textContent = `หน่วย: ${uKey.split('__')[2] || uKey}`;
+    document.getElementById('modal-student-search').value = '';
+
+    renderModalStudentList();
+    document.getElementById('modal-select-students').classList.remove('hidden');
+}
+
+function closeStudentSelectModal() {
+    document.getElementById('modal-select-students').classList.add('hidden');
+    currentEditingUnitKey = null;
+    currentEditingUnitIndex = null;
+}
+
+function renderModalStudentList() {
+    const container = document.getElementById('modal-student-list-container');
+    const searchVal = (document.getElementById('modal-student-search')?.value || '').toLowerCase().trim();
+    if (!container) return;
+
+    // ดึงนักเรียนเฉพาะในสาขาปัจจุบัน (ไม่รวมอาจารย์)
+    const branchStudents = userDatabase.filter(u => u.role === 'student' && u.branch === currentSelectedBranch);
+
+    const filtered = branchStudents.filter(s => 
+        s.username.toLowerCase().includes(searchVal) ||
+        s.fullname.toLowerCase().includes(searchVal)
+    );
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบรายชื่อนักศึกษาที่ตรงตามคำค้นหา</div>`;
+    } else {
+        container.innerHTML = filtered.map(s => {
+            const isChecked = tempSelectedUsers.includes(s.username);
+            return `
+                <label class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" value="${s.username}" ${isChecked ? 'checked' : ''} onchange="toggleModalUserSelection('${s.username}', this.checked)" class="w-4 h-4 text-indigo-600 rounded">
+                        <div>
+                            <span class="font-bold text-slate-800">${s.fullname}</span>
+                            <span class="text-slate-400 text-[11px] ml-1">(${s.username})</span>
                         </div>
                     </div>
-                `;
-            }).join('');
+                    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold text-[10px]">${s.yearLevel || 'ไม่ระบุชั้นปี'}</span>
+                </label>
+            `;
+        }).join('');
+    }
+
+    updateModalStudentCount();
+}
+
+function filterModalStudentList() {
+    renderModalStudentList();
+}
+
+function toggleModalUserSelection(username, isChecked) {
+    if (isChecked) {
+        if (!tempSelectedUsers.includes(username)) tempSelectedUsers.push(username);
+    } else {
+        tempSelectedUsers = tempSelectedUsers.filter(id => id !== username);
+    }
+    updateModalStudentCount();
+}
+
+function selectAllModalStudents(isSelectAll) {
+    const branchStudents = userDatabase.filter(u => u.role === 'student' && u.branch === currentSelectedBranch);
+    if (isSelectAll) {
+        tempSelectedUsers = branchStudents.map(s => s.username);
+    } else {
+        tempSelectedUsers = [];
+    }
+    renderModalStudentList();
+}
+
+function updateModalStudentCount() {
+    const countLabel = document.getElementById('modal-student-count-info');
+    if (countLabel) countLabel.textContent = `เลือกแล้ว ${tempSelectedUsers.length} คน`;
+}
+
+function saveSelectedStudentsFromModal() {
+    if (currentEditingUnitKey) {
+        if (!unitSettings[currentEditingUnitKey]) {
+            unitSettings[currentEditingUnitKey] = {};
         }
+        unitSettings[currentEditingUnitKey].allowedUsers = [...tempSelectedUsers];
+
+        // อัปเดตตัวเลขจำนวนคนบนปุ่มในหน้าหลัก
+        const label = document.getElementById(`btn-select-students-label-${currentEditingUnitIndex}`);
+        if (label) label.textContent = `จัดการผู้สอบ (${tempSelectedUsers.length} คน)`;
+    }
+    closeStudentSelectModal();
+}
         
     </script>
 </body>
