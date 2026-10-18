@@ -619,7 +619,7 @@ function switchBranchSettings(branchName) {
     // ดึงค่าการตั้งค่าของสาขาที่เลือก (ถ้ายังไม่มี ให้ใช้ค่าตั้งต้นจาก settings)
     const bSet = branchSettings[branchName] || settings;
 
-    // อัปเดตค่าลงในช่องฟอร์มหน้าเว็บ
+    // อัปเดตค่าลงในช่องฟอร์มหน้าเว็บทันที
     document.getElementById('setting-exam-global-enable').checked = bSet.globalExamEnable !== false;
     document.getElementById('setting-anti-cheat-enable').checked = bSet.antiCheatEnable;
     document.getElementById('setting-max-tab-switches').value = bSet.maxTabSwitches || 3;
