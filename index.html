@@ -1675,7 +1675,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
     const filterSelect = document.getElementById('overview-branch-filter');
     if (!tableBody) return;
 
-    // 1. ปรับปรุง Header ของตารางให้มีคอลัมน์ "ชั้นปี" (แทรกระหว่าง สาขา กับ ชุดข้อสอบ)
+    // 1. ปรับปรุง Header ของตาราง (นำคอลัมน์การจัดการออก เหลือ 8 คอลัมน์)
     const tableHeader = tableBody.closest('table')?.querySelector('thead tr');
     if (tableHeader) {
         tableHeader.innerHTML = `
@@ -1687,7 +1687,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             <th class="p-3 font-bold text-center">สถานะสอบ</th>
             <th class="p-3 font-bold text-center">Anti-Cheat</th>
             <th class="p-3 font-bold text-center">ป้องกันแคปจอ</th>
-            <th class="p-3 font-bold text-center">การจัดการ</th>
         `;
     }
 
@@ -1710,7 +1709,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
     const displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
 
     if (displayBranches.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
         return;
     }
 
@@ -1729,7 +1728,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
         // วนลูปสร้างแถวตามแต่ละชุดการเรียนรู้
         availableSets.forEach((setName, setIndex) => {
-            // ดึงชั้นปีจากข้อสอบในชุดนั้นๆ (ถ้าไม่ระบุให้เป็น 'ทุกชั้นปี')
+            // ดึงชั้นปีจากข้อสอบในชุดนั้นๆ
             const setQuestions = branchQuestions.filter(q => q.setGroup === setName);
             const yearLevels = Array.from(new Set(setQuestions.map(q => q.yearLevel).filter(Boolean)));
             const yearDisplay = yearLevels.length > 0 ? yearLevels.join(', ') : 'ทุกชั้นปี';
@@ -1784,12 +1783,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isPreventScreenshot ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">
                             ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
                         </span>
-                    </td>
-                    <td class="p-3 text-center">
-                        <button onclick="goToEditBranchSet('${bName}', '${setName}')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition flex items-center justify-center mx-auto space-x-1">
-                            <i class="fa-solid fa-pen-to-square"></i>
-                            <span>ตั้งค่าชุดนี้</span>
-                        </button>
                     </td>
                 </tr>
             `;
