@@ -45,7 +45,8 @@
                     <p class="text-xs text-indigo-200 hidden sm:block">Online Examination System with Analytics</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-2">
+            
+           <div class="flex items-center space-x-2">
                 <!-- ปุ่มเมนูตั้งค่าสำหรับอาจารย์ (ไอคอนฟันเฟือง + Dropdown) -->
                 <div id="btn-admin-nav" class="relative hidden">
                     <button onclick="toggleAdminDropdown(event)" class="inline-flex items-center space-x-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-2 rounded-lg text-sm transition duration-150 shadow">
@@ -72,13 +73,7 @@
                     </div>
                 </div>
                 
-                <!-- ปุ่มออกจากระบบบน Header สำหรับนักศึกษา -->
-                <button id="btn-header-logout" onclick="handleLogout()" class="hidden inline-flex items-center space-x-1 bg-indigo-800 hover:bg-indigo-900 text-indigo-100 px-3 py-2 rounded-lg text-sm transition border border-indigo-600">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span class="hidden sm:inline">ออกจากระบบ</span>
-                </button>
-            </div>
-                
+                <!-- ปุ่มออกจากระบบบน Header สำหรับผู้สอบ -->
                 <button id="btn-header-logout" onclick="handleLogout()" class="hidden inline-flex items-center space-x-1 bg-indigo-800 hover:bg-indigo-900 text-indigo-100 px-3 py-2 rounded-lg text-sm transition border border-indigo-600">
                     <i class="fa-solid fa-right-from-bracket"></i>
                     <span class="hidden sm:inline">ออกจากระบบ</span>
