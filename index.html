@@ -660,49 +660,35 @@ function renderBranchButtons() {
         
 // ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (ป้องกัน Error เรียกใช้ ID ที่ไม่มีอยู่จริง)
 function switchBranchSettings(branchName) {
-    currentSelectedBranch = branchName;
-    renderBranchButtons(); 
-    
-    const labelElem = document.getElementById('current-branch-label');
-    if (labelElem) labelElem.textContent = branchName;
+            currentSelectedBranch = branchName;
+            renderBranchButtons(); 
+            
+            const labelElem = document.getElementById('current-branch-label');
+            if (labelElem) labelElem.textContent = branchName;
 
-    const bSet = branchSettings[branchName] || settings;
+            const bSet = branchSettings[branchName] || settings;
 
-    const globalElem = document.getElementById('setting-exam-global-enable');
-    if (globalElem) globalElem.checked = bSet.globalExamEnable !== false;
+            // ครอบ Safe Call ทุกจุด ไม่ให้พ่น Error null
+            const safeSetCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+            const safeSetValue = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
 
-    const antiCheatElem = document.getElementById('setting-anti-cheat-enable');
-    if (antiCheatElem) antiCheatElem.checked = bSet.antiCheatEnable;
+            safeSetCheck('setting-exam-global-enable', bSet.globalExamEnable !== false);
+            safeSetCheck('setting-anti-cheat-enable', bSet.antiCheatEnable);
+            safeSetValue('setting-max-tab-switches', bSet.maxTabSwitches || 3);
+            safeSetCheck('setting-auto-submit-cheat', bSet.autoSubmitOnCheat);
+            safeSetCheck('setting-prevent-screenshot', bSet.preventScreenshot !== false);
+            safeSetValue('setting-question-count', bSet.questionCount || 15);
+            safeSetValue('setting-time-limit', bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15);
+            safeSetValue('setting-shuffle-options', (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString());
+            
+            const examSetElem = document.getElementById('setting-exam-set');
+            if (examSetElem && bSet.selectedSet) {
+                examSetElem.value = bSet.selectedSet;
+            }
 
-    const maxSwitchesElem = document.getElementById('setting-max-tab-switches');
-    if (maxSwitchesElem) maxSwitchesElem.value = bSet.maxTabSwitches || 3;
-
-    const autoSubmitElem = document.getElementById('setting-auto-submit-cheat');
-    if (autoSubmitElem) autoSubmitElem.checked = bSet.autoSubmitOnCheat;
-    
-    const preventScreenshotElem = document.getElementById('setting-prevent-screenshot');
-    if (preventScreenshotElem) preventScreenshotElem.checked = bSet.preventScreenshot !== false;
-
-    const qCountElem = document.getElementById('setting-question-count');
-    if (qCountElem) qCountElem.value = bSet.questionCount || 15;
-
-    const timeLimitElem = document.getElementById('setting-time-limit');
-    if (timeLimitElem) timeLimitElem.value = bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15;
-
-    const shuffleElem = document.getElementById('setting-shuffle-options');
-    if (shuffleElem) shuffleElem.value = (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString();
-    
-    const examSetElem = document.getElementById('setting-exam-set');
-    if (examSetElem && bSet.selectedSet) {
-        examSetElem.value = bSet.selectedSet;
-    }
-
-    if (typeof toggleAntiCheatSettingsUI === 'function') {
-        toggleAntiCheatSettingsUI();
-    }
-    
-    renderUnitSettingsList();
-}
+            toggleAntiCheatSettingsUI();
+            renderUnitSettingsList();
+        }
         
         // Initialize Application
         window.addEventListener('DOMContentLoaded', async () => {
@@ -1188,25 +1174,25 @@ function parseCSVToQuestions(csvText, isOverwrite = false) {
                 try { branchSettings = JSON.parse(savedBranchSettings); } catch (e) {}
             }
 
-            // ใช้การเช็กความปลอดภัย (Safe Call) ทุก Element เพื่อไม่ให้เกิด Error
-            const setVal = (id, val, isCheck = false) => {
+            // ฟังก์ชันช่วยตั้งค่าแบบปลอดภัย (ไม่เด้ง Error หากหา ID ไม่เจอ)
+            const safeSet = (id, val, isCheck = false) => {
                 const el = document.getElementById(id);
                 if (el) {
-                    if (isCheck) el.checked = val;
+                    if (isCheck) el.checked = !!val;
                     else el.value = val;
                 }
             };
 
-            setVal('setting-users-csv-url', settings.usersCsvUrl || "");
-            setVal('setting-exam-global-enable', settings.globalExamEnable !== false, true);
-            setVal('setting-sheet-csv-url', settings.sheetCsvUrl || "");
-            setVal('setting-anti-cheat-enable', settings.antiCheatEnable, true);
-            setVal('setting-max-tab-switches', settings.maxTabSwitches);
-            setVal('setting-auto-submit-cheat', settings.autoSubmitOnCheat, true);
-            setVal('setting-question-count', settings.questionCount);
-            setVal('setting-time-limit', settings.timeLimitMinutes);
-            setVal('setting-shuffle-options', settings.shuffleOptions.toString());
-            setVal('setting-webapp-url', settings.webAppUrl || "");
+            safeSet('setting-users-csv-url', settings.usersCsvUrl || "");
+            safeSet('setting-exam-global-enable', settings.globalExamEnable !== false, true);
+            safeSet('setting-sheet-csv-url', settings.sheetCsvUrl || "");
+            safeSet('setting-anti-cheat-enable', settings.antiCheatEnable, true);
+            safeSet('setting-max-tab-switches', settings.maxTabSwitches);
+            safeSet('setting-auto-submit-cheat', settings.autoSubmitOnCheat, true);
+            safeSet('setting-question-count', settings.questionCount);
+            safeSet('setting-time-limit', settings.timeLimitMinutes);
+            safeSet('setting-shuffle-options', settings.shuffleOptions.toString());
+            safeSet('setting-webapp-url', settings.webAppUrl || "");
 
             toggleAntiCheatSettingsUI();
         }
