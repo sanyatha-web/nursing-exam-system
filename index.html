@@ -1728,14 +1728,13 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         }
 
-        // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา
-        // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา (เพิ่มคอลัมน์ หน่วยการเรียนรู้)
+        // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา (แก้ไขการดึง Key หน่วยการเรียนรู้ให้แม่นยำ)
 function renderOverviewTable() {
     const tableBody = document.getElementById('overview-table-body');
     const filterSelect = document.getElementById('overview-branch-filter');
     if (!tableBody) return;
 
-    // 1. Header ตาราง 9 คอลัมน์ (เพิ่มคอลัมน์ หน่วยการเรียนรู้)
+    // 1. Header ตาราง 9 คอลัมน์
     const tableHeader = tableBody.closest('table')?.querySelector('thead tr');
     if (tableHeader) {
         tableHeader.innerHTML = `
@@ -1804,22 +1803,41 @@ function renderOverviewTable() {
             const setName = item.setName;
             const yearLevel = item.yearLevel;
 
-            // รวบรวมรายชื่อหน่วยการเรียนรู้ที่เปิดใช้งานในชุดนี้
+            // รวบรวมรายชื่อหน่วยการเรียนรู้ของชุดนี้
+            const setQuestions = branchQuestions.filter(q => (q.setGroup || 'ชุดการเรียนรู้ทั่วไป') === setName);
+            const setCategories = Array.from(new Set(setQuestions.map(q => q.category).filter(Boolean)));
+
             let activeUnits = [];
             let isSetEnabled = false;
 
-            Object.keys(unitSettings).forEach(uKey => {
-                if (uKey.startsWith(`${bName}__${setName}__`)) {
-                    const conf = unitSettings[uKey];
-                    if (conf && conf.enabled) {
-                        isSetEnabled = true;
-                        const unitName = uKey.split('__')[2];
-                        if (unitName) activeUnits.push(unitName);
+            // ค้นหาการตั้งค่าใน unitSettings แบบยืดหยุ่น (ตรวจสอบทุกรูปแบบ Key ที่เป็นไปได้)
+            setCategories.forEach(cat => {
+                const possibleKeys = [
+                    `${bName}__${setName}__${cat}`,
+                    `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${cat}`,
+                    `${bName}__${cat}`
+                ];
+
+                let matchedConf = null;
+                for (let k of possibleKeys) {
+                    if (unitSettings[k]) {
+                        matchedConf = unitSettings[k];
+                        break;
                     }
+                }
+
+                // หากพบว่าตั้งค่าเปิดใช้งานอยู่ ให้บันทึกชื่อหน่วยเข้า activeUnits
+                if (matchedConf && matchedConf.enabled === true) {
+                    isSetEnabled = true;
+                    activeUnits.push(cat);
+                } else if (!matchedConf) {
+                    // กรณีหน่วยการเรียนรู้มาใหม่ยังไม่เคยบันทึกค่า ให้ถือว่าเปิดสอบไว้เป็น Default
+                    isSetEnabled = true;
+                    activeUnits.push(cat);
                 }
             });
 
-            // สร้างป้าย Badge สำหรับคอลัมน์หน่วยการเรียนรู้
+            // สร้างป้าย Badge สำหรับแสดงผลในตาราง
             let unitsDisplayHtml = '';
             if (activeUnits.length > 0) {
                 unitsDisplayHtml = activeUnits.map(unit => 
@@ -1829,7 +1847,7 @@ function renderOverviewTable() {
                 unitsDisplayHtml = `<span class="text-slate-400 text-xs italic">ไม่มีหน่วยที่เปิดสอบ</span>`;
             }
 
-            const isGlobalEnable = isSetEnabled || (bSet.globalExamEnable !== false);
+            const isGlobalEnable = isSetEnabled && (bSet.globalExamEnable !== false);
             const isAntiCheat = bSet.antiCheatEnable;
             const isPreventScreenshot = bSet.preventScreenshot !== false;
 
@@ -1848,7 +1866,6 @@ function renderOverviewTable() {
                     <td class="p-3 font-semibold text-slate-800 whitespace-nowrap">
                         <i class="fa-solid fa-layer-group text-xs text-indigo-500 mr-1.5"></i>${setName}
                     </td>
-                    <!-- คอลัมน์ใหม่: รายการหน่วยการเรียนรู้ที่เปิดสอบ -->
                     <td class="p-3">
                         <div class="flex flex-wrap gap-1 items-center">
                             ${unitsDisplayHtml}
