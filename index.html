@@ -1684,6 +1684,70 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             switchAdminTab('exam-settings');
             switchBranchSettings(branchName);
         }
+
+        // 5. ฟังก์ชันเรนเดอร์รายการหน่วยการเรียนรู้พร้อม Checkbox และการตั้งค่า
+        function renderUnitSettingsList() {
+            const container = document.getElementById('unit-settings-container');
+            const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
+            if (!container) return;
+
+            // ดึงหน่วยการเรียนรู้ทั้งหมดในชุดและสาขาที่เลือก
+            const pool = masterQuestions.filter(q => 
+                (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
+                (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
+            );
+
+            const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
+
+            if (categories.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">ไม่พบหน่วยการเรียนรู้ในชุดข้อสอบนี้</div>`;
+                return;
+            }
+
+            container.innerHTML = categories.map((cat, idx) => {
+                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
+                const uConf = unitSettings[uKey] || {
+                    enabled: true,
+                    questionCount: 15,
+                    timeLimitMinutes: 15,
+                    antiCheatEnable: false,       // Default: ปิด
+                    preventScreenshot: false,     // Default: ปิด
+                    maxTabSwitches: 3,
+                    autoSubmitOnCheat: true
+                };
+
+                return `
+                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="unit-enable-${idx}" ${uConf.enabled ? 'checked' : ''} class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                                <span class="font-bold text-sm text-slate-800">${cat}</span>
+                            </label>
+                            <span class="text-xs text-slate-400 font-mono">Key: ${cat}</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                            <div>
+                                <label class="block font-medium text-slate-600 mb-1">จำนวนข้อสอบ</label>
+                                <input type="number" id="unit-qcount-${idx}" value="${uConf.questionCount}" min="1" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+                            </div>
+                            <div>
+                                <label class="block font-medium text-slate-600 mb-1">เวลาทำ (นาที)</label>
+                                <input type="number" id="unit-time-${idx}" value="${uConf.timeLimitMinutes}" min="0" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+                            </div>
+                            <div class="flex items-center space-x-2 pt-4">
+                                <input type="checkbox" id="unit-anticheat-${idx}" ${uConf.antiCheatEnable ? 'checked' : ''} class="rounded text-indigo-600">
+                                <label class="font-semibold text-slate-700">เปิดตรวจจับสลับจอ</label>
+                            </div>
+                            <div class="flex items-center space-x-2 pt-4">
+                                <input type="checkbox" id="unit-screenshot-${idx}" ${uConf.preventScreenshot ? 'checked' : ''} class="rounded text-indigo-600">
+                                <label class="font-semibold text-slate-700">บล็อกการแคปจอ</label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
         
     </script>
 </body>
