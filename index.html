@@ -568,9 +568,12 @@
         let studentData = {};
 
         // Settings State
-        let settings = {
-    sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=0&single=true&output=csv", // ลิงก์ข้อสอบ (Questions)
-    usersCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=2036632186&single=true&output=csv", // <--- [เพิ่มบรรทัดนี้] ลิงก์ CSV สำหรับ Users Sheet
+let currentSelectedBranch = "ภาพรวมทุกสาขา"; // สาขาที่กำลังเลือกตั้งค่า
+let branchSettings = {}; // ตัวแปรเก็บการตั้งค่าแยกตามสาขา
+
+let settings = {
+    sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=0&single=true&output=csv",
+    usersCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=2036632186&single=true&output=csv",
     globalExamEnable: true,
     antiCheatEnable: true,
     maxTabSwitches: 3,
@@ -581,7 +584,55 @@
     shuffleOptions: true,
     webAppUrl: ""
 };
+// ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา
+function renderBranchButtons() {
+    const container = document.getElementById('branch-buttons-container');
+    if (!container) return;
 
+    // ดึงรายชื่อสาขาที่มีในคลังข้อสอบทั้งหมด
+    const branches = Array.from(new Set(masterQuestions.map(q => q.branch).filter(Boolean)));
+    if (!branches.includes("ภาพรวมทุกสาขา")) {
+        branches.unshift("ภาพรวมทุกสาขา");
+    }
+
+    container.innerHTML = branches.map(branch => {
+        const isActive = branch === currentSelectedBranch;
+        return `
+            <button type="button" onclick="switchBranchSettings('${branch}')" 
+                class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                    isActive 
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                }">
+                <i class="fa-solid ${isActive ? 'fa-circle-check' : 'fa-graduation-cap'}"></i>
+                <span>${branch}</span>
+            </button>
+        `;
+    }).join('');
+}
+
+// ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก
+function switchBranchSettings(branchName) {
+    currentSelectedBranch = branchName;
+    renderBranchButtons();
+    
+    // โหลดการตั้งค่าของสาขานั้นๆ มาแสดงในฟอร์ม (ถ้ามี)
+    if (branchSettings[branchName]) {
+        const bSet = branchSettings[branchName];
+        document.getElementById('setting-exam-global-enable').checked = bSet.globalExamEnable !== false;
+        document.getElementById('setting-anti-cheat-enable').checked = bSet.antiCheatEnable;
+        document.getElementById('setting-max-tab-switches').value = bSet.maxTabSwitches;
+        document.getElementById('setting-auto-submit-cheat').checked = bSet.autoSubmitOnCheat;
+        document.getElementById('setting-question-count').value = bSet.questionCount;
+        document.getElementById('setting-time-limit').value = bSet.timeLimitMinutes;
+        document.getElementById('setting-shuffle-options').value = bSet.shuffleOptions.toString();
+        if (document.getElementById('setting-exam-set')) {
+            document.getElementById('setting-exam-set').value = bSet.selectedSet || "ทั้งหมด (ทุกชุดการเรียนรู้)";
+        }
+    }
+    
+    showAlertModal('success', 'สลับสาขาสำเร็จ', `ขณะนี้กำลังตั้งค่าสำหรับ: ${branchName}`);
+}
         // Initialize Application
         window.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
