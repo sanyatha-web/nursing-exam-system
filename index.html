@@ -256,101 +256,54 @@
             <div id="tab-admin-exam-settings" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
                     <h3 class="font-bold text-base flex items-center">
-                        <i class="fa-solid fa-sliders text-amber-400 mr-2"></i> ตั้งค่าการจัดสอบปัจจุบัน
+                        <i class="fa-solid fa-sliders text-amber-400 mr-2"></i> ตั้งค่าการจัดสอบรายหน่วยการเรียนรู้
                     </h3>
                     <div class="bg-indigo-900/80 border border-indigo-700/50 px-3 py-1.5 rounded-xl text-xs flex items-center space-x-2">
-                        <span class="text-indigo-200 font-medium">กำลังตั้งค่าสำหรับ:</span>
+                        <span class="text-indigo-200 font-medium">สาขาที่กำลังเลือก:</span>
                         <span id="current-branch-label" class="font-bold text-amber-300 bg-amber-400/10 px-2.5 py-0.5 rounded-lg border border-amber-400/30">ภาพรวมทุกสาขา</span>
                     </div>
                 </div>
 
                 <div class="p-6 space-y-6">
-                    <!-- Global Exam Enable -->
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                                <i class="fa-solid fa-power-off text-rose-600 mr-2"></i> สถานะการเปิด-ปิดระบบสอบทั้งหมด
-                            </h4>
-                            <p class="text-xs text-slate-500 mt-0.5">ปิดเมื่อต้องการล็อกไม่ให้ใครเข้าสอบ หรือเปิดเมื่อพร้อมจัดสอบ</p>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="setting-exam-global-enable" checked class="sr-only peer">
-                            <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                        </label>
-                    </div>
-
-                    <!-- Anti-Cheating Settings -->
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                    <!-- 1. Master Switch ระดับชุดการเรียนรู้ -->
+                    <div class="bg-indigo-900 text-white p-5 rounded-2xl shadow-md space-y-3">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                                    <i class="fa-solid fa-shield-halved text-indigo-600 mr-2"></i> ตรวจจับการเปลี่ยนหน้าจอ / สลับ Tab (Anti-Cheating)
+                                <h4 class="font-bold text-base text-amber-300 flex items-center">
+                                    <i class="fa-solid fa-layer-group mr-2"></i> ปุ่มสวิตช์หลักควบคุมชุดการเรียนรู้ (Master Switch)
                                 </h4>
-                                <p class="text-xs text-slate-500 mt-0.5">เปิดเมื่อต้องการสอบจริง ปิดเมื่อเปิดเป็นแบบฝึกหัดทบทวน</p>
+                                <p class="text-xs text-indigo-200 mt-1">เปิดหรือปิดการสอบของชุดการเรียนรู้นี้ทั้งหมดในปุ่มเดียว</p>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="setting-anti-cheat-enable" class="sr-only peer" onchange="toggleAntiCheatSettingsUI()">
-                                <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                <input type="checkbox" id="setting-exam-global-enable" checked class="sr-only peer">
+                                <div class="w-12 h-6 bg-indigo-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                             </label>
                         </div>
-
-                        <div id="sub-anti-cheat-options" class="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">จำนวนครั้งสูงสุดที่สลับจอได้</label>
-                                <input type="number" id="setting-max-tab-switches" min="1" max="10" value="3" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
-                            </div>
-                            <div class="flex items-center space-x-2 pt-5">
-                                <input type="checkbox" id="setting-auto-submit-cheat" class="rounded text-indigo-600 focus:ring-indigo-500">
-                                <label for="setting-auto-submit-cheat" class="text-xs text-slate-700">ส่งข้อสอบอัตโนมัติทันทีหากสลับเกินกำหนด</label>
-                            </div>
-
-                            <!-- [เพิ่มส่วนนี้] ตัวเลือกเปิด-ปิด ป้องกันการจับภาพหน้าจอ -->
-                            <div class="sm:col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-700">บล็อกการแคปจอ / PrintScreen (Anti-Screenshot)</label>
-                                    <p class="text-[11px] text-slate-500">ป้องกันการกด PrintScreen, ปุ่มคีย์ลัดแคปจอ และคลิกขวาขณะสอบ</p>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="setting-prevent-screenshot" checked class="sr-only peer">
-                                    <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                </label>
-                            </div>
+                        
+                        <div class="pt-3 border-t border-indigo-800 flex flex-wrap gap-4 items-center">
+                            <label class="block text-xs font-bold text-indigo-200">เลือกชุดการเรียนรู้ที่ต้องการตั้งค่า:</label>
+                            <select id="setting-exam-set" onchange="renderUnitSettingsList()" class="px-3 py-1.5 border border-indigo-700 rounded-lg text-xs bg-indigo-950 text-amber-300 font-bold outline-none"></select>
                         </div>
                     </div>
-                   
-                    <!-- Exam Set Selection -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="sm:col-span-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                            <label class="block text-sm font-bold text-indigo-900 mb-1">
-                                <i class="fa-solid fa-list-check text-indigo-600 mr-1"></i> เลือกชุดข้อสอบ/ชุดการเรียนรู้ที่เปิดให้ทำขณะนี้
-                            </label>
-                            <select id="setting-exam-set" class="w-full px-3 py-2 border border-indigo-300 rounded-lg text-sm bg-white font-semibold text-indigo-900"></select>
-                            <p class="text-[11px] text-indigo-600 mt-1">* ผู้เรียนจะเห็นเฉพาะหน่วยการเรียนรู้ในชุดการเรียนรู้ที่เลือกเปิดไว้ขณะนี้เท่านั้น</p>
+
+                    <!-- 2. รายการหน่วยการเรียนรู้พร้อม Checkbox เปิด/ปิด และฟอร์มตั้งค่ารายหน่วย -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center">
+                                <i class="fa-solid fa-list-check text-indigo-600 mr-2"></i> รายการหน่วยการเรียนรู้ในชุดนี้ (ติ๊กถูกเพื่อเปิดสอบ)
+                            </h4>
+                            <span class="text-xs text-slate-500">* ค่าเริ่มต้นของ Anti-Cheat และการป้องกันแคปจอจะถูก "ปิด" ไว้</span>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">จำนวนข้อที่จะสุ่มดึงมาออกสอบ</label>
-                            <input type="number" id="setting-question-count" min="1" max="100" value="20" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">เวลาในการทำข้อสอบ (นาที)</label>
-                            <input type="number" id="setting-time-limit" min="0" max="180" value="20" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                            <p class="text-[11px] text-slate-500 mt-1">* ใส่เลข 0 หากต้องการปิดการจับเวลา</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">สับเปลี่ยนลำดับตัวเลือก (A, B, C, D)</label>
-                            <select id="setting-shuffle-options" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                                <option value="true">สลับตัวเลือกคำตอบ</option>
-                                <option value="false">คงลำดับตัวเลือกเดิม</option>
-                            </select>
+                        <!-- คอนเทนเนอร์แสดงรายการหน่วยการเรียนรู้ (สร้างด้วย JS) -->
+                        <div id="unit-settings-container" class="space-y-3">
+                            <!-- Dynamic Content -->
                         </div>
                     </div>
 
                     <div class="pt-4 border-t border-slate-200 flex justify-end">
                         <button onclick="saveSettings()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg transition">
-                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการตั้งค่าการสอบ
+                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> บันทึกการตั้งค่าทั้งหมด
                         </button>
                     </div>
                 </div>
@@ -651,13 +604,14 @@
         // Settings State
 let currentSelectedBranch = "ภาพรวมทุกสาขา"; // สาขาที่กำลังเลือกตั้งค่า
 let branchSettings = {}; // ตัวแปรเก็บการตั้งค่าแยกตามสาขา
+let unitSettings = {};
 
 let settings = {
     sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=0&single=true&output=csv",
     usersCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=2036632186&single=true&output=csv",
     globalExamEnable: true,
-    antiCheatEnable: true,
-    preventScreenshot: true,
+    antiCheatEnable: false,
+    preventScreenshot: false,
     maxTabSwitches: 3,
     autoSubmitOnCheat: true,
     selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
@@ -733,6 +687,7 @@ function switchBranchSettings(branchName) {
     }
 
     toggleAntiCheatSettingsUI();
+    renderUnitSettingsList();
 }
         
         // Initialize Application
@@ -859,24 +814,23 @@ function switchBranchSettings(branchName) {
         function loadCategoriesForLoggedInUser() {
             if (!loggedInUser) return;
 
+            const selectedSet = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
             let userPool = masterQuestions.filter(q => 
-                !q.branch || 
-                q.branch === 'ข้อสอบกลาง' || 
-                q.branch === 'ทุกสาขา' || 
-                q.branch === loggedInUser.branch ||
-                q.setGroup === loggedInUser.branch
+                !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || 
+                q.branch === loggedInUser.branch || q.setGroup === loggedInUser.branch
             );
 
-            if (settings.selectedSet && settings.selectedSet !== 'ทั้งหมด (ทุกชุดการเรียนรู้)') {
-                userPool = userPool.filter(q => q.setGroup === settings.selectedSet || q.branch === settings.selectedSet);
-            }
-
-            const availableCategories = Array.from(new Set(userPool.map(q => q.category).filter(Boolean)));
-            availableCategories.unshift('ทำทุกหน่วยการเรียนรู้ในชุดนี้');
+            // กรองเฉพาะหน่วยที่มีการ ติ๊กถูก (enabled = true) เท่านั้น
+            const availableCategories = Array.from(new Set(userPool.map(q => q.category).filter(Boolean)))
+                .filter(cat => {
+                    const uKey = `${loggedInUser.branch}__${selectedSet}__${cat}`;
+                    const conf = unitSettings[uKey];
+                    return !conf || conf.enabled !== false; // แสดงเฉพาะหน่วยที่ไม่ได้สั่งปิด
+                });
 
             const selectElem = document.getElementById('dashboard-category-select');
-            if (availableCategories.length === 1 && userPool.length === 0) {
-                selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีแบบทดสอบเปิดให้ทำสำหรับสาขาของคุณ --</option>`;
+            if (availableCategories.length === 0) {
+                selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีหน่วยการเรียนรู้เปิดให้ทำ --</option>`;
             } else {
                 selectElem.innerHTML = availableCategories.map(cat => 
                     `<option value="${cat}">${cat}</option>`
@@ -1220,34 +1174,41 @@ function parseCSVToUsers(csvText) {
         }
 
         async function saveSettings() {
-    branchSettings[currentSelectedBranch] = {
-        globalExamEnable: document.getElementById('setting-exam-global-enable').checked,
-        antiCheatEnable: document.getElementById('setting-anti-cheat-enable').checked,
-        maxTabSwitches: parseInt(document.getElementById('setting-max-tab-switches').value) || 3,
-        autoSubmitOnCheat: document.getElementById('setting-auto-submit-cheat').checked,
-        preventScreenshot: document.getElementById('setting-prevent-screenshot').checked, // <-- เพิ่มบรรทัดนี้
-        selectedSet: document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)",
-        questionCount: parseInt(document.getElementById('setting-question-count').value) || 15,
-        timeLimitMinutes: parseInt(document.getElementById('setting-time-limit').value) || 15,
-        shuffleOptions: document.getElementById('setting-shuffle-options').value === 'true'
-    };
+            const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
+            
+            // 1. บันทึก Master Switch รายสาขา/ชุด
+            branchSettings[currentSelectedBranch] = {
+                globalExamEnable: document.getElementById('setting-exam-global-enable').checked,
+                selectedSet: selectedSet
+            };
 
-    settings.usersCsvUrl = document.getElementById('setting-users-csv-url').value.trim();
-    settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url').value.trim();
-    settings.webAppUrl = document.getElementById('setting-webapp-url').value.trim();
+            // 2. บันทึกค่าตั้งค่าของแต่ละหน่วยการเรียนรู้
+            const pool = masterQuestions.filter(q => 
+                (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
+                (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
+            );
+            const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
 
-    localStorage.setItem('online_exam_settings', JSON.stringify(settings));
-    localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
-    
-    if (settings.sheetCsvUrl) {
-        await fetchAndSyncGoogleSheets();
-    } else {
-        updateAdminSettingsUI();
-    }
+            categories.forEach((cat, idx) => {
+                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
+                unitSettings[uKey] = {
+                    enabled: document.getElementById(`unit-enable-${idx}`)?.checked || false,
+                    questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || 15,
+                    timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
+                    antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked || false,
+                    preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked || false,
+                    maxTabSwitches: 3,
+                    autoSubmitOnCheat: true
+                };
+            });
 
-    renderInitialSetupNotice();
-    showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', `บันทึกการตั้งค่าสำหรับ "${currentSelectedBranch}" เรียบร้อยแล้ว`);
-}
+            // เซฟลง LocalStorage
+            localStorage.setItem('online_exam_settings', JSON.stringify(settings));
+            localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
+            localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
+
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะและเงื่อนไขการสอบเรียบร้อยแล้ว');
+        }
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
@@ -1634,6 +1595,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             } else if (tabName === 'exam-settings') {
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
+                renderUnitSettingsList();
             } else {
                 // Default Home: แท็บภาพรวมการตั้งค่า (Overview)
                 if (tabOverview) tabOverview.classList.remove('hidden');
