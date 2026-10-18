@@ -706,25 +706,29 @@ function switchBranchSettings(branchName) {
     setupAntiCheatListeners();
 });
 
-        // 1. LOGIN & ROLE-BASED ROUTING SYSTEM
-        function handleLogin(e) {
+        // 1. LOGIN & ROLE-BASED ROUTING SYSTEM (แก้ไขให้เช็กจาก userDatabase ล่าสุด)
+        async function handleLogin(e) {
             e.preventDefault();
             const userVal = document.getElementById('login-username').value.trim();
             const passVal = document.getElementById('login-password').value.trim();
 
+            // ดึงข้อมูลผู้ใช้จาก Google Sheets ให้เป็นปัจจุบันที่สุดก่อนล็อกอิน
+            if (typeof fetchAndSyncUsers === 'function') {
+                await fetchAndSyncUsers();
+            }
+
+            // ค้นหาผู้ใช้จาก userDatabase ทั้งหมด
             const foundUser = userDatabase.find(u => u.username === userVal && u.password === passVal);
 
             if (foundUser) {
                 loggedInUser = foundUser;
 
-                // แยกการแสดงปุ่มบน Header ตามสิทธิ์ผู้ใช้งาน
+                // แยกการแสดงผลตาม Role
                 if (loggedInUser.role === 'admin') {
-                    // ถ้าเป็นอาจารย์: แสดงปุ่มฟันเฟืองจัดการระบบ และซ่อนปุ่มออกจากระบบเดี่ยว
                     document.getElementById('btn-admin-nav').classList.remove('hidden');
                     document.getElementById('btn-header-logout').classList.add('hidden');
                     showAdminDashboard();
                 } else {
-                    // ถ้าเป็นผู้สอบ: ซ่อนปุ่มฟันเฟืองอาจารย์ และแสดงปุ่ม "ออกจากระบบ" บน Header
                     document.getElementById('btn-admin-nav').classList.add('hidden');
                     document.getElementById('btn-header-logout').classList.remove('hidden');
                     showStudentDashboard();
