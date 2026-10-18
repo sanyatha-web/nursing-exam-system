@@ -1456,7 +1456,7 @@ function parseCSVToUsers(csvText) {
             safeSet('setting-question-count', settings.questionCount);
             safeSet('setting-time-limit', settings.timeLimitMinutes);
             safeSet('setting-shuffle-options', settings.shuffleOptions.toString());
-            safeSet('setting-webapp-url', settings.webAppUrl || "");
+            safeSet('setting-webapp-url', settings.webAppUrl || ""); // 👈 แสดงค่า Web App URL
             safeSet('setting-results-csv-url', settings.resultsCsvUrl || "");
         
             toggleAntiCheatSettingsUI();
@@ -1488,7 +1488,13 @@ function parseCSVToUsers(csvText) {
             settings.timeLimitMinutes = globalTimeLimit;
             settings.selectedSet = selectedSet;
         
-            // 2. บันทึก Master Switch รายสาขา
+            // 2. ดึงค่าลิงก์ Google Sheets Integration ทั้งหมด
+            settings.usersCsvUrl = document.getElementById('setting-users-csv-url')?.value.trim() || "";
+            settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url')?.value.trim() || "";
+            settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || "";
+            settings.webAppUrl = document.getElementById('setting-webapp-url')?.value.trim() || ""; // 👈 บันทึกค่า Web App URL
+        
+            // 3. บันทึก Master Switch รายสาขา
             const globalElem = document.getElementById('setting-exam-global-enable');
             branchSettings[currentSelectedBranch] = {
                 globalExamEnable: globalElem ? globalElem.checked : true,
@@ -1496,9 +1502,6 @@ function parseCSVToUsers(csvText) {
                 questionCount: globalQCount,
                 timeLimitMinutes: globalTimeLimit
             };
-        
-            // 3. บันทึกลิงก์ Google Sheets CSV Results
-            settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || "";
         
             // 4. ดึงหน่วยการเรียนรู้
             const pool = masterQuestions.filter(q => 
@@ -1525,12 +1528,12 @@ function parseCSVToUsers(csvText) {
                 };
             });
         
-            // 6. บันทึกลง LocalStorage ให้ครบทุกตัวแปร
+            // 6. บันทึกลง LocalStorage
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกสถานะ เงื่อนไข และเวลาทำสอบเรียบร้อยแล้ว');
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกการเชื่อมต่อและสถานะระบบเรียบร้อยแล้ว');
         }                                
 
         function renderInitialSetupNotice() {
