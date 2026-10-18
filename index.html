@@ -954,24 +954,30 @@ function switchBranchSettings(branchName) {
                 updateAdminSettingsUI();
             }
         }
-// ฟังก์ชันดึงรายชื่อผู้ใช้จาก Google Sheets (Sheet: Users)
+// ฟังก์ชันดึงรายชื่อผู้ใช้จาก Google Sheets (Sheet: Users - รองรับ Proxy และ Asynchronous)
 async function fetchAndSyncUsers() {
     if (!settings.usersCsvUrl) return;
 
     const cacheBusterUrl = settings.usersCsvUrl + (settings.usersCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
     
     try {
-        let res = await fetch(cacheBusterUrl);
         let csvText = "";
 
-        if (res.ok) {
-            csvText = await res.text();
+        try {
+            let res = await fetch(cacheBusterUrl);
+            if (res.ok) {
+                csvText = await res.text();
+            }
+        } catch (e) {
+            console.warn("Direct fetch failed, trying proxy...", e);
         }
 
         if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
             const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
             const proxyRes = await fetch(proxyUrl);
-            if (proxyRes.ok) csvText = await proxyRes.text();
+            if (proxyRes.ok) {
+                csvText = await proxyRes.text();
+            }
         }
 
         if (csvText && !csvText.includes('<!DOCTYPE html>')) {
