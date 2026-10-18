@@ -622,25 +622,6 @@
             }
         });
 
-        // ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์
-        function switchAdminTab(tabName) {
-            showAdminDashboard(); // เปิดหน้าอาจารย์ก่อน
-
-            const tabExam = document.getElementById('tab-admin-exam-settings');
-            const tabData = document.getElementById('tab-admin-data-sources');
-            const branchWrapper = document.getElementById('branch-selector-wrapper');
-
-            if (tabName === 'data-sources') {
-                if (tabExam) tabExam.classList.add('hidden');
-                if (tabData) tabData.classList.remove('hidden');
-                if (branchWrapper) branchWrapper.classList.add('hidden'); // ซ่อนแถบเลือกสาขาเมื่ออยู่ในแท็บแหล่งข้อมูล
-            } else {
-                if (tabExam) tabExam.classList.remove('hidden');
-                if (tabData) tabData.classList.add('hidden');
-                if (branchWrapper) branchWrapper.classList.remove('hidden'); // แสดงแถบเลือกสาขา
-            }
-        }
-
         // Global State Variables
         let userDatabase = [...DEFAULT_USERS];
         let masterQuestions = [];
