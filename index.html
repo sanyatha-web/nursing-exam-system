@@ -233,6 +233,7 @@
                                 <th class="p-3 font-bold text-center">เวลา (นาที)</th>
                                 <th class="p-3 font-bold text-center">สถานะสอบ</th>
                                 <th class="p-3 font-bold text-center">Anti-Cheat</th>
+                                <th class="p-3 font-bold text-center">ป้องกันแคปจอ</th>
                                 <th class="p-3 font-bold text-center">การจัดการ</th>
                             </tr>
                         </thead>
@@ -301,6 +302,18 @@
                             <div class="flex items-center space-x-2 pt-5">
                                 <input type="checkbox" id="setting-auto-submit-cheat" class="rounded text-indigo-600 focus:ring-indigo-500">
                                 <label for="setting-auto-submit-cheat" class="text-xs text-slate-700">ส่งข้อสอบอัตโนมัติทันทีหากสลับเกินกำหนด</label>
+                            </div>
+
+                            <!-- [เพิ่มส่วนนี้] ตัวเลือกเปิด-ปิด ป้องกันการจับภาพหน้าจอ -->
+                            <div class="sm:col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700">บล็อกการแคปจอ / PrintScreen (Anti-Screenshot)</label>
+                                    <p class="text-[11px] text-slate-500">ป้องกันการกด PrintScreen, ปุ่มคีย์ลัดแคปจอ และคลิกขวาขณะสอบ</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="setting-prevent-screenshot" checked class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -644,6 +657,7 @@ let settings = {
     usersCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=2036632186&single=true&output=csv",
     globalExamEnable: true,
     antiCheatEnable: true,
+    preventScreenshot: true,
     maxTabSwitches: 3,
     autoSubmitOnCheat: true,
     selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
@@ -693,22 +707,23 @@ function renderBranchButtons() {
 // ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (อัปเดตฟอร์มทันที + ไม่เด้ง Pop-up)
 function switchBranchSettings(branchName) {
     currentSelectedBranch = branchName;
-    renderBranchButtons(); // ไฮไลต์ปุ่มสาขาที่เลือก
+    renderBranchButtons(); 
     
-    // อัปเดตป้ายชื่อสาขาที่กำลังตั้งค่าอยู่บนหน้าจอ
     const labelElem = document.getElementById('current-branch-label');
-    if (labelElem) {
-        labelElem.textContent = branchName;
-    }
+    if (labelElem) labelElem.textContent = branchName;
 
-    // ดึงค่าการตั้งค่าของสาขาที่เลือก (ถ้ายังไม่มี ให้ใช้ค่าตั้งต้นจาก settings)
     const bSet = branchSettings[branchName] || settings;
 
-    // อัปเดตค่าลงในช่องฟอร์มหน้าเว็บทันที
     document.getElementById('setting-exam-global-enable').checked = bSet.globalExamEnable !== false;
     document.getElementById('setting-anti-cheat-enable').checked = bSet.antiCheatEnable;
     document.getElementById('setting-max-tab-switches').value = bSet.maxTabSwitches || 3;
     document.getElementById('setting-auto-submit-cheat').checked = bSet.autoSubmitOnCheat;
+    
+    // โหลดค่าสวิตช์ป้องกันการจับภาพหน้าจอ
+    if (document.getElementById('setting-prevent-screenshot')) {
+        document.getElementById('setting-prevent-screenshot').checked = bSet.preventScreenshot !== false;
+    }
+
     document.getElementById('setting-question-count').value = bSet.questionCount || 15;
     document.getElementById('setting-time-limit').value = bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15;
     document.getElementById('setting-shuffle-options').value = (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString();
@@ -1205,35 +1220,34 @@ function parseCSVToUsers(csvText) {
         }
 
         async function saveSettings() {
-            // บันทึกการตั้งค่าลงในสาขาที่กำลังเลือกอยู่ปัจจุบัน
-            branchSettings[currentSelectedBranch] = {
-                globalExamEnable: document.getElementById('setting-exam-global-enable').checked,
-                antiCheatEnable: document.getElementById('setting-anti-cheat-enable').checked,
-                maxTabSwitches: parseInt(document.getElementById('setting-max-tab-switches').value) || 3,
-                autoSubmitOnCheat: document.getElementById('setting-auto-submit-cheat').checked,
-                selectedSet: document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)",
-                questionCount: parseInt(document.getElementById('setting-question-count').value) || 15,
-                timeLimitMinutes: parseInt(document.getElementById('setting-time-limit').value) || 15,
-                shuffleOptions: document.getElementById('setting-shuffle-options').value === 'true'
-            };
+    branchSettings[currentSelectedBranch] = {
+        globalExamEnable: document.getElementById('setting-exam-global-enable').checked,
+        antiCheatEnable: document.getElementById('setting-anti-cheat-enable').checked,
+        maxTabSwitches: parseInt(document.getElementById('setting-max-tab-switches').value) || 3,
+        autoSubmitOnCheat: document.getElementById('setting-auto-submit-cheat').checked,
+        preventScreenshot: document.getElementById('setting-prevent-screenshot').checked, // <-- เพิ่มบรรทัดนี้
+        selectedSet: document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)",
+        questionCount: parseInt(document.getElementById('setting-question-count').value) || 15,
+        timeLimitMinutes: parseInt(document.getElementById('setting-time-limit').value) || 15,
+        shuffleOptions: document.getElementById('setting-shuffle-options').value === 'true'
+    };
 
-            // บันทึกการตั้งค่าลิงก์ส่วนกลาง
-            settings.usersCsvUrl = document.getElementById('setting-users-csv-url').value.trim();
-            settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url').value.trim();
-            settings.webAppUrl = document.getElementById('setting-webapp-url').value.trim();
+    settings.usersCsvUrl = document.getElementById('setting-users-csv-url').value.trim();
+    settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url').value.trim();
+    settings.webAppUrl = document.getElementById('setting-webapp-url').value.trim();
 
-            localStorage.setItem('online_exam_settings', JSON.stringify(settings));
-            localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
-            
-            if (settings.sheetCsvUrl) {
-                await fetchAndSyncGoogleSheets();
-            } else {
-                updateAdminSettingsUI();
-            }
+    localStorage.setItem('online_exam_settings', JSON.stringify(settings));
+    localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
+    
+    if (settings.sheetCsvUrl) {
+        await fetchAndSyncGoogleSheets();
+    } else {
+        updateAdminSettingsUI();
+    }
 
-            renderInitialSetupNotice();
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', `บันทึกการตั้งค่าสำหรับ "${currentSelectedBranch}" เรียบร้อยแล้ว`);
-        }
+    renderInitialSetupNotice();
+    showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', `บันทึกการตั้งค่าสำหรับ "${currentSelectedBranch}" เรียบร้อยแล้ว`);
+}
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
@@ -1402,27 +1416,53 @@ function parseCSVToUsers(csvText) {
         }
 
         function setupAntiCheatListeners() {
-            const handleVisibilityChange = () => {
-                if (!isExamActive || !settings.antiCheatEnable) return;
+    const handleVisibilityChange = () => {
+        if (!isExamActive || !settings.antiCheatEnable) return;
+        if (document.hidden || !document.hasFocus()) {
+            tabSwitchCount++;
+            const countElem = document.getElementById('tab-switch-count-num');
+            if (countElem) countElem.textContent = tabSwitchCount;
 
-                if (document.hidden || !document.hasFocus()) {
-                    tabSwitchCount++;
-                    const countElem = document.getElementById('tab-switch-count-num');
-                    if (countElem) countElem.textContent = tabSwitchCount;
-
-                    if (settings.autoSubmitOnCheat && tabSwitchCount >= settings.maxTabSwitches) {
-                        isExamActive = false;
-                        showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอเกินกำหนด (${settings.maxTabSwitches} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
-                        submitExam(true);
-                    } else {
-                        showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาต ${settings.maxTabSwitches} ครั้ง`);
-                    }
-                }
-            };
-
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-            window.addEventListener('blur', handleVisibilityChange);
+            if (settings.autoSubmitOnCheat && tabSwitchCount >= settings.maxTabSwitches) {
+                isExamActive = false;
+                showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอเกินกำหนด (${settings.maxTabSwitches} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
+                submitExam(true);
+            } else {
+                showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาต ${settings.maxTabSwitches} ครั้ง`);
+            }
         }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleVisibilityChange);
+
+    // ดักจับการกดปุ่ม PrintScreen
+    window.addEventListener('keyup', (e) => {
+        const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
+        if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
+
+        if (e.key === 'PrintScreen' || e.keyCode === 44) {
+            navigator.clipboard.writeText(''); // ล้างข้อมูลภาพในคลิปบอร์ด
+            showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้จับภาพหน้าจอขณะทำข้อสอบ');
+        }
+    });
+
+    // ดักจับคีย์ลัดแคปจอต่างๆ (Win+Shift+S, Cmd+Shift+3/4, Ctrl+P)
+    window.addEventListener('keydown', (e) => {
+        const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
+        if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
+
+        if (
+            (e.key === 'PrintScreen') ||
+            (e.ctrlKey && e.key === 'p') ||
+            (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) ||
+            (e.key === 'Meta' && e.shiftKey && e.key === 'S')
+        ) {
+            e.preventDefault();
+            showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้ใช้คีย์ลัดจับภาพหน้าจอขณะทำข้อสอบ');
+        }
+    });
+}
 
         function confirmSubmitExam() {
             const unanswered = activeQuestions.length - Object.keys(userAnswers).length;
@@ -1634,6 +1674,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const bSet = branchSettings[bName] || settings;
                 const isGlobalEnable = bSet.globalExamEnable !== false;
                 const isAntiCheat = bSet.antiCheatEnable;
+                const isPreventScreenshot = bSet.preventScreenshot !== false;
 
                 return `
                     <tr class="hover:bg-indigo-50/30 transition">
@@ -1656,6 +1697,12 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         <td class="p-3 text-center">
                             <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isAntiCheat ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
                                 ${isAntiCheat ? 'เปิดตรวจจับ' : 'ปิดตรวจจับ'}
+                            </span>
+                        </td>
+                        <!-- เพิ่มคอลัมน์แสดงสถานะป้องกันแคปจอ -->
+                        <td class="p-3 text-center">
+                            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isPreventScreenshot ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">
+                                ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
                             </span>
                         </td>
                         <td class="p-3 text-center">
