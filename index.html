@@ -1729,18 +1729,20 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         }
 
         // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา
-        function renderOverviewTable() {
+        // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา (เพิ่มคอลัมน์ หน่วยการเรียนรู้)
+function renderOverviewTable() {
     const tableBody = document.getElementById('overview-table-body');
     const filterSelect = document.getElementById('overview-branch-filter');
     if (!tableBody) return;
 
-    // 1. Header ตาราง 8 คอลัมน์
+    // 1. Header ตาราง 9 คอลัมน์ (เพิ่มคอลัมน์ หน่วยการเรียนรู้)
     const tableHeader = tableBody.closest('table')?.querySelector('thead tr');
     if (tableHeader) {
         tableHeader.innerHTML = `
             <th class="p-3 font-bold">สาขาวิชา</th>
             <th class="p-3 font-bold text-center">ชั้นปี</th>
-            <th class="p-3 font-bold">ชุดข้อสอบที่เปิดสอบ</th>
+            <th class="p-3 font-bold">ชุดข้อสอบ</th>
+            <th class="p-3 font-bold">หน่วยการเรียนรู้ที่เปิดสอบ</th>
             <th class="p-3 font-bold text-center">จำนวนข้อ</th>
             <th class="p-3 font-bold text-center">เวลา (นาที)</th>
             <th class="p-3 font-bold text-center">สถานะสอบ</th>
@@ -1768,7 +1770,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
     const displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
 
     if (displayBranches.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
         return;
     }
 
@@ -1797,24 +1799,35 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             groupedSetAndYears.push({ setName: 'ชุดการเรียนรู้ทั่วไป', yearLevel: 'ทุกชั้นปี' });
         }
 
-        // 4. วนลูปสร้างแถวโดยแสดงชื่อสาขาในทุกบรรทัด
+        // 4. วนลูปสร้างแถว
         groupedSetAndYears.forEach((item) => {
             const setName = item.setName;
             const yearLevel = item.yearLevel;
 
-            // เช็กสถานะหน่วยการเรียนรู้ที่ถูกเปิดใช้งานในชุดนี้
+            // รวบรวมรายชื่อหน่วยการเรียนรู้ที่เปิดใช้งานในชุดนี้
+            let activeUnits = [];
             let isSetEnabled = false;
-            let activeUnitCount = 0;
 
             Object.keys(unitSettings).forEach(uKey => {
                 if (uKey.startsWith(`${bName}__${setName}__`)) {
                     const conf = unitSettings[uKey];
                     if (conf && conf.enabled) {
                         isSetEnabled = true;
-                        activeUnitCount++;
+                        const unitName = uKey.split('__')[2];
+                        if (unitName) activeUnits.push(unitName);
                     }
                 }
             });
+
+            // สร้างป้าย Badge สำหรับคอลัมน์หน่วยการเรียนรู้
+            let unitsDisplayHtml = '';
+            if (activeUnits.length > 0) {
+                unitsDisplayHtml = activeUnits.map(unit => 
+                    `<span class="inline-block bg-indigo-50 text-indigo-700 text-[11px] font-semibold px-2 py-0.5 rounded border border-indigo-100 mr-1 mb-1"><i class="fa-solid fa-book-bookmark text-[10px] mr-1 text-indigo-500"></i>${unit}</span>`
+                ).join('');
+            } else {
+                unitsDisplayHtml = `<span class="text-slate-400 text-xs italic">ไม่มีหน่วยที่เปิดสอบ</span>`;
+            }
 
             const isGlobalEnable = isSetEnabled || (bSet.globalExamEnable !== false);
             const isAntiCheat = bSet.antiCheatEnable;
@@ -1822,7 +1835,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
             tableRowsHtml += `
                 <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100">
-                    <!-- แสดงชื่อสาขาในทุกแถวบรรทัด -->
                     <td class="p-3 font-bold text-slate-800">
                         <div class="flex items-center">
                             <i class="fa-solid fa-graduation-cap text-indigo-500 mr-2"></i>${bName}
@@ -1833,25 +1845,28 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             ${yearLevel}
                         </span>
                     </td>
-                    <td class="p-3">
-                        <span class="font-semibold text-slate-800">
-                            <i class="fa-solid fa-layer-group text-xs text-indigo-500 mr-1.5"></i>${setName}
-                        </span>
-                        ${activeUnitCount > 0 ? `<span class="ml-1.5 text-[10px] text-emerald-600 font-bold">(เปิด ${activeUnitCount} หน่วย)</span>` : ''}
+                    <td class="p-3 font-semibold text-slate-800 whitespace-nowrap">
+                        <i class="fa-solid fa-layer-group text-xs text-indigo-500 mr-1.5"></i>${setName}
                     </td>
-                    <td class="p-3 text-center font-bold">${bSet.questionCount || 15} ข้อ</td>
-                    <td class="p-3 text-center font-bold">${bSet.timeLimitMinutes ? bSet.timeLimitMinutes + ' นาที' : 'ไม่จำกัด'}</td>
-                    <td class="p-3 text-center">
+                    <!-- คอลัมน์ใหม่: รายการหน่วยการเรียนรู้ที่เปิดสอบ -->
+                    <td class="p-3">
+                        <div class="flex flex-wrap gap-1 items-center">
+                            ${unitsDisplayHtml}
+                        </div>
+                    </td>
+                    <td class="p-3 text-center font-bold whitespace-nowrap">${bSet.questionCount || 15} ข้อ</td>
+                    <td class="p-3 text-center font-bold whitespace-nowrap">${bSet.timeLimitMinutes ? bSet.timeLimitMinutes + ' นาที' : 'ไม่จำกัด'}</td>
+                    <td class="p-3 text-center whitespace-nowrap">
                         <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isGlobalEnable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
                             ${isGlobalEnable ? '● เปิดสอบ' : '○ ปิดระบบ'}
                         </span>
                     </td>
-                    <td class="p-3 text-center">
+                    <td class="p-3 text-center whitespace-nowrap">
                         <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isAntiCheat ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
                             ${isAntiCheat ? 'เปิดตรวจจับ' : 'ปิดตรวจจับ'}
                         </span>
                     </td>
-                    <td class="p-3 text-center">
+                    <td class="p-3 text-center whitespace-nowrap">
                         <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isPreventScreenshot ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">
                             ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
                         </span>
