@@ -520,7 +520,22 @@
         </div>
 
         <!-- Search Bar & Filters -->
-        <!-- Search Bar & Filters (ปรับปรุงส่วนนี้) -->
+        <!-- MODAL: SELECT INDIVIDUAL STUDENTS -->
+<div id="modal-select-students" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center border-b pb-3">
+            <div>
+                <h3 class="font-bold text-slate-800 text-lg flex items-center">
+                    <i class="fa-solid fa-user-check text-indigo-600 mr-2"></i> เลือกผู้สอบเจาะจงรายบุคคล
+                </h3>
+                <p id="modal-student-unit-title" class="text-xs text-indigo-600 font-semibold mt-0.5">-</p>
+            </div>
+            <button onclick="closeStudentSelectModal()" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Search Bar & Filters -->
         <div class="space-y-2">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div class="sm:col-span-2 relative">
@@ -542,19 +557,23 @@
                 </div>
             </div>
         </div>
-        <!-- แทรกส่วนนี้ใน Modal บริเวณ Search Bar & Filters -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div class="sm:col-span-2 relative">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="modal-student-search" oninput="filterModalStudentList()" placeholder="ค้นหาด้วย SAP-ID, ชื่อ หรือนามสกุล..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-            </div>
-        <div>
-            <select id="modal-student-year-filter" onchange="filterModalStudentList()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="ทั้งหมด">ทุกชั้นปี</option>
-                <!-- Dynamic Options จะถูกดึงจากฐานข้อมูลให้อัตโนมัติ -->
-            </select>
+
+        <!-- Student List Scroll Area -->
+        <div id="modal-student-list-container" class="flex-grow overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl divide-y divide-slate-100 p-2 space-y-1 max-h-64">
+            <!-- Dynamic Student Checkboxes -->
         </div>
+
+        <!-- Modal Actions -->
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="closeStudentSelectModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg">
+                ยกเลิก
+            </button>
+            <button type="button" onclick="saveSelectedStudentsFromModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow">
+                บันทึกรายชื่อผู้สอบ
+            </button>
         </div>
+    </div>
+</div>
         <!-- Student List Scroll Area -->
         <div id="modal-student-list-container" class="flex-grow overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl divide-y divide-slate-100 p-2 space-y-1 max-h-64">
             <!-- Dynamic Student Checkboxes -->
