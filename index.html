@@ -659,12 +659,12 @@ function renderBranchButtons() {
     }).join('');
 }
 
-// ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก
+// ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (อัปเดตฟอร์มทันที + ไม่เด้ง Pop-up)
 function switchBranchSettings(branchName) {
     currentSelectedBranch = branchName;
-    renderBranchButtons(); // อัปเดตการไฮไลต์ปุ่มด้านบน
+    renderBranchButtons(); // ไฮไลต์ปุ่มสาขาที่เลือก
     
-    // 🌟 [เพิ่มบรรทัดนี้] อัปเดตป้ายชื่อสาขาที่กำลังตั้งค่าอยู่บนหน้าจอ
+    // อัปเดตป้ายชื่อสาขาที่กำลังตั้งค่าอยู่บนหน้าจอ
     const labelElem = document.getElementById('current-branch-label');
     if (labelElem) {
         labelElem.textContent = branchName;
