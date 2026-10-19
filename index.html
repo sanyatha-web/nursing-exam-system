@@ -2028,9 +2028,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             document.getElementById('btn-admin-nav').classList.remove('hidden');
 
             document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : "อาจารย์ผู้ดูแลระบบ";
-
-            // สลับไปหน้าแรก (Home Overview) ทันทีเมื่ออาจารย์เข้าสู่ระบบ
-            switchAdminTab('overview');
         }
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
