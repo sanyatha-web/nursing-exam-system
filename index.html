@@ -995,23 +995,23 @@ function switchBranchSettings(branchName) {
 
     const availableCategories = [];
 
+    // แก้ไขบรรทัดที่สร้าง <option> ใน loadCategoriesForLoggedInUser()
     userPool.forEach(q => {
         const cat = q.category;
         const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
         if (!cat) return;
-
+    
         const uKey = `${loggedInUser.branch}__${setGrp}__${cat}`;
         const conf = unitSettings[uKey];
-
+    
         if (conf && conf.enabled === true) {
-            // เช็กสิทธิ์การเข้าถึงรายบุคคล
             const isAllAccess = !conf.accessMode || conf.accessMode === 'all';
             const isUserAllowed = conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
-
+    
             if (isAllAccess || isUserAllowed) {
-                const displayLabel = `${setGrp} - ${cat}`;
-                if (!availableCategories.includes(displayLabel)) {
-                    availableCategories.push(displayLabel);
+                // 🟢 เก็บเฉพาะชื่อหน่วยการเรียนรู้ลงในอาร์เรย์
+                if (!availableCategories.includes(cat)) { 
+                    availableCategories.push(cat);
                 }
             }
         }
