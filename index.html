@@ -797,46 +797,58 @@ function switchBranchSettings(branchName) {
         }
         
         // Initialize Application
-        window.addEventListener('DOMContentLoaded', () => {
-            // 1. โหลดการตั้งค่าและดึงข้อมูลจากแคชในเครื่องขึ้นมาแสดงผลทันที (ไม่ใช้ await)
+        window.addEventListener('DOMContentLoaded', async () => {
             loadSettings();
+            await fetchAndSyncUsers();
+        
+            if (settings.sheetCsvUrl) {
+                await fetchAndSyncGoogleSheets();
+            } else {
+                updateAdminSettingsUI();
+            }
+        
             renderBranchButtons();
             renderInitialSetupNotice();
             setupAntiCheatListeners();
         
-            // 2. ตรวจสอบ Session และเปิดหน้าจอของผู้ใช้ทันทีแบบไม่มีดีเลย์
+            // 🟢 เช็ก Session ผู้ใช้งานเพื่อเลือกแสดงหน้าจอที่ถูกต้องทันที
             const savedUserJson = sessionStorage.getItem('exam_session_user');
             if (savedUserJson) {
                 try {
                     loggedInUser = JSON.parse(savedUserJson);
+        
                     if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
                         document.getElementById('btn-admin-nav')?.classList.remove('hidden');
                         document.getElementById('btn-header-logout')?.classList.add('hidden');
                         showAdminDashboard();
+        
                         const lastTab = sessionStorage.getItem('admin_last_tab') || 'overview';
                         switchAdminTab(lastTab);
                     } else {
                         document.getElementById('btn-admin-nav')?.classList.add('hidden');
                         document.getElementById('btn-header-logout')?.classList.remove('hidden');
-                        showStudentDashboard();
+        
+                        const wasExamRunning = sessionStorage.getItem('is_exam_running');
+                        if (wasExamRunning === 'true') {
+                            sessionStorage.removeItem('is_exam_running');
+                            isExamActive = false;
+                            showStudentDashboard();
+                            showAlertModal('warning', 'รีเฟรชหน้าจอ', 'การทำข้อสอบหลุดเนื่องจากคุณได้ทำการรีเฟรชหน้าจอ ระบบนำคุณกลับสู่หน้าโปรไฟล์');
+                        } else {
+                            showStudentDashboard();
+                        }
                     }
                 } catch (e) {
                     console.error("Failed to restore session:", e);
+                    // กรณีอ่าน Session ผิดพลาด ให้เปิดหน้า Log-in
                     hideAllSections();
                     document.getElementById('section-login')?.classList.remove('hidden');
                 }
             } else {
+                // 🟢 กรณีไม่มี Session (ยังไม่ได้ล็อกอิน) ให้เปิดหน้า Log-in
                 hideAllSections();
                 document.getElementById('section-login')?.classList.remove('hidden');
             }
-        
-            // 3. แอบซิงค์ข้อมูลจาก Google Sheets เบื้องหลัง (Background Sync) โดยไม่ขัดจังหวะการแสดงผล
-            setTimeout(() => {
-                fetchAndSyncUsers();
-                if (settings.sheetCsvUrl) {
-                    fetchAndSyncGoogleSheets();
-                }
-            }, 100);
         });
 
         // 1. LOGIN & ROLE-BASED ROUTING SYSTEM (แก้ไขให้เช็กจาก userDatabase ล่าสุด)
@@ -1148,22 +1160,38 @@ function switchBranchSettings(branchName) {
 }
         
 // ฟังก์ชันดึงรายชื่อผู้ใช้จาก Google Sheets (Sheet: Users - รองรับ Proxy และ Asynchronous)
-async function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 3000 } = options; // ตั้งเวลาไม่เกิน 3 วินาที
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+async function fetchAndSyncUsers() {
+    if (!settings.usersCsvUrl) return;
+
+    const cacheBusterUrl = settings.usersCsvUrl + (settings.usersCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+    
     try {
-        const response = await fetch(resource, {
-            ...options,
-            signal: controller.signal
-        });
-        clearTimeout(id);
-        return response;
-    } catch (error) {
-        clearTimeout(id);
-        throw error;
+        let csvText = "";
+
+        try {
+            let res = await fetch(cacheBusterUrl);
+            if (res.ok) {
+                csvText = await res.text();
+            }
+        } catch (e) {
+            console.warn("Direct fetch failed, trying proxy...", e);
+        }
+
+        if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
+            const proxyRes = await fetch(proxyUrl);
+            if (proxyRes.ok) {
+                csvText = await proxyRes.text();
+            }
+        }
+
+        if (csvText && !csvText.includes('<!DOCTYPE html>')) {
+            parseCSVToUsers(csvText);
+        }
+    } catch (err) {
+        console.error("Failed to sync Users CSV:", err);
     }
-}    
+}
 
         // ตัวแปรจัดเก็บประวัติผลการสอบทั้งหมดที่ดึงมาจาก Google Sheets
         let examResultsHistory = [];
