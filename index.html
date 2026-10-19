@@ -799,14 +799,18 @@ function switchBranchSettings(branchName) {
         // Initialize Application
         window.addEventListener('DOMContentLoaded', async () => {
             loadSettings();
-            await fetchAndSyncUsers();
         
-            if (settings.sheetCsvUrl) {
-                await fetchAndSyncGoogleSheets();
-            } else {
-                updateAdminSettingsUI();
+            // 1. ดึงข้อสอบแคชเดิมในเครื่องมาใช้ก่อนทันที (ช่วยให้ UI แสดงผลได้โดยไม่ต้องรอ)
+            const savedQuestions = localStorage.getItem('online_exam_questions');
+            if (savedQuestions) {
+                try { masterQuestions = JSON.parse(savedQuestions); } catch(e) {}
             }
         
+            // 2. ดึงข้อมูลผู้ใช้งาน
+            await fetchAndSyncUsers();
+        
+            // 3. วาด Dropdown และปุ่มเลือกสาขาทันทีจากข้อมูลแคช
+            updateAdminSettingsUI();
             renderBranchButtons();
             renderInitialSetupNotice();
             setupAntiCheatListeners();
@@ -845,9 +849,14 @@ function switchBranchSettings(branchName) {
                     document.getElementById('section-login')?.classList.remove('hidden');
                 }
             } else {
-                // 🟢 กรณีไม่มี Session (ยังไม่ได้ล็อกอิน) ให้เปิดหน้า Log-in
+                // กรณีไม่มี Session (ยังไม่ได้ล็อกอิน) ให้เปิดหน้า Log-in
                 hideAllSections();
                 document.getElementById('section-login')?.classList.remove('hidden');
+            }
+        
+            // 🟢 แอบดึงข้อมูลใหม่ล่าสุดจาก Google Sheets เบื้องหลัง (ไม่ใช้ await เพื่อไม่ให้รีเฟรชค้าง)
+            if (settings.sheetCsvUrl) {
+                fetchAndSyncGoogleSheets();
             }
         });
 
@@ -1128,36 +1137,50 @@ function switchBranchSettings(branchName) {
         }
 
         async function fetchAndSyncGoogleSheets() {
-    if (!settings.sheetCsvUrl) return;
-
-    const cacheBusterUrl = settings.sheetCsvUrl + (settings.sheetCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-    
-    try {
-        let res = await fetch(cacheBusterUrl);
-        let csvText = "";
-
-        if (res.ok) {
-            csvText = await res.text();
-        }
-
-        if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
-            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
-            const proxyRes = await fetch(proxyUrl);
-            if (proxyRes.ok) {
-                csvText = await proxyRes.text();
+            if (!settings.sheetCsvUrl) return;
+        
+            const cacheBusterUrl = settings.sheetCsvUrl + (settings.sheetCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+            
+            try {
+                // กำหนด Controller สำหรับตัดการเชื่อมต่อถ้าเกิน 3.5 วินาที
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
+        
+                let res = await fetch(cacheBusterUrl, { signal: controller.signal }).catch(() => null);
+                clearTimeout(timeoutId);
+        
+                let csvText = "";
+                if (res && res.ok) {
+                    csvText = await res.text();
+                }
+        
+                // ถ้าดึงตรงไม่ได้ ให้ลองผ่าน Proxy
+                if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
+                    const proxyController = new AbortController();
+                    const proxyTimeoutId = setTimeout(() => proxyController.abort(), 3500);
+                    
+                    const proxyRes = await fetch(proxyUrl, { signal: proxyController.signal }).catch(() => null);
+                    clearTimeout(proxyTimeoutId);
+        
+                    if (proxyRes && proxyRes.ok) {
+                        csvText = await proxyRes.text();
+                    }
+                }
+        
+                if (csvText && !csvText.includes('<!DOCTYPE html>')) {
+                    parseCSVToQuestions(csvText, true);
+                }
+            } catch (err) {
+                console.warn("Sync Google Sheets timeout or error, using local cached data.");
+            } finally {
+                // อัปเดตหน้าจอทั้งหมดทันที
+                updateAdminSettingsUI();
+                renderBranchButtons();
+                if (typeof renderOverviewTable === 'function') renderOverviewTable();
+                if (typeof renderUnitSettingsList === 'function') renderUnitSettingsList();
             }
         }
-
-        if (csvText && !csvText.includes('<!DOCTYPE html>')) {
-            parseCSVToQuestions(csvText, true);
-        }
-    } catch (err) {
-        console.error("Failed to sync Google Sheets CSV, trying proxy...", err);
-    } finally {
-        // เรียกอัปเดต UI Dropdown และรายการหน่วยการเรียนรู้เมื่อประมวลผล CSV เสร็จเรียบร้อย
-        updateAdminSettingsUI();
-    }
-}
         
 // ฟังก์ชันดึงรายชื่อผู้ใช้จาก Google Sheets (Sheet: Users - รองรับ Proxy และ Asynchronous)
 async function fetchAndSyncUsers() {
