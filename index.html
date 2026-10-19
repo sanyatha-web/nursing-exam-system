@@ -810,11 +810,44 @@ function switchBranchSettings(branchName) {
     renderBranchButtons(); // <--- [เพิ่มบรรทัดนี้] สั่งสร้างปุ่มสาขาทันทีเมื่อเปิดหน้าเว็บ
     renderInitialSetupNotice();
     setupAntiCheatListeners();
+
+    const savedUserJson = sessionStorage.getItem('exam_session_user');
+    if (savedUserJson) {
+        try {
+            loggedInUser = JSON.parse(savedUserJson);
+
+            if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
+                document.getElementById('btn-admin-nav').classList.remove('hidden');
+                document.getElementById('btn-header-logout').classList.add('hidden');
+                showAdminDashboard();
+
+                // สลับไปยังแท็บล่าสุดที่เปิดค้างไว้
+                const lastTab = sessionStorage.getItem('admin_last_tab') || 'overview';
+                switchAdminTab(lastTab);
+            } else {
+                // สำหรับนักศึกษา (Student)
+                document.getElementById('btn-admin-nav').classList.add('hidden');
+                document.getElementById('btn-header-logout').classList.remove('hidden');
+
+                // เช็กว่าถ้ากด Refresh ขณะทำข้อสอบ ให้เด้งกลับไปหน้า Profile
+                const wasExamRunning = sessionStorage.getItem('is_exam_running');
+                if (wasExamRunning === 'true') {
+                    sessionStorage.removeItem('is_exam_running');
+                    isExamActive = false;
+                    showStudentDashboard();
+                    showAlertModal('warning', 'รีเฟรชหน้าจอ', 'การทำข้อสอบหลุดเนื่องจากคุณได้ทำการรีเฟรชหน้าจอ ระบบนำคุณกลับสู่หน้าโปรไฟล์');
+                } else {
+                    showStudentDashboard();
+                }
+            }
+        } catch (e) {
+            console.error("Failed to restore session:", e);
+        }
+    }
 });
 
         // 1. LOGIN & ROLE-BASED ROUTING SYSTEM (แก้ไขให้เช็กจาก userDatabase ล่าสุด)
-        async function handleLogin(e) {
-            e.preventDefault();
+        async function handleLogin(e) {e.preventDefault();
             const userVal = document.getElementById('login-username').value.trim();
             const passVal = document.getElementById('login-password').value.trim();
         
@@ -826,8 +859,9 @@ function switchBranchSettings(branchName) {
         
             if (foundUser) {
                 loggedInUser = foundUser;
+                // 🟢 บันทึกข้อมูลล็อกอินลง sessionStorage
+                sessionStorage.setItem('exam_session_user', JSON.stringify(foundUser));
         
-                // รองรับทั้ง superadmin และ admin เข้าแผงควบคุมระบบ
                 if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
                     document.getElementById('btn-admin-nav').classList.remove('hidden');
                     document.getElementById('btn-header-logout').classList.add('hidden');
@@ -895,6 +929,10 @@ function switchBranchSettings(branchName) {
         function handleLogout() {
             loggedInUser = null;
             currentSelectedBranch = "ภาพรวมทุกสาขา"; // รีเซ็ตสาขาที่เลือกให้เป็นค่าเริ่มต้น
+
+            sessionStorage.removeItem('exam_session_user');
+            sessionStorage.removeItem('admin_last_tab');
+            sessionStorage.removeItem('is_exam_running');
             
             hideAllSections();
             
@@ -1049,6 +1087,7 @@ function switchBranchSettings(branchName) {
             tabSwitchCount = 0;
             timeRemainingSeconds = settings.timeLimitMinutes * 60;
             isExamActive = true;
+            sessionStorage.setItem('is_exam_running', 'true');
 
             document.getElementById('exam-student-heading').textContent = `ผู้สอบ: ${studentData.name} (${studentData.id})`;
             document.getElementById('exam-current-category').textContent = `${studentData.branch} > ${selectedCategory}`;
@@ -1935,7 +1974,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     return;
                 }
             }
-        
+
+            sessionStorage.setItem('admin_last_tab', tabName);
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
@@ -1999,6 +2039,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     <th class="p-3 font-bold text-center">สถานะสอบ</th>
                     <th class="p-3 font-bold text-center">Anti-Cheat</th>
                     <th class="p-3 font-bold text-center">ป้องกันแคปจอ</th>
+                    <th class="p-3 font-bold text-center">สิทธิ์ผู้เข้าสอบ</th>
                 `;
             }
         
@@ -2136,13 +2177,38 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
                                 </span>
                             </td>
-                        </tr>
-                    `;
-                });
-            });
+                            <td class="p-3 text-center whitespace-nowrap">
+                                ${accessMode === 'custom' ? `
+                                    <button onclick="viewAccessUsersModal('${unitKey}')" title="คลิกเพื่อดูรายชื่อผู้มีสิทธิ์สอบ" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-bold text-[11px] border border-amber-300 transition">
+                                        <i class="fa-solid fa-user-check text-amber-600"></i>
+                                        <span>เจาะจง (${allowedUsersCount} คน)</span>
+                                    </button>
+                                ` : `
+                                    <span class="inline-flex items-center space-x-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg font-bold text-[11px] border border-emerald-200">
+                                        <i class="fa-solid fa-users text-emerald-600"></i>
+                                        <span>ทุกคน</span>
+                                    </span>
+                                `}
+                            </td>
+                        </tr>`;
+                        });
         
             tableBody.innerHTML = tableRowsHtml;
         }
+
+        function viewAccessUsersModal(unitKey) {
+            const matchedConf = unitSettings[unitKey];
+            if (!matchedConf || !matchedConf.allowedUsers || matchedConf.allowedUsers.length === 0) {
+                showAlertModal('info', 'สิทธิ์ผู้เข้าสอบ', 'หน่วยการเรียนรู้นี้ยังไม่ได้ระบุรายชื่อผู้เข้าสอบเจาะจง');
+                return;
+            }
+        
+            const allowedUsersList = userDatabase.filter(u => matchedConf.allowedUsers.includes(u.username));
+            const namesText = allowedUsersList.map(u => `• ${u.fullname} (${u.username}) - ${u.yearLevel || 'ไม่ระบุชั้นปี'}`).join('\n');
+        
+            showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบ (${allowedUsersList.length} คน)`, namesText);
+        }
+                                    
         // ฟังก์ชันสร้างตารางติดตามการสอบรายบุคคล (เกณฑ์ผ่าน 80% เรียงลำดับล่าสุดลงไป)
         function renderStudentTrackerTable() {
             const tableBody = document.getElementById('tracker-table-body');
