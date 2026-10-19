@@ -675,7 +675,7 @@
         const DEFAULT_USERS = [
             { username: "650001", password: "123", fullname: "นายสมชาย ใจดี", branch: "การพยาบาลอายุรศาสตร์ทั่วไป", role: "student" },
             { username: "650002", password: "123", fullname: "นางสาวสมหญิง รักดี", branch: "การพยาบาลออร์โธปิดิกส์", role: "student" },
-            { username: "admin1", password: "123", fullname: "อาจารย์ผู้ดูแลระบบ", branch: "อาจารย์ผู้สอน", role: "admin" }
+            { username: "admin1", password: "123", fullname: "อาจารย์ผู้ดูแลระบบสูงสุด", branch: "อาจารย์ผู้สอน", role: "superadmin" }
         ];
         
         // ฟังก์ชัน เปิด-ปิด Dropdown Menu ของอาจารย์
@@ -729,42 +729,40 @@ let settings = {
     webAppUrl: ""
 };
         
-// ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา (ตัดปุ่มภาพรวมทุกสาขาออกแล้ว)
-function renderBranchButtons() {
-    const container = document.getElementById('branch-buttons-container');
-    if (!container) return;
-
-    // 1. ดึงรายชื่อสาขาจากคลังข้อสอบ
-    const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
-    
-    // 2. ดึงรายชื่อสาขาจากฐานข้อมูลผู้ใช้งาน (Users)
-    const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
-
-    // รวมรายชื่อสาขาทั้งหมดเข้าด้วยกัน ตัดชื่อสาขาที่ซ้ำออก และตัดคำว่า "ภาพรวมทุกสาขา" ออก
-    const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]))
-                             .filter(b => b !== "ภาพรวมทุกสาขา");
-
-    // หากยังไม่ได้เลือกสาขาไหนเลย หรือสาขาเดิมที่เลือกไว้ถูกลบ ให้ตั้งค่าสาขาแรกเป็นสาขาเริ่มต้น
-    if ((currentSelectedBranch === "ภาพรวมทุกสาขา" || !allBranches.includes(currentSelectedBranch)) && allBranches.length > 0) {
-        currentSelectedBranch = allBranches[0];
-    }
-
-    // สร้างปุ่ม HTML แสดงเฉพาะรายชื่อสาขาวิชา
-    container.innerHTML = allBranches.map(branch => {
-        const isActive = branch === currentSelectedBranch;
-        return `
-            <button type="button" onclick="switchBranchSettings('${branch}')" 
-                class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
-                    isActive 
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                }">
-                <i class="fa-solid ${isActive ? 'fa-circle-check' : 'fa-graduation-cap'}"></i>
-                <span>${branch}</span>
-            </button>
-        `;
-    }).join('');
-}
+        // ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา (ตัดปุ่มภาพรวมทุกสาขาออกแล้ว)
+        function renderBranchButtons() {
+            const container = document.getElementById('branch-buttons-container');
+            if (!container) return;
+        
+            const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
+            const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
+        
+            let allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]))
+                                   .filter(b => b !== "ภาพรวมทุกสาขา");
+        
+            // หากเป็น admin ประจำสาขา ให้กรองเหลือเฉพาะสาขาตนเอง
+            if (loggedInUser && loggedInUser.role === 'admin') {
+                allBranches = allBranches.filter(b => b === loggedInUser.branch);
+                currentSelectedBranch = loggedInUser.branch;
+            } else if ((currentSelectedBranch === "ภาพรวมทุกสาขา" || !allBranches.includes(currentSelectedBranch)) && allBranches.length > 0) {
+                currentSelectedBranch = allBranches[0];
+            }
+        
+            container.innerHTML = allBranches.map(branch => {
+                const isActive = branch === currentSelectedBranch;
+                return `
+                    <button type="button" onclick="switchBranchSettings('${branch}')" 
+                        class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                            isActive 
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                        }">
+                        <i class="fa-solid ${isActive ? 'fa-circle-check' : 'fa-graduation-cap'}"></i>
+                        <span>${branch}</span>
+                    </button>
+                `;
+            }).join('');
+        }
         
 // ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (ป้องกัน Error เรียกใช้ ID ที่ไม่มีอยู่จริง)
 function switchBranchSettings(branchName) {
@@ -819,20 +817,18 @@ function switchBranchSettings(branchName) {
             e.preventDefault();
             const userVal = document.getElementById('login-username').value.trim();
             const passVal = document.getElementById('login-password').value.trim();
-
-            // ดึงข้อมูลผู้ใช้จาก Google Sheets ให้เป็นปัจจุบันที่สุดก่อนล็อกอิน
+        
             if (typeof fetchAndSyncUsers === 'function') {
                 await fetchAndSyncUsers();
             }
-
-            // ค้นหาผู้ใช้จาก userDatabase ทั้งหมด
+        
             const foundUser = userDatabase.find(u => u.username === userVal && u.password === passVal);
-
+        
             if (foundUser) {
                 loggedInUser = foundUser;
-
-                // แยกการแสดงผลตาม Role
-                if (loggedInUser.role === 'admin') {
+        
+                // รองรับทั้ง superadmin และ admin เข้าแผงควบคุมระบบ
+                if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
                     document.getElementById('btn-admin-nav').classList.remove('hidden');
                     document.getElementById('btn-header-logout').classList.add('hidden');
                     showAdminDashboard();
@@ -851,8 +847,21 @@ function switchBranchSettings(branchName) {
             hideAllSections();
             document.getElementById('section-dashboard-admin').classList.remove('hidden');
             document.getElementById('btn-admin-nav').classList.remove('hidden');
-
-            document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : "อาจารย์ผู้ดูแลระบบ";
+        
+            const adminTitle = loggedInUser.role === 'superadmin' ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch})`;
+            document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : adminTitle;
+        
+            // หากเป็น admin ประจำสาขา ให้ซ่อนเมนู "แหล่งข้อมูลนำเข้า/ออก" (แท็บ 4) ใน Dropdown
+            const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
+            if (menuDataSources) {
+                if (loggedInUser.role === 'superadmin') {
+                    menuDataSources.classList.remove('hidden');
+                } else {
+                    menuDataSources.classList.add('hidden');
+                }
+            }
+        
+            switchAdminTab('overview');
         }
 
         // หน้าสำหรับผู้เรียน (Student Dashboard)
@@ -1220,10 +1229,10 @@ async function fetchAndSyncUsers() {
             examResultsHistory = parsedResults.reverse();
         }
 
-// ฟังก์ชันแปลง CSV เป็นข้อมูลผู้สอบ (ดึงชั้นปี และแยก ชื่อ/นามสกุล)
-function parseCSVToUsers(csvText) {
-    if (!csvText || csvText.trim() === '') return;
-    if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
+    // ฟังก์ชันแปลง CSV เป็นข้อมูลผู้สอบ (ดึงชั้นปี และแยก ชื่อ/นามสกุล)
+    function parseCSVToUsers(csvText) {
+        if (!csvText || csvText.trim() === '') return;
+        if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
 
     function parseCSVLine(text) {
         let p = '', c = '', r = [];
@@ -1273,6 +1282,12 @@ function parseCSVToUsers(csvText) {
         const role = roleIdx !== -1 ? cols[roleIdx] : 'student';
         const password = passIdx !== -1 ? cols[passIdx] : '';
 
+        let userRole = 'student';
+        const roleLower = role.toLowerCase();
+        if (roleLower.includes('superadmin') || roleLower.includes('ผู้ดูแลระบบสูงสุด')) {userRole = 'superadmin';
+        } else if (roleLower.includes('admin') || roleLower.includes('อาจารย์') || roleLower.includes('ผู้ดูแล')) {userRole = 'admin';
+        }
+
         if (sapId && password) {
             fetchedUsers.push({
                 username: sapId,
@@ -1283,7 +1298,7 @@ function parseCSVToUsers(csvText) {
                 fullname: `${prefix}${fname} ${lname}`.trim(),
                 branch: branch || 'ทั่วไป',
                 yearLevel: yearLevel || 'ไม่ระบุ',
-                role: role.toLowerCase().includes('admin') || role.toLowerCase().includes('อาจารย์') ? 'admin' : 'student'
+                role: userRole
             });
         }
     }
@@ -1898,35 +1913,43 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
         function switchAdminTab(tabName) {
+            // ป้องกัน admin ประจำสาขาเข้าแท็บ data-sources
+            if (tabName === 'data-sources' && loggedInUser && loggedInUser.role !== 'superadmin') {
+                showAlertModal('warning', 'ไม่มีสิทธิ์เข้าถึง', 'เมนูนี้เฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
+                return;
+            }
+        
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
-            const tabData = document.getElementById('tab-admin-data-sources');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
+            const tabData = document.getElementById('tab-admin-data-sources');
             const branchWrapper = document.getElementById('branch-selector-wrapper');
         
-            // ซ่อนทุกแท็บก่อน
             if (tabOverview) tabOverview.classList.add('hidden');
             if (tabExam) tabExam.classList.add('hidden');
-            if (tabData) tabData.classList.add('hidden');
             if (tabTracker) tabTracker.classList.add('hidden');
+            if (tabData) tabData.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
         
-            if (tabName === 'data-sources') {
-                if (tabData) tabData.classList.remove('hidden');
+            if (tabName === 'student-tracker') {
+                if (tabTracker) tabTracker.classList.remove('hidden');
+                fetchAndSyncResults().then(() => {
+                    renderStudentTrackerTable();
+                });
             } else if (tabName === 'exam-settings') {
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
                 
                 renderBranchButtons(); 
+                
+                // ถ้าเป็น admin ประจำสาขา บังคับให้สลับไปสาขาตนเองทันที
+                if (loggedInUser && loggedInUser.role === 'admin') {
+                    currentSelectedBranch = loggedInUser.branch;
+                }
                 switchBranchSettings(currentSelectedBranch);
-            } else if (tabName === 'student-tracker') {
-                if (tabTracker) tabTracker.classList.remove('hidden');
-                // ดึงข้อมูลผลการสอบแล้วเรนเดอร์ตาราง
-                fetchAndSyncResults().then(() => {
-                    renderStudentTrackerTable();
-                });
+            } else if (tabName === 'data-sources') {
+                if (tabData) tabData.classList.remove('hidden');
             } else {
-                // Default Home: แท็บภาพรวมการตั้งค่า (Overview)
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 renderOverviewTable();
             }
@@ -1971,6 +1994,30 @@ function renderOverviewTable() {
 
     const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
     const displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
+
+    // ค้นหาท่อนที่ดึง allBranches แล้วเพิ่มเงื่อนไขล็อกสาขา
+    let displayBranches = [];
+    
+    if (loggedInUser && loggedInUser.role === 'admin') {
+        displayBranches = [loggedInUser.branch];
+        if (filterSelect) {
+            filterSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
+            filterSelect.disabled = true; // ปิดไม่ให้เปลี่ยนสาขา
+        }
+    } else {
+        if (filterSelect) {
+            filterSelect.disabled = false;
+            const currentVal = filterSelect.value || "ทั้งหมด";
+            filterSelect.innerHTML = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
+                allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+            
+            if (allBranches.includes(currentVal) || currentVal === "ทั้งหมด") {
+                filterSelect.value = currentVal;
+            }
+        }
+        const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
+        displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
+    }
 
     if (displayBranches.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
@@ -2104,6 +2151,18 @@ function renderOverviewTable() {
             // 2. ดึงนักศึกษาทั้งหมดจาก userDatabase (ไม่รวม Admin)
             const students = userDatabase.filter(u => u.role === 'student');
 
+            if (filterSelect) {
+                if (loggedInUser && loggedInUser.role === 'admin') {
+                    filterSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
+                    filterSelect.disabled = true;
+                } else if (filterSelect.options.length <= 1) {
+                    filterSelect.disabled = false;
+                    const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
+                    filterSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขา (${allBranches.length})</option>` + 
+                        allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+                }
+            }
+
             if (students.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลผู้สอบในระบบ</td></tr>`;
                 return;
@@ -2112,9 +2171,13 @@ function renderOverviewTable() {
             let rowsHtml = '';
 
             // 3. วนลูปประมวลผลนักศึกษาทุกคน
+            const activeBranchFilter = (loggedInUser && loggedInUser.role === 'admin') 
+                ? loggedInUser.branch 
+                : (document.getElementById('tracker-branch-filter')?.value || 'ทั้งหมด');
+            
             students.forEach(student => {
-                // กรองสาขาวิชา
-                if (branchFilter !== 'ทั้งหมด' && student.branch !== branchFilter) return;
+                // กรองข้ามคนที่ไม่ใช่สาขาตนเอง
+                if (activeBranchFilter !== 'ทั้งหมด' && student.branch !== activeBranchFilter) return;
 
                 // ค้นหารายชื่อ หรือ SAP-ID
                 const matchSearch = student.username.toLowerCase().includes(searchVal) || 
