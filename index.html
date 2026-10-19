@@ -2127,6 +2127,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             break;
                         }
                     }
+
+                    const unitKey = `${bName}__${setName}__${catName}`;
+                    const accessMode = matchedConf?.accessMode || 'all';
+                    const allowedUsersCount = (matchedConf?.allowedUsers || []).length;
         
                     // ตรวจสอบสถานะการเปิด/ปิดสอบของหน่วยนี้
                     const isUnitEnabled = matchedConf ? matchedConf.enabled === true : true;
