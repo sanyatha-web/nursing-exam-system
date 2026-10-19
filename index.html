@@ -797,25 +797,27 @@ function switchBranchSettings(branchName) {
         }
         
         // Initialize Application
-        window.addEventListener('DOMContentLoaded', async () => {
+        window.addEventListener('DOMContentLoaded', () => {
+            // 1. โหลดการตั้งค่าและดึงข้อมูลเดิมจากเครื่องขึ้นมาแสดงผลทันที (ไม่ใช้ await)
             loadSettings();
         
-            // 1. ดึงข้อสอบแคชเดิมในเครื่องมาใช้ก่อนทันที (ช่วยให้ UI แสดงผลได้โดยไม่ต้องรอ)
             const savedQuestions = localStorage.getItem('online_exam_questions');
             if (savedQuestions) {
                 try { masterQuestions = JSON.parse(savedQuestions); } catch(e) {}
             }
         
-            // 2. ดึงข้อมูลผู้ใช้งาน
-            await fetchAndSyncUsers();
+            const savedUsers = localStorage.getItem('online_exam_users');
+            if (savedUsers) {
+                try { userDatabase = JSON.parse(savedUsers); } catch(e) {}
+            }
         
-            // 3. วาด Dropdown และปุ่มเลือกสาขาทันทีจากข้อมูลแคช
+            // 2. วาด UI ทันที
             updateAdminSettingsUI();
             renderBranchButtons();
             renderInitialSetupNotice();
             setupAntiCheatListeners();
         
-            // 🟢 เช็ก Session ผู้ใช้งานเพื่อเลือกแสดงหน้าจอที่ถูกต้องทันที
+            // 3. ตรวจสอบ Session และเปิดหน้าจอทันทีโดยไม่ต้องรอเน็ต
             const savedUserJson = sessionStorage.getItem('exam_session_user');
             if (savedUserJson) {
                 try {
@@ -844,20 +846,21 @@ function switchBranchSettings(branchName) {
                     }
                 } catch (e) {
                     console.error("Failed to restore session:", e);
-                    // กรณีอ่าน Session ผิดพลาด ให้เปิดหน้า Log-in
                     hideAllSections();
                     document.getElementById('section-login')?.classList.remove('hidden');
                 }
             } else {
-                // กรณีไม่มี Session (ยังไม่ได้ล็อกอิน) ให้เปิดหน้า Log-in
                 hideAllSections();
                 document.getElementById('section-login')?.classList.remove('hidden');
             }
         
-            // 🟢 แอบดึงข้อมูลใหม่ล่าสุดจาก Google Sheets เบื้องหลัง (ไม่ใช้ await เพื่อไม่ให้รีเฟรชค้าง)
-            if (settings.sheetCsvUrl) {
-                fetchAndSyncGoogleSheets();
-            }
+            // 4. แอบซิงค์ข้อมูลผู้ใช้งานและข้อสอบเบื้องหลังพร้อมกัน (Silent Background Sync)
+            setTimeout(() => {
+                fetchAndSyncUsers();
+                if (settings.sheetCsvUrl) {
+                    fetchAndSyncGoogleSheets();
+                }
+            }, 50);
         });
 
         // 1. LOGIN & ROLE-BASED ROUTING SYSTEM (แก้ไขให้เช็กจาก userDatabase ล่าสุด)
@@ -1189,21 +1192,26 @@ async function fetchAndSyncUsers() {
     const cacheBusterUrl = settings.usersCsvUrl + (settings.usersCsvUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
     
     try {
-        let csvText = "";
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500); // ตัดการรอทันทีที่ 2.5 วินาที
 
-        try {
-            let res = await fetch(cacheBusterUrl);
-            if (res.ok) {
-                csvText = await res.text();
-            }
-        } catch (e) {
-            console.warn("Direct fetch failed, trying proxy...", e);
+        let res = await fetch(cacheBusterUrl, { signal: controller.signal }).catch(() => null);
+        clearTimeout(timeoutId);
+
+        let csvText = "";
+        if (res && res.ok) {
+            csvText = await res.text();
         }
 
         if (!csvText || csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+            const proxyController = new AbortController();
+            const proxyTimeoutId = setTimeout(() => proxyController.abort(), 2500);
+
             const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cacheBusterUrl);
-            const proxyRes = await fetch(proxyUrl);
-            if (proxyRes.ok) {
+            const proxyRes = await fetch(proxyUrl, { signal: proxyController.signal }).catch(() => null);
+            clearTimeout(proxyTimeoutId);
+
+            if (proxyRes && proxyRes.ok) {
                 csvText = await proxyRes.text();
             }
         }
@@ -1212,7 +1220,7 @@ async function fetchAndSyncUsers() {
             parseCSVToUsers(csvText);
         }
     } catch (err) {
-        console.error("Failed to sync Users CSV:", err);
+        console.warn("Sync users timeout, using local cached users.");
     }
 }
 
@@ -1411,6 +1419,15 @@ async function fetchAndSyncUsers() {
             if (fetchedUsers.length > 0) {
                 const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'superadmin' || u.role === 'admin');
                 userDatabase = [...defaultAdmins, ...fetchedUsers];
+                renderBranchButtons();
+            }
+            if (fetchedUsers.length > 0) {
+                const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'superadmin' || u.role === 'admin');
+                userDatabase = [...defaultAdmins, ...fetchedUsers];
+                
+                // 🟢 บันทึกรายชื่อผู้ใช้ลง LocalStorage เพื่อให้โหลดขึ้นมาใช้งานได้ทันทีในครั้งถัดไป
+                localStorage.setItem('online_exam_users', JSON.stringify(userDatabase));
+                
                 renderBranchButtons();
             }
         }
