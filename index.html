@@ -2106,7 +2106,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 // ดึงข้อสอบเฉพาะของสาขานี้
                 const branchQuestions = masterQuestions.filter(q => q.branch === bName || !q.branch || q.branch === 'ข้อสอบกลาง');
         
-                // 3. จัดกลุ่มข้อสอบแยกเป็นรายหน่วยการเรียนรู้ [สาขา + ชั้นปี + ชุดการเรียนรู้ + หน่วยการเรียนรู้]
+                // 3. จัดกลุ่มข้อสอบแยกเป็นรายหน่วยการเรียนรู้
                 const groupedUnits = [];
                 
                 branchQuestions.forEach(q => {
@@ -2157,7 +2157,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     const isUnitEnabled = matchedConf ? matchedConf.enabled === true : true;
                     const isGlobalEnable = isUnitEnabled && (bSet.globalExamEnable !== false);
         
-                    // ใช้ค่าจำนวนข้อและเวลาสอบเฉพาะของหน่วยนี้ (หากมีการตั้งค่าไว้)
+                    // ใช้ค่าจำนวนข้อและเวลาสอบเฉพาะของหน่วยนี้
                     const qCount = matchedConf?.questionCount || bSet.questionCount || 15;
                     const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
                     
@@ -2215,10 +2215,11 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 `}
                             </td>
                         </tr>`;
-                });
+                }); // ปิด groupedUnits.forEach
+            }); // ปิด displayBranches.forEach
         
             tableBody.innerHTML = tableRowsHtml;
-        }
+        } // ปิด renderOverviewTable
 
         function viewAccessUsersModal(unitKey) {
             const matchedConf = unitSettings[unitKey];
