@@ -2047,7 +2047,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const filterSelect = document.getElementById('overview-branch-filter');
             if (!tableBody) return;
         
-            // 1. Header ตาราง 9 คอลัมน์
+            // 1. Header ตาราง 10 คอลัมน์
             const tableHeader = tableBody.closest('table')?.querySelector('thead tr');
             if (tableHeader) {
                 tableHeader.innerHTML = `
@@ -2094,7 +2094,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         
             if (displayBranches.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
                 return;
             }
         
@@ -2148,7 +2148,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             break;
                         }
                     }
-
+        
                     const unitKey = `${bName}__${setName}__${catName}`;
                     const accessMode = matchedConf?.accessMode || 'all';
                     const allowedUsersCount = (matchedConf?.allowedUsers || []).length;
@@ -2179,7 +2179,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             <td class="p-3 font-semibold text-slate-700 whitespace-nowrap">
                                 <i class="fa-solid fa-layer-group text-xs text-indigo-500 mr-1.5"></i>${setName}
                             </td>
-                            <!-- คอลัมน์แสดงหน่วยการเรียนรู้รายแถว -->
                             <td class="p-3 font-bold text-indigo-900">
                                 <div class="flex items-center">
                                     <i class="fa-solid fa-book-bookmark text-xs text-indigo-600 mr-1.5"></i>${catName}
@@ -2216,10 +2215,9 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 `}
                             </td>
                         </tr>`;
-                        });
+                });
         
             tableBody.innerHTML = tableRowsHtml;
-        }
         }
 
         function viewAccessUsersModal(unitKey) {
