@@ -1023,9 +1023,12 @@ function switchBranchSettings(branchName) {
             if (availableCategories.length === 0) {
                 selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีหน่วยการเรียนรู้เปิดให้ทำ --</option>`;
             } else {
-                selectElem.innerHTML = availableCategories.map(item => 
-                    `<option value="${item}">${item}</option>`
-                ).join('');
+                // แสดงผล "ชื่อชุด - ชื่อหน่วย" บนเมนู แต่นำส่งค่า value เป็นชื่อหน่วยตรงๆ เพื่อไม่ให้กระทบการดึงข้อสอบ
+                selectElem.innerHTML = availableCategories.map(cat => {
+                    const qMatch = userPool.find(q => q.category === cat);
+                    const setGrp = qMatch?.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                    return `<option value="${cat}">${setGrp} - ${cat}</option>`;
+                }).join('');
             }
         }
 
