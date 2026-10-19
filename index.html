@@ -986,48 +986,48 @@ function switchBranchSettings(branchName) {
         }
 
         function loadCategoriesForLoggedInUser() {
-    if (!loggedInUser) return;
-
-    let userPool = masterQuestions.filter(q => 
-        !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || 
-        q.branch === loggedInUser.branch
-    );
-
-    const availableCategories = [];
-
-    // แก้ไขบรรทัดที่สร้าง <option> ใน loadCategoriesForLoggedInUser()
-    userPool.forEach(q => {
-        const cat = q.category;
-        const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
-        if (!cat) return;
-    
-        const uKey = `${loggedInUser.branch}__${setGrp}__${cat}`;
-        const conf = unitSettings[uKey];
-    
-        if (conf && conf.enabled === true) {
-            const isAllAccess = !conf.accessMode || conf.accessMode === 'all';
-            const isUserAllowed = conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
-    
-            if (isAllAccess || isUserAllowed) {
-                // 🟢 เก็บเฉพาะชื่อหน่วยการเรียนรู้ลงในอาร์เรย์
-                if (!availableCategories.includes(cat)) { 
-                    availableCategories.push(cat);
+            if (!loggedInUser) return;
+        
+            let userPool = masterQuestions.filter(q => 
+                !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || 
+                q.branch === loggedInUser.branch
+            );
+        
+            const availableCategories = [];
+        
+            userPool.forEach(q => {
+                const cat = q.category;
+                const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                if (!cat) return;
+        
+                const uKey = `${loggedInUser.branch}__${setGrp}__${cat}`;
+                const conf = unitSettings[uKey];
+        
+                if (conf && conf.enabled === true) {
+                    // เช็กสิทธิ์การเข้าถึงรายบุคคล
+                    const isAllAccess = !conf.accessMode || conf.accessMode === 'all';
+                    const isUserAllowed = conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
+        
+                    if (isAllAccess || isUserAllowed) {
+                        // 📌 แก้ไขจุดนี้: เก็บเฉพาะ cat ลงอาร์เรย์ เพื่อให้เทียบค่าตรงกับ q.category
+                        if (!availableCategories.includes(cat)) {
+                            availableCategories.push(cat);
+                        }
+                    }
                 }
+            });
+        
+            const selectElem = document.getElementById('dashboard-category-select');
+            if (!selectElem) return;
+        
+            if (availableCategories.length === 0) {
+                selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีหน่วยการเรียนรู้เปิดให้ทำ --</option>`;
+            } else {
+                selectElem.innerHTML = availableCategories.map(item => 
+                    `<option value="${item}">${item}</option>`
+                ).join('');
             }
         }
-    });
-
-    const selectElem = document.getElementById('dashboard-category-select');
-    if (!selectElem) return;
-
-    if (availableCategories.length === 0) {
-        selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีหน่วยการเรียนรู้เปิดให้ทำ --</option>`;
-    } else {
-        selectElem.innerHTML = availableCategories.map(item => 
-            `<option value="${item}">${item}</option>`
-        ).join('');
-    }
-}
 
         function startExamFromDashboard() {
             if (settings.globalExamEnable === false) {
