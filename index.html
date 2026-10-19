@@ -847,19 +847,23 @@ function switchBranchSettings(branchName) {
 });
 
         // 1. LOGIN & ROLE-BASED ROUTING SYSTEM (แก้ไขให้เช็กจาก userDatabase ล่าสุด)
-        async function handleLogin(e) {e.preventDefault();
+        async function handleLogin(e) {
+            e.preventDefault();
             const userVal = document.getElementById('login-username').value.trim();
             const passVal = document.getElementById('login-password').value.trim();
         
-            if (typeof fetchAndSyncUsers === 'function') {
-                await fetchAndSyncUsers();
+            try {
+                if (typeof fetchAndSyncUsers === 'function' && settings.usersCsvUrl) {
+                    await fetchAndSyncUsers();
+                }
+            } catch (err) {
+                console.warn("Sync failed, using cached userDatabase", err);
             }
         
             const foundUser = userDatabase.find(u => u.username === userVal && u.password === passVal);
         
             if (foundUser) {
                 loggedInUser = foundUser;
-                // 🟢 บันทึกข้อมูลล็อกอินลง sessionStorage
                 sessionStorage.setItem('exam_session_user', JSON.stringify(foundUser));
         
                 if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
@@ -872,7 +876,7 @@ function switchBranchSettings(branchName) {
                     showStudentDashboard();
                 }
             } else {
-                showAlertModal('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง');
+                showAlertModal('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง หรืออยู่ระหว่างการอัปเดตข้อมูล');
             }
         }
 
