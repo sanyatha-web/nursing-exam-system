@@ -1416,12 +1416,7 @@ async function fetchAndSyncUsers() {
                 }
             }
     
-            if (fetchedUsers.length > 0) {
-                const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'superadmin' || u.role === 'admin');
-                userDatabase = [...defaultAdmins, ...fetchedUsers];
-                renderBranchButtons();
-            }
-            if (fetchedUsers.length > 0) {
+           if (fetchedUsers.length > 0) {
                 const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'superadmin' || u.role === 'admin');
                 userDatabase = [...defaultAdmins, ...fetchedUsers];
                 
