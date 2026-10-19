@@ -94,7 +94,7 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
 
         <!-- STEP 1: LOGIN SECTION -->
-        <section id="section-login" class="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300">
+        <section id="section-login" class="hidden max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300">
             <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 px-6 py-6 text-white text-center">
                 <i class="fa-solid fa-right-to-bracket text-4xl mb-2 text-indigo-200"></i>
                 <h2 class="text-2xl font-bold">เข้าสู่ระบบทำแบบทดสอบ</h2>
@@ -798,53 +798,58 @@ function switchBranchSettings(branchName) {
         
         // Initialize Application
         window.addEventListener('DOMContentLoaded', async () => {
-    loadSettings();
-    await fetchAndSyncUsers();
-
-    if (settings.sheetCsvUrl) {
-        await fetchAndSyncGoogleSheets();
-    } else {
-        updateAdminSettingsUI();
-    }
-
-    renderBranchButtons(); // <--- [เพิ่มบรรทัดนี้] สั่งสร้างปุ่มสาขาทันทีเมื่อเปิดหน้าเว็บ
-    renderInitialSetupNotice();
-    setupAntiCheatListeners();
-
-    const savedUserJson = sessionStorage.getItem('exam_session_user');
-    if (savedUserJson) {
-        try {
-            loggedInUser = JSON.parse(savedUserJson);
-
-            if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
-                document.getElementById('btn-admin-nav').classList.remove('hidden');
-                document.getElementById('btn-header-logout').classList.add('hidden');
-                showAdminDashboard();
-
-                // สลับไปยังแท็บล่าสุดที่เปิดค้างไว้
-                const lastTab = sessionStorage.getItem('admin_last_tab') || 'overview';
-                switchAdminTab(lastTab);
+            loadSettings();
+            await fetchAndSyncUsers();
+        
+            if (settings.sheetCsvUrl) {
+                await fetchAndSyncGoogleSheets();
             } else {
-                // สำหรับนักศึกษา (Student)
-                document.getElementById('btn-admin-nav').classList.add('hidden');
-                document.getElementById('btn-header-logout').classList.remove('hidden');
-
-                // เช็กว่าถ้ากด Refresh ขณะทำข้อสอบ ให้เด้งกลับไปหน้า Profile
-                const wasExamRunning = sessionStorage.getItem('is_exam_running');
-                if (wasExamRunning === 'true') {
-                    sessionStorage.removeItem('is_exam_running');
-                    isExamActive = false;
-                    showStudentDashboard();
-                    showAlertModal('warning', 'รีเฟรชหน้าจอ', 'การทำข้อสอบหลุดเนื่องจากคุณได้ทำการรีเฟรชหน้าจอ ระบบนำคุณกลับสู่หน้าโปรไฟล์');
-                } else {
-                    showStudentDashboard();
-                }
+                updateAdminSettingsUI();
             }
-        } catch (e) {
-            console.error("Failed to restore session:", e);
-        }
-    }
-});
+        
+            renderBranchButtons();
+            renderInitialSetupNotice();
+            setupAntiCheatListeners();
+        
+            // 🟢 เช็ก Session ผู้ใช้งานเพื่อเลือกแสดงหน้าจอที่ถูกต้องทันที
+            const savedUserJson = sessionStorage.getItem('exam_session_user');
+            if (savedUserJson) {
+                try {
+                    loggedInUser = JSON.parse(savedUserJson);
+        
+                    if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
+                        document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+                        document.getElementById('btn-header-logout')?.classList.add('hidden');
+                        showAdminDashboard();
+        
+                        const lastTab = sessionStorage.getItem('admin_last_tab') || 'overview';
+                        switchAdminTab(lastTab);
+                    } else {
+                        document.getElementById('btn-admin-nav')?.classList.add('hidden');
+                        document.getElementById('btn-header-logout')?.classList.remove('hidden');
+        
+                        const wasExamRunning = sessionStorage.getItem('is_exam_running');
+                        if (wasExamRunning === 'true') {
+                            sessionStorage.removeItem('is_exam_running');
+                            isExamActive = false;
+                            showStudentDashboard();
+                            showAlertModal('warning', 'รีเฟรชหน้าจอ', 'การทำข้อสอบหลุดเนื่องจากคุณได้ทำการรีเฟรชหน้าจอ ระบบนำคุณกลับสู่หน้าโปรไฟล์');
+                        } else {
+                            showStudentDashboard();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to restore session:", e);
+                    // กรณีอ่าน Session ผิดพลาด ให้เปิดหน้า Log-in
+                    hideAllSections();
+                    document.getElementById('section-login')?.classList.remove('hidden');
+                }
+            } else {
+                // 🟢 กรณีไม่มี Session (ยังไม่ได้ล็อกอิน) ให้เปิดหน้า Log-in
+                hideAllSections();
+                document.getElementById('section-login')?.classList.remove('hidden');
+            }
+        });
 
         // 1. LOGIN & ROLE-BASED ROUTING SYSTEM (แก้ไขให้เช็กจาก userDatabase ล่าสุด)
         async function handleLogin(e) {
@@ -2222,15 +2227,42 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         } // ปิด renderOverviewTable
 
         function viewAccessUsersModal(unitKey) {
-            const matchedConf = unitSettings[unitKey];
+            // 1. ค้นหาการตั้งค่าตามคีย์ตรงๆ หรือคีย์สำรอง
+            let matchedConf = unitSettings[unitKey];
+        
+            if (!matchedConf) {
+                const parts = unitKey.split('__'); // [สาขา, ชุดข้อสอบ, หน่วยการเรียนรู้]
+                const branchName = parts[0];
+                const catName = parts[2] || parts[1];
+        
+                const possibleKeys = [
+                    `${branchName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}`,
+                    `${branchName}__${catName}`
+                ];
+        
+                for (let k of possibleKeys) {
+                    if (unitSettings[k]) {
+                        matchedConf = unitSettings[k];
+                        break;
+                    }
+                }
+            }
+        
+            // 2. ตรวจสอบว่ามีข้อมูลรายชื่อผู้เข้าสอบหรือไม่
             if (!matchedConf || !matchedConf.allowedUsers || matchedConf.allowedUsers.length === 0) {
                 showAlertModal('info', 'สิทธิ์ผู้เข้าสอบ', 'หน่วยการเรียนรู้นี้ยังไม่ได้ระบุรายชื่อผู้เข้าสอบเจาะจง');
                 return;
             }
         
+            // 3. ดึงรายชื่อและแสดงผลป๊อบอัป
             const allowedUsersList = userDatabase.filter(u => matchedConf.allowedUsers.includes(u.username));
-            const namesText = allowedUsersList.map(u => `• ${u.fullname} (${u.username}) - ${u.yearLevel || 'ไม่ระบุชั้นปี'}`).join('\n');
+            
+            if (allowedUsersList.length === 0) {
+                showAlertModal('warning', 'สิทธิ์ผู้เข้าสอบ', `มีการกำหนดสิทธิ์ไว้ ${matchedConf.allowedUsers.length} คน แต่ไม่พบข้อมูลผู้ใช้ในระบบปัจจุบัน`);
+                return;
+            }
         
+            const namesText = allowedUsersList.map(u => `• ${u.fullname} (${u.username}) - ${u.yearLevel || 'ไม่ระบุชั้นปี'}`).join('\n');
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบ (${allowedUsersList.length} คน)`, namesText);
         }
                                     
@@ -2589,11 +2621,20 @@ function saveSelectedStudentsFromModal() {
         if (!unitSettings[currentEditingUnitKey]) {
             unitSettings[currentEditingUnitKey] = {};
         }
+        
+        // 1. อัปเดตรายชื่อผู้มีสิทธิ์สอบ
         unitSettings[currentEditingUnitKey].allowedUsers = [...tempSelectedUsers];
+        unitSettings[currentEditingUnitKey].accessMode = 'custom';
 
-        // อัปเดตตัวเลขจำนวนคนบนปุ่มในหน้าหลัก
+        // 2. บันทึกลง LocalStorage ทันที เพื่อไม่ให้ข้อมูลหาย
+        localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
+
+        // 3. อัปเดตข้อความบนปุ่มเลือกนักศึกษา
         const label = document.getElementById(`btn-select-students-label-${currentEditingUnitIndex}`);
         if (label) label.textContent = `จัดการผู้สอบ (${tempSelectedUsers.length} คน)`;
+        
+        // 4. สั่งวาดตารางภาพรวมใหม่
+        renderOverviewTable();
     }
     closeStudentSelectModal();
 }
