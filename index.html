@@ -1034,47 +1034,52 @@ function switchBranchSettings(branchName) {
                 showAlertModal('error', 'ระบบปิดการสอบชั่วคราว', 'ขณะนี้ระบบสอบไม่ได้เปิดใช้งาน กรุณาติดต่ออาจารย์ผู้สอน');
                 return;
             }
-
+        
             const selectedCategory = document.getElementById('dashboard-category-select').value;
             if (!selectedCategory) {
                 showAlertModal('warning', 'ไม่พบแบบทดสอบ', 'ขณะนี้ยังไม่มีแบบทดสอบเปิดให้ทำสำหรับสาขาของคุณ');
                 return;
             }
-
+        
             const selectedSet = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
             const uKey = `${loggedInUser.branch}__${selectedSet}__${selectedCategory}`;
             const matchedUnitConf = unitSettings[uKey];
-
+        
+            // คำนวณจำนวนข้อและเวลาสอบของหน่วยนี้ (ถ้าไม่มีให้ใช้ค่า Global)
             const finalQuestionCount = matchedUnitConf?.questionCount || settings.questionCount || 15;
             const finalTimeLimit = matchedUnitConf?.timeLimitMinutes !== undefined ? matchedUnitConf.timeLimitMinutes : (settings.timeLimitMinutes || 15);
-
+        
             studentData = {
-            name: loggedInUser.fullname,
-            fname: loggedInUser.fname || '',
-            lname: loggedInUser.lname || '',
-            id: loggedInUser.username,
-            branch: loggedInUser.branch,
-            yearLevel: loggedInUser.yearLevel || 'ไม่ระบุ',
-            category: selectedCategory
-        };
-
-        // กรองข้อสอบที่ตรงทั้ง สาขา, ชั้นปี, ชุดการเรียนรู้ และ หน่วยการเรียนรู้
-        let pool = masterQuestions.filter(q => {
-            const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === loggedInUser.branch;
-            const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === loggedInUser.yearLevel;
-            const matchSet = !settings.selectedSet || settings.selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === settings.selectedSet;
-            const matchCat = selectedCategory === 'ทำทุกหน่วยการเรียนรู้ในชุดนี้' || q.category === selectedCategory;
-            return matchBranch && matchYear && matchSet && matchCat;
-        });
-
-           if (pool.length === 0) {
+                name: loggedInUser.fullname,
+                fname: loggedInUser.fname || '',
+                lname: loggedInUser.lname || '',
+                id: loggedInUser.username,
+                branch: loggedInUser.branch,
+                yearLevel: loggedInUser.yearLevel || 'ไม่ระบุ',
+                category: selectedCategory
+            };
+        
+            // กรองข้อสอบที่ตรงเงื่อนไข
+            let pool = masterQuestions.filter(q => {
+                const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === loggedInUser.branch;
+                const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === loggedInUser.yearLevel;
+                const matchSet = !settings.selectedSet || settings.selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === settings.selectedSet;
+                const matchCat = selectedCategory === 'ทำทุกหน่วยการเรียนรู้ในชุดนี้' || q.category === selectedCategory;
+                return matchBranch && matchYear && matchSet && matchCat;
+            });
+        
+            if (pool.length === 0) {
                 showAlertModal('error', 'ไม่พบข้อสอบ', 'ไม่พบข้อสอบในหน่วยการเรียนรู้ที่เลือก');
                 return;
             }
-
+        
+            // สุ่มข้อสอบตามจำนวน finalQuestionCount
             const shuffled = [...pool].sort(() => 0.5 - Math.random());
             const drawCount = Math.min(finalQuestionCount, shuffled.length);
-                        
+            
+            // ตั้งค่าเวลาตาม finalTimeLimit
+            timeRemainingSeconds = finalTimeLimit * 60;
+        
             activeQuestions = shuffled.slice(0, drawCount).map((q, idx) => {
                 let optionsFormatted = q.options.map((optText, origIdx) => ({ text: optText, originalIndex: origIdx }));
                 if (settings.shuffleOptions) {
@@ -1088,21 +1093,23 @@ function switchBranchSettings(branchName) {
                     correctOriginalIndex: q.correct
                 };
             });
-
+        
             userAnswers = {};
             currentQuestionIndex = 0;
             tabSwitchCount = 0;
-            timeRemainingSeconds = finalTimeLimit * 60;
+            
+            // 📌 บรรทัดที่ซ้ำซ้อนและเขียนทับเวลาเดิมถูกตัดออกแล้วตรงนี้
+        
             isExamActive = true;
             sessionStorage.setItem('is_exam_running', 'true');
-
+        
             document.getElementById('exam-student-heading').textContent = `ผู้สอบ: ${studentData.name} (${studentData.id})`;
             document.getElementById('exam-current-category').textContent = `${studentData.branch} > ${selectedCategory}`;
             updateAntiCheatStatusTag();
-
+        
             hideAllSections();
             document.getElementById('section-exam').classList.remove('hidden');
-
+        
             renderQuestionNavGrid();
             renderCurrentQuestion();
             startTimer();
