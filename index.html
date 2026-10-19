@@ -69,6 +69,10 @@
                             <i class="fa-solid fa-user-check w-5 text-indigo-500"></i>
                             <span>3. ติดตามการสอบรายบุคคล</span>
                         </a>
+                        <a href="javascript:void(0)" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                            <i class="fa-solid fa-database w-5 text-indigo-500"></i>
+                            <span>4. แหล่งข้อมูลนำเข้า/ออก</span>
+                        </a>
                     <div class="border-t border-slate-100 my-1"></div>
                         <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
                             <i class="fa-solid fa-right-from-bracket w-5"></i>
@@ -847,10 +851,14 @@ function switchBranchSettings(branchName) {
             const adminTitle = loggedInUser.role === 'superadmin' ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch})`;
             document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : adminTitle;
         
-            // ซ่อนเมนูแหล่งข้อมูลนำเข้า/ออก (แท็บ 4) ถ้านึกอยากซ่อนถาวร
+            // 🟢 แก้ไขตรงนี้: ซ่อนเมนูข้อ 4 เฉพาะ Admin ประจำสาขา (ถ้าเป็น Superadmin จะยังเห็นปกติ)
             const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
             if (menuDataSources) {
-                menuDataSources.classList.add('hidden'); // ซ่อนเมนูนี้ไว้เสมอ
+                if (loggedInUser && loggedInUser.role === 'admin') {
+                    menuDataSources.classList.add('hidden');
+                } else {
+                    menuDataSources.classList.remove('hidden');
+                }
             }
         
             // หากเป็น Superadmin ให้รีเซ็ตการเลือกสาขาเป็น "ภาพรวมทุกสาขา"
