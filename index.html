@@ -1229,86 +1229,88 @@ async function fetchAndSyncUsers() {
             examResultsHistory = parsedResults.reverse();
         }
 
-    // ฟังก์ชันแปลง CSV เป็นข้อมูลผู้สอบ (ดึงชั้นปี และแยก ชื่อ/นามสกุล)
-    function parseCSVToUsers(csvText) {
-        if (!csvText || csvText.trim() === '') return;
-        if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
-
-    function parseCSVLine(text) {
-        let p = '', c = '', r = [];
-        let q = false;
-        for (let i = 0; i < text.length; i++) {
-            c = text[i];
-            if (c === '"') {
-                if (q && text[i+1] === '"') { p += '"'; i++; }
-                else { q = !q; }
-            } else if (c === ',' && !q) {
+        // ฟังก์ชันแปลง CSV เป็นข้อมูลผู้สอบ (ดึงชั้นปี และแยก ชื่อ/นามสกุล)
+        function parseCSVToUsers(csvText) {
+            if (!csvText || csvText.trim() === '') return;
+            if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
+    
+            function parseCSVLine(text) {
+                let p = '', c = '', r = [];
+                let q = false;
+                for (let i = 0; i < text.length; i++) {
+                    c = text[i];
+                    if (c === '"') {
+                        if (q && text[i+1] === '"') { p += '"'; i++; }
+                        else { q = !q; }
+                    } else if (c === ',' && !q) {
+                        r.push(p.trim());
+                        p = '';
+                    } else {
+                        p += c;
+                    }
+                }
                 r.push(p.trim());
-                p = '';
-            } else {
-                p += c;
+                return r;
+            }
+    
+            const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
+            if (lines.length < 2) return;
+    
+            const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
+            
+            const sapIdx = headerCols.findIndex(h => h.includes('sap-id') || h.includes('sap') || h.includes('รหัส'));
+            const prefixIdx = headerCols.findIndex(h => h.includes('คำนำหน้า'));
+            const fnameIdx = headerCols.findIndex(h => h.includes('ชื่อ') && !h.includes('คำนำหน้า') && !h.includes('นามสกุล'));
+            const lnameIdx = headerCols.findIndex(h => h.includes('นามสกุล'));
+            const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
+            const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
+            const roleIdx = headerCols.findIndex(h => h.includes('บทบาท'));
+            const passIdx = headerCols.findIndex(h => h.includes('password') || h.includes('รหัสผ่าน'));
+    
+            const fetchedUsers = [];
+    
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCSVLine(lines[i]);
+                if (cols.length < 3) continue;
+    
+                const sapId = sapIdx !== -1 ? cols[sapIdx] : '';
+                const prefix = prefixIdx !== -1 ? cols[prefixIdx] : '';
+                const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
+                const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
+                const branch = branchIdx !== -1 ? cols[branchIdx] : '';
+                const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
+                const role = roleIdx !== -1 ? cols[roleIdx] : 'student';
+                const password = passIdx !== -1 ? cols[passIdx] : '';
+    
+                let userRole = 'student';
+                const roleLower = role.toLowerCase();
+                if (roleLower.includes('superadmin') || roleLower.includes('ผู้ดูแลระบบสูงสุด')) {
+                    userRole = 'superadmin';
+                } else if (roleLower.includes('admin') || roleLower.includes('อาจารย์') || roleLower.includes('ผู้ดูแล')) {
+                    userRole = 'admin';
+                }
+    
+                if (sapId && password) {
+                    fetchedUsers.push({
+                        username: sapId,
+                        password: password,
+                        prefix: prefix,
+                        fname: fname,
+                        lname: lname,
+                        fullname: `${prefix}${fname} ${lname}`.trim(),
+                        branch: branch || 'ทั่วไป',
+                        yearLevel: yearLevel || 'ไม่ระบุ',
+                        role: userRole
+                    });
+                }
+            }
+    
+            if (fetchedUsers.length > 0) {
+                const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'superadmin' || u.role === 'admin');
+                userDatabase = [...defaultAdmins, ...fetchedUsers];
+                renderBranchButtons();
             }
         }
-        r.push(p.trim());
-        return r;
-    }
-
-    const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
-    if (lines.length < 2) return;
-
-    const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
-    
-    const sapIdx = headerCols.findIndex(h => h.includes('sap-id') || h.includes('sap') || h.includes('รหัส'));
-    const prefixIdx = headerCols.findIndex(h => h.includes('คำนำหน้า'));
-    const fnameIdx = headerCols.findIndex(h => h.includes('ชื่อ') && !h.includes('คำนำหน้า') && !h.includes('นามสกุล'));
-    const lnameIdx = headerCols.findIndex(h => h.includes('นามสกุล'));
-    const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
-    const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
-    const roleIdx = headerCols.findIndex(h => h.includes('บทบาท'));
-    const passIdx = headerCols.findIndex(h => h.includes('password') || h.includes('รหัสผ่าน'));
-
-    const fetchedUsers = [];
-
-    for (let i = 1; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
-        if (cols.length < 3) continue;
-
-        const sapId = sapIdx !== -1 ? cols[sapIdx] : '';
-        const prefix = prefixIdx !== -1 ? cols[prefixIdx] : '';
-        const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
-        const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
-        const branch = branchIdx !== -1 ? cols[branchIdx] : '';
-        const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
-        const role = roleIdx !== -1 ? cols[roleIdx] : 'student';
-        const password = passIdx !== -1 ? cols[passIdx] : '';
-
-        let userRole = 'student';
-        const roleLower = role.toLowerCase();
-        if (roleLower.includes('superadmin') || roleLower.includes('ผู้ดูแลระบบสูงสุด')) {userRole = 'superadmin';
-        } else if (roleLower.includes('admin') || roleLower.includes('อาจารย์') || roleLower.includes('ผู้ดูแล')) {userRole = 'admin';
-        }
-
-        if (sapId && password) {
-            fetchedUsers.push({
-                username: sapId,
-                password: password,
-                prefix: prefix,
-                fname: fname,
-                lname: lname,
-                fullname: `${prefix}${fname} ${lname}`.trim(),
-                branch: branch || 'ทั่วไป',
-                yearLevel: yearLevel || 'ไม่ระบุ',
-                role: userRole
-            });
-        }
-    }
-
-    if (fetchedUsers.length > 0) {
-        const defaultAdmins = DEFAULT_USERS.filter(u => u.role === 'admin');
-        userDatabase = [...defaultAdmins, ...fetchedUsers];
-        renderBranchButtons();
-    }
-}
         
         function parseCSVToQuestions(csvText, isOverwrite = false) {
     if (!csvText || csvText.trim() === '') return false;
@@ -1956,181 +1958,168 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         }
 
         // 3. ฟังก์ชันสร้างตารางภาพรวมการตั้งค่าทุกสาขา (แสดงแยก 1 แถวต่อ 1 หน่วยการเรียนรู้)
-function renderOverviewTable() {
-    const tableBody = document.getElementById('overview-table-body');
-    const filterSelect = document.getElementById('overview-branch-filter');
-    if (!tableBody) return;
-
-    // 1. Header ตาราง 9 คอลัมน์
-    const tableHeader = tableBody.closest('table')?.querySelector('thead tr');
-    if (tableHeader) {
-        tableHeader.innerHTML = `
-            <th class="p-3 font-bold">สาขาวิชา</th>
-            <th class="p-3 font-bold text-center">ชั้นปี</th>
-            <th class="p-3 font-bold">ชุดข้อสอบ</th>
-            <th class="p-3 font-bold">หน่วยการเรียนรู้</th>
-            <th class="p-3 font-bold text-center">จำนวนข้อ</th>
-            <th class="p-3 font-bold text-center">เวลา (นาที)</th>
-            <th class="p-3 font-bold text-center">สถานะสอบ</th>
-            <th class="p-3 font-bold text-center">Anti-Cheat</th>
-            <th class="p-3 font-bold text-center">ป้องกันแคปจอ</th>
-        `;
-    }
-
-    // 2. ดึงรายชื่อสาขาทั้งหมด
-    const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
-    const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
-    const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]));
-
-    if (filterSelect) {
-        const currentVal = filterSelect.value || "ทั้งหมด";
-        filterSelect.innerHTML = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
-            allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+        function renderOverviewTable() {
+            const tableBody = document.getElementById('overview-table-body');
+            const filterSelect = document.getElementById('overview-branch-filter');
+            if (!tableBody) return;
         
-        if (allBranches.includes(currentVal) || currentVal === "ทั้งหมด") {
-            filterSelect.value = currentVal;
-        }
-    }
-
-    const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
-    const displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
-
-    // ค้นหาท่อนที่ดึง allBranches แล้วเพิ่มเงื่อนไขล็อกสาขา
-    let displayBranches = [];
-    
-    if (loggedInUser && loggedInUser.role === 'admin') {
-        displayBranches = [loggedInUser.branch];
-        if (filterSelect) {
-            filterSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
-            filterSelect.disabled = true; // ปิดไม่ให้เปลี่ยนสาขา
-        }
-    } else {
-        if (filterSelect) {
-            filterSelect.disabled = false;
-            const currentVal = filterSelect.value || "ทั้งหมด";
-            filterSelect.innerHTML = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
-                allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
-            
-            if (allBranches.includes(currentVal) || currentVal === "ทั้งหมด") {
-                filterSelect.value = currentVal;
+            // 1. Header ตาราง 9 คอลัมน์
+            const tableHeader = tableBody.closest('table')?.querySelector('thead tr');
+            if (tableHeader) {
+                tableHeader.innerHTML = `
+                    <th class="p-3 font-bold">สาขาวิชา</th>
+                    <th class="p-3 font-bold text-center">ชั้นปี</th>
+                    <th class="p-3 font-bold">ชุดข้อสอบ</th>
+                    <th class="p-3 font-bold">หน่วยการเรียนรู้</th>
+                    <th class="p-3 font-bold text-center">จำนวนข้อ</th>
+                    <th class="p-3 font-bold text-center">เวลา (นาที)</th>
+                    <th class="p-3 font-bold text-center">สถานะสอบ</th>
+                    <th class="p-3 font-bold text-center">Anti-Cheat</th>
+                    <th class="p-3 font-bold text-center">ป้องกันแคปจอ</th>
+                `;
             }
-        }
-        const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
-        displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
-    }
-
-    if (displayBranches.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
-        return;
-    }
-
-    let tableRowsHtml = '';
-
-    displayBranches.forEach(bName => {
-        const bSet = branchSettings[bName] || settings;
         
-        // ดึงข้อสอบเฉพาะของสาขานี้
-        const branchQuestions = masterQuestions.filter(q => q.branch === bName || !q.branch || q.branch === 'ข้อสอบกลาง');
-
-        // 3. จัดกลุ่มข้อสอบแยกเป็นรายหน่วยการเรียนรู้ [สาขา + ชั้นปี + ชุดการเรียนรู้ + หน่วยการเรียนรู้]
-        const groupedUnits = [];
+            // 2. ดึงรายชื่อสาขาทั้งหมด
+            const branchFromQuestions = masterQuestions.map(q => q.branch).filter(Boolean);
+            const branchFromUsers = userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป');
+            const allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]));
         
-        branchQuestions.forEach(q => {
-            const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
-            const yearLevel = q.yearLevel || 'ทุกชั้นปี';
-            const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
-            
-            const isExist = groupedUnits.some(item => 
-                item.setName === setName && 
-                item.yearLevel === yearLevel && 
-                item.catName === catName
-            );
-            if (!isExist) {
-                groupedUnits.push({ setName, yearLevel, catName });
-            }
-        });
-
-        if (groupedUnits.length === 0) {
-            groupedUnits.push({ setName: 'ชุดการเรียนรู้ทั่วไป', yearLevel: 'ทุกชั้นปี', catName: 'หน่วยการเรียนรู้ทั่วไป' });
-        }
-
-        // 4. วนลูปสร้างแถวข้อมูล (1 แถวต่อ 1 หน่วยการเรียนรู้)
-        groupedUnits.forEach((item) => {
-            const setName = item.setName;
-            const yearLevel = item.yearLevel;
-            const catName = item.catName;
-
-            // ค้นหาการตั้งค่ารายหน่วยจาก unitSettings
-            const possibleKeys = [
-                `${bName}__${setName}__${catName}`,
-                `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}`,
-                `${bName}__${catName}`
-            ];
-
-            let matchedConf = null;
-            for (let k of possibleKeys) {
-                if (unitSettings[k]) {
-                    matchedConf = unitSettings[k];
-                    break;
+            let displayBranches = [];
+        
+            // ล็อกการเลือกสาขาหากเป็น Admin ประจำสาขา
+            if (loggedInUser && loggedInUser.role === 'admin') {
+                displayBranches = [loggedInUser.branch];
+                if (filterSelect) {
+                    filterSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
+                    filterSelect.disabled = true;
                 }
+            } else {
+                if (filterSelect) {
+                    filterSelect.disabled = false;
+                    const currentVal = filterSelect.value || "ทั้งหมด";
+                    filterSelect.innerHTML = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
+                        allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+                    
+                    if (allBranches.includes(currentVal) || currentVal === "ทั้งหมด") {
+                        filterSelect.value = currentVal;
+                    }
+                }
+                const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
+                displayBranches = selectedFilter === "ทั้งหมด" ? allBranches : [selectedFilter];
             }
-
-            // ตรวจสอบสถานะการเปิด/ปิดสอบของหน่วยนี้
-            const isUnitEnabled = matchedConf ? matchedConf.enabled === true : true;
-            const isGlobalEnable = isUnitEnabled && (bSet.globalExamEnable !== false);
-
-            // ใช้ค่าจำนวนข้อและเวลาสอบเฉพาะของหน่วยนี้ (หากมีการตั้งค่าไว้)
-            const qCount = matchedConf?.questionCount || bSet.questionCount || 15;
-            const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
-            
-            const isAntiCheat = matchedConf ? matchedConf.antiCheatEnable : bSet.antiCheatEnable;
-            const isPreventScreenshot = matchedConf ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
-
-            tableRowsHtml += `
-                <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100">
-                    <td class="p-3 font-bold text-slate-800 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <i class="fa-solid fa-graduation-cap text-indigo-500 mr-2"></i>${bName}
-                        </div>
-                    </td>
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                            ${yearLevel}
-                        </span>
-                    </td>
-                    <td class="p-3 font-semibold text-slate-700 whitespace-nowrap">
-                        <i class="fa-solid fa-layer-group text-xs text-indigo-500 mr-1.5"></i>${setName}
-                    </td>
-                    <!-- คอลัมน์แสดงหน่วยการเรียนรู้รายแถว -->
-                    <td class="p-3 font-bold text-indigo-900">
-                        <div class="flex items-center">
-                            <i class="fa-solid fa-book-bookmark text-xs text-indigo-600 mr-1.5"></i>${catName}
-                        </div>
-                    </td>
-                    <td class="p-3 text-center font-bold whitespace-nowrap">${qCount} ข้อ</td>
-                    <td class="p-3 text-center font-bold whitespace-nowrap">${timeLimit ? timeLimit + ' นาที' : 'ไม่จำกัด'}</td>
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isGlobalEnable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
-                            ${isGlobalEnable ? '● เปิดสอบ' : '○ ปิดระบบ'}
-                        </span>
-                    </td>
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isAntiCheat ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
-                            ${isAntiCheat ? 'เปิดตรวจจับ' : 'ปิดตรวจจับ'}
-                        </span>
-                    </td>
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isPreventScreenshot ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">
-                            ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
-                        </span>
-                    </td>
-                </tr>
-            `;
-        });
-    });
-
-    tableBody.innerHTML = tableRowsHtml;
-}
+        
+            if (displayBranches.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลสาขาในระบบ</td></tr>`;
+                return;
+            }
+        
+            let tableRowsHtml = '';
+        
+            displayBranches.forEach(bName => {
+                const bSet = branchSettings[bName] || settings;
+                
+                // ดึงข้อสอบเฉพาะของสาขานี้
+                const branchQuestions = masterQuestions.filter(q => q.branch === bName || !q.branch || q.branch === 'ข้อสอบกลาง');
+        
+                // 3. จัดกลุ่มข้อสอบแยกเป็นรายหน่วยการเรียนรู้ [สาขา + ชั้นปี + ชุดการเรียนรู้ + หน่วยการเรียนรู้]
+                const groupedUnits = [];
+                
+                branchQuestions.forEach(q => {
+                    const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                    const yearLevel = q.yearLevel || 'ทุกชั้นปี';
+                    const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
+                    
+                    const isExist = groupedUnits.some(item => 
+                        item.setName === setName && 
+                        item.yearLevel === yearLevel && 
+                        item.catName === catName
+                    );
+                    if (!isExist) {
+                        groupedUnits.push({ setName, yearLevel, catName });
+                    }
+                });
+        
+                if (groupedUnits.length === 0) {
+                    groupedUnits.push({ setName: 'ชุดการเรียนรู้ทั่วไป', yearLevel: 'ทุกชั้นปี', catName: 'หน่วยการเรียนรู้ทั่วไป' });
+                }
+        
+                // 4. วนลูปสร้างแถวข้อมูล (1 แถวต่อ 1 หน่วยการเรียนรู้)
+                groupedUnits.forEach((item) => {
+                    const setName = item.setName;
+                    const yearLevel = item.yearLevel;
+                    const catName = item.catName;
+        
+                    // ค้นหาการตั้งค่ารายหน่วยจาก unitSettings
+                    const possibleKeys = [
+                        `${bName}__${setName}__${catName}`,
+                        `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}`,
+                        `${bName}__${catName}`
+                    ];
+        
+                    let matchedConf = null;
+                    for (let k of possibleKeys) {
+                        if (unitSettings[k]) {
+                            matchedConf = unitSettings[k];
+                            break;
+                        }
+                    }
+        
+                    // ตรวจสอบสถานะการเปิด/ปิดสอบของหน่วยนี้
+                    const isUnitEnabled = matchedConf ? matchedConf.enabled === true : true;
+                    const isGlobalEnable = isUnitEnabled && (bSet.globalExamEnable !== false);
+        
+                    // ใช้ค่าจำนวนข้อและเวลาสอบเฉพาะของหน่วยนี้ (หากมีการตั้งค่าไว้)
+                    const qCount = matchedConf?.questionCount || bSet.questionCount || 15;
+                    const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
+                    
+                    const isAntiCheat = matchedConf ? matchedConf.antiCheatEnable : bSet.antiCheatEnable;
+                    const isPreventScreenshot = matchedConf ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
+        
+                    tableRowsHtml += `
+                        <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100">
+                            <td class="p-3 font-bold text-slate-800 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i class="fa-solid fa-graduation-cap text-indigo-500 mr-2"></i>${bName}
+                                </div>
+                            </td>
+                            <td class="p-3 text-center whitespace-nowrap">
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    ${yearLevel}
+                                </span>
+                            </td>
+                            <td class="p-3 font-semibold text-slate-700 whitespace-nowrap">
+                                <i class="fa-solid fa-layer-group text-xs text-indigo-500 mr-1.5"></i>${setName}
+                            </td>
+                            <!-- คอลัมน์แสดงหน่วยการเรียนรู้รายแถว -->
+                            <td class="p-3 font-bold text-indigo-900">
+                                <div class="flex items-center">
+                                    <i class="fa-solid fa-book-bookmark text-xs text-indigo-600 mr-1.5"></i>${catName}
+                                </div>
+                            </td>
+                            <td class="p-3 text-center font-bold whitespace-nowrap">${qCount} ข้อ</td>
+                            <td class="p-3 text-center font-bold whitespace-nowrap">${timeLimit ? timeLimit + ' นาที' : 'ไม่จำกัด'}</td>
+                            <td class="p-3 text-center whitespace-nowrap">
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isGlobalEnable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                                    ${isGlobalEnable ? '● เปิดสอบ' : '○ ปิดระบบ'}
+                                </span>
+                            </td>
+                            <td class="p-3 text-center whitespace-nowrap">
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isAntiCheat ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
+                                    ${isAntiCheat ? 'เปิดตรวจจับ' : 'ปิดตรวจจับ'}
+                                </span>
+                            </td>
+                            <td class="p-3 text-center whitespace-nowrap">
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isPreventScreenshot ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">
+                                    ${isPreventScreenshot ? 'บล็อกการแคป' : 'อนุญาต'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        
+            tableBody.innerHTML = tableRowsHtml;
+        }
         // ฟังก์ชันสร้างตารางติดตามการสอบรายบุคคล (เกณฑ์ผ่าน 80% เรียงลำดับล่าสุดลงไป)
         function renderStudentTrackerTable() {
             const tableBody = document.getElementById('tracker-table-body');
