@@ -829,8 +829,8 @@ function switchBranchSettings(branchName) {
                             showAdminDashboard();
             
                             // 🟢 เพิ่ม/ตรวจสอบ 2 บรรทัดนี้ตรงนี้ครับ!
-                            const lastTab = sessionStorage.getItem('admin_last_tab') || 'overview';
-                            switchAdminTab(lastTab);
+                            const savedTab = sessionStorage.getItem('admin_last_tab') || 'overview';
+                            switchAdminTab(savedTab);
                         } else {
                         document.getElementById('btn-admin-nav')?.classList.add('hidden');
                         document.getElementById('btn-header-logout')?.classList.remove('hidden');
