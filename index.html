@@ -851,7 +851,7 @@ function switchBranchSettings(branchName) {
             const adminTitle = loggedInUser.role === 'superadmin' ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch})`;
             document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : adminTitle;
         
-            // 🟢 แก้ไขตรงนี้: ซ่อนเมนูข้อ 4 เฉพาะ Admin ประจำสาขา (ถ้าเป็น Superadmin จะยังเห็นปกติ)
+            // 🟢 ซ่อนรายการเมนูข้อ 4 หากล็อกอินด้วยบทบาท Admin ประจำสาขา
             const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
             if (menuDataSources) {
                 if (loggedInUser && loggedInUser.role === 'admin') {
@@ -861,7 +861,6 @@ function switchBranchSettings(branchName) {
                 }
             }
         
-            // หากเป็น Superadmin ให้รีเซ็ตการเลือกสาขาเป็น "ภาพรวมทุกสาขา"
             if (loggedInUser.role === 'superadmin') {
                 currentSelectedBranch = "ภาพรวมทุกสาขา";
                 const filterSelect = document.getElementById('overview-branch-filter');
@@ -1928,10 +1927,13 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         }
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
-        function switchAdminTab(tabName) {
+        function function switchAdminTab(tabName) {
+            // 🟢 บล็อกการเข้าถึงเฉพาะ Admin สาขา (Superadmin เข้าได้ปกติ)
             if (tabName === 'data-sources') {
-                showAlertModal('warning', 'ปิดการเข้าถึง', 'เมนูนี้ถูกปิดใช้งานในระบบ');
-                return;
+                if (loggedInUser && loggedInUser.role === 'admin') {
+                    showAlertModal('warning', 'ปิดการเข้าถึง', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
+                    return;
+                }
             }
         
             const tabOverview = document.getElementById('tab-admin-overview');
@@ -1955,7 +1957,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
                 
-                // ถ้าเป็น Admin สาขา บังคับเข้าสาขาตนเอง ถ้าเป็น Superadmin และยังไม่ได้เลือกสาขา ให้เลือกสาขาแรก
                 if (loggedInUser && loggedInUser.role === 'admin') {
                     currentSelectedBranch = loggedInUser.branch;
                 } else if (currentSelectedBranch === "ภาพรวมทุกสาขา") {
@@ -1965,11 +1966,12 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 
                 renderBranchButtons(); 
                 switchBranchSettings(currentSelectedBranch);
+            } else if (tabName === 'data-sources') {
+                // 🟢 แสดงแท็บแหล่งข้อมูลเมื่อ Superadmin คลิกเลือก
+                if (tabData) tabData.classList.remove('hidden');
             } else {
-                // กรณีเลือกแท็บ Overview (ภาพรวม)
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 
-                // ถ้าเป็น Superadmin ให้ตั้งค่ารีเซ็ตเป็น "ทั้งหมด" เสมอ
                 if (loggedInUser && loggedInUser.role === 'superadmin') {
                     const filterSelect = document.getElementById('overview-branch-filter');
                     if (filterSelect) filterSelect.value = "ทั้งหมด";
