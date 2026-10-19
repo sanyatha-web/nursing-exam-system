@@ -819,18 +819,19 @@ function switchBranchSettings(branchName) {
         
             // 3. ตรวจสอบ Session และเปิดหน้าจอทันทีโดยไม่ต้องรอเน็ต
             const savedUserJson = sessionStorage.getItem('exam_session_user');
-            if (savedUserJson) {
-                try {
-                    loggedInUser = JSON.parse(savedUserJson);
-        
-                    if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
-                        document.getElementById('btn-admin-nav')?.classList.remove('hidden');
-                        document.getElementById('btn-header-logout')?.classList.add('hidden');
-                        showAdminDashboard();
-        
-                        const lastTab = sessionStorage.getItem('admin_last_tab') || 'overview';
-                        switchAdminTab(lastTab);
-                    } else {
+                if (savedUserJson) {
+                    try {
+                        loggedInUser = JSON.parse(savedUserJson);
+            
+                        if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
+                            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+                            document.getElementById('btn-header-logout')?.classList.add('hidden');
+                            showAdminDashboard();
+            
+                            // 🟢 เพิ่ม/ตรวจสอบ 2 บรรทัดนี้ตรงนี้ครับ!
+                            const lastTab = sessionStorage.getItem('admin_last_tab') || 'overview';
+                            switchAdminTab(lastTab);
+                        } else {
                         document.getElementById('btn-admin-nav')?.classList.add('hidden');
                         document.getElementById('btn-header-logout')?.classList.remove('hidden');
         
@@ -921,8 +922,6 @@ function switchBranchSettings(branchName) {
                 const filterSelect = document.getElementById('overview-branch-filter');
                 if (filterSelect) filterSelect.value = "ทั้งหมด";
             }
-        
-            switchAdminTab('overview');
         }
 
         // หน้าสำหรับผู้เรียน (Student Dashboard)
@@ -1177,11 +1176,19 @@ function switchBranchSettings(branchName) {
             } catch (err) {
                 console.warn("Sync Google Sheets timeout or error, using local cached data.");
             } finally {
-                // อัปเดตหน้าจอทั้งหมดทันที
+                // 🟢 อัปเดต Dropdown และตัวเลือกตั้งค่า
                 updateAdminSettingsUI();
                 renderBranchButtons();
-                if (typeof renderOverviewTable === 'function') renderOverviewTable();
-                if (typeof renderUnitSettingsList === 'function') renderUnitSettingsList();
+                
+                // 🟢 ตรวจสอบว่า Admin กำลังเปิดแท็บไหนอยู่ ให้เรนเดอร์เฉพาะแท็บนั้น (เพื่อไม่ให้เด้งกลับหน้าภาพรวม)
+                const currentTab = sessionStorage.getItem('admin_last_tab') || 'overview';
+                if (currentTab === 'overview' && typeof renderOverviewTable === 'function') {
+                    renderOverviewTable();
+                } else if (currentTab === 'exam-settings' && typeof renderUnitSettingsList === 'function') {
+                    renderUnitSettingsList();
+                } else if (currentTab === 'student-tracker' && typeof renderStudentTrackerTable === 'function') {
+                    renderStudentTrackerTable();
+                }
             }
         }
         
