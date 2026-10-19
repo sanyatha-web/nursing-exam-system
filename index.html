@@ -1927,8 +1927,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         }
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
-        function function switchAdminTab(tabName) {
-            // 🟢 บล็อกการเข้าถึงเฉพาะ Admin สาขา (Superadmin เข้าได้ปกติ)
+        function switchAdminTab(tabName) {
+            // บล็อกการเข้าถึงเมนู data-sources เฉพาะผู้ใช้งานที่เป็น admin ประจำสาขา
             if (tabName === 'data-sources') {
                 if (loggedInUser && loggedInUser.role === 'admin') {
                     showAlertModal('warning', 'ปิดการเข้าถึง', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
@@ -1967,7 +1967,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 renderBranchButtons(); 
                 switchBranchSettings(currentSelectedBranch);
             } else if (tabName === 'data-sources') {
-                // 🟢 แสดงแท็บแหล่งข้อมูลเมื่อ Superadmin คลิกเลือก
+                // 🟢 เปิดการแสดงผลแท็บแหล่งข้อมูลนำเข้า/ออก ให้ Superadmin
                 if (tabData) tabData.classList.remove('hidden');
             } else {
                 if (tabOverview) tabOverview.classList.remove('hidden');
