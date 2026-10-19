@@ -69,10 +69,6 @@
                             <i class="fa-solid fa-user-check w-5 text-indigo-500"></i>
                             <span>3. ติดตามการสอบรายบุคคล</span>
                         </a>
-                        <a href="javascript:void(0)" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
-                            <i class="fa-solid fa-database w-5 text-indigo-500"></i>
-                            <span>4. แหล่งข้อมูลนำเข้า/ออก</span>
-                        </a>
                     <div class="border-t border-slate-100 my-1"></div>
                         <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
                             <i class="fa-solid fa-right-from-bracket w-5"></i>
@@ -851,14 +847,17 @@ function switchBranchSettings(branchName) {
             const adminTitle = loggedInUser.role === 'superadmin' ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch})`;
             document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : adminTitle;
         
-            // หากเป็น admin ประจำสาขา ให้ซ่อนเมนู "แหล่งข้อมูลนำเข้า/ออก" (แท็บ 4) ใน Dropdown
+            // ซ่อนเมนูแหล่งข้อมูลนำเข้า/ออก (แท็บ 4) ถ้านึกอยากซ่อนถาวร
             const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
             if (menuDataSources) {
-                if (loggedInUser.role === 'superadmin') {
-                    menuDataSources.classList.remove('hidden');
-                } else {
-                    menuDataSources.classList.add('hidden');
-                }
+                menuDataSources.classList.add('hidden'); // ซ่อนเมนูนี้ไว้เสมอ
+            }
+        
+            // หากเป็น Superadmin ให้รีเซ็ตการเลือกสาขาเป็น "ภาพรวมทุกสาขา"
+            if (loggedInUser.role === 'superadmin') {
+                currentSelectedBranch = "ภาพรวมทุกสาขา";
+                const filterSelect = document.getElementById('overview-branch-filter');
+                if (filterSelect) filterSelect.value = "ทั้งหมด";
             }
         
             switchAdminTab('overview');
@@ -888,16 +887,25 @@ function switchBranchSettings(branchName) {
 
         function handleLogout() {
             loggedInUser = null;
+            currentSelectedBranch = "ภาพรวมทุกสาขา"; // รีเซ็ตสาขาที่เลือกให้เป็นค่าเริ่มต้น
+            
             hideAllSections();
             
             // ซ่อนปุ่มบน Header ทั้งหมด
-            document.getElementById('btn-admin-nav').classList.add('hidden');
-            document.getElementById('btn-header-logout').classList.add('hidden');
+            document.getElementById('btn-admin-nav')?.classList.add('hidden');
+            document.getElementById('btn-header-logout')?.classList.add('hidden');
             
+            // รีเซ็ต Dropdown Filter ให้กลับมาเป็น "ทั้งหมด"
+            const overviewFilter = document.getElementById('overview-branch-filter');
+            if (overviewFilter) {
+                overviewFilter.value = "ทั้งหมด";
+                overviewFilter.disabled = false;
+            }
+        
             // แสดงหน้าล็อกอินกลับมา
-            document.getElementById('section-login').classList.remove('hidden');
-            document.getElementById('login-username').value = '';
-            document.getElementById('login-password').value = '';
+            document.getElementById('section-login')?.classList.remove('hidden');
+            if (document.getElementById('login-username')) document.getElementById('login-username').value = '';
+            if (document.getElementById('login-password')) document.getElementById('login-password').value = '';
         }
 
         // Forgot Password Logic
@@ -1437,25 +1445,25 @@ async function fetchAndSyncUsers() {
 }
 
         function loadSettings() {
-            // 1. ดึงค่าการตั้งค่าทั่วไป (Global Settings)
+            // โหลดค่าตั้งค่าทั่วไป
             const saved = localStorage.getItem('online_exam_settings');
             if (saved) {
                 try { settings = { ...settings, ...JSON.parse(saved) }; } catch (e) {}
             }
         
-            // 2. ดึงค่าการตั้งค่ารายสาขา (Branch Settings)
+            // โหลดค่าตั้งค่ารายสาขา
             const savedBranchSettings = localStorage.getItem('online_exam_branch_settings');
             if (savedBranchSettings) {
                 try { branchSettings = JSON.parse(savedBranchSettings); } catch (e) {}
             }
         
-            // 3. ดึงค่าการตั้งค่ารายหน่วยการเรียนรู้ (Unit Settings)
+            // โหลดค่าตั้งค่ารายหน่วยการเรียนรู้
             const savedUnitSettings = localStorage.getItem('online_exam_unit_settings');
             if (savedUnitSettings) {
                 try { unitSettings = JSON.parse(savedUnitSettings); } catch (e) {}
             }
         
-            // ฟังก์ชันช่วยตั้งค่าลงใน Input HTML แบบปลอดภัย
+            // ใส่ค่าคืนลงในฟอร์ม HTML
             const safeSet = (id, val, isCheck = false) => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -1468,12 +1476,12 @@ async function fetchAndSyncUsers() {
             safeSet('setting-exam-global-enable', settings.globalExamEnable !== false, true);
             safeSet('setting-sheet-csv-url', settings.sheetCsvUrl || "");
             safeSet('setting-anti-cheat-enable', settings.antiCheatEnable, true);
-            safeSet('setting-max-tab-switches', settings.maxTabSwitches);
+            safeSet('setting-max-tab-switches', settings.maxTabSwitches || 3);
             safeSet('setting-auto-submit-cheat', settings.autoSubmitOnCheat, true);
-            safeSet('setting-question-count', settings.questionCount);
-            safeSet('setting-time-limit', settings.timeLimitMinutes);
-            safeSet('setting-shuffle-options', settings.shuffleOptions.toString());
-            safeSet('setting-webapp-url', settings.webAppUrl || ""); // 👈 แสดงค่า Web App URL
+            safeSet('setting-question-count', settings.questionCount || 15);
+            safeSet('setting-time-limit', settings.timeLimitMinutes !== undefined ? settings.timeLimitMinutes : 15);
+            safeSet('setting-shuffle-options', (settings.shuffleOptions !== undefined ? settings.shuffleOptions : true).toString());
+            safeSet('setting-webapp-url', settings.webAppUrl || "");
             safeSet('setting-results-csv-url', settings.resultsCsvUrl || "");
         
             toggleAntiCheatSettingsUI();
@@ -1496,20 +1504,19 @@ async function fetchAndSyncUsers() {
         function saveSettings() {
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
             
-            // 1. ดึงค่าจำนวนข้อและเวลาทำสอบจาก Input (ถ้ามี)
+            // 1. ดึงค่าจำนวนข้อและเวลาทำสอบจาก Input
             const globalQCount = parseInt(document.getElementById('setting-question-count')?.value) || settings.questionCount || 15;
             const globalTimeLimit = parseInt(document.getElementById('setting-time-limit')?.value) ?? settings.timeLimitMinutes;
         
-            // อัปเดตลงตัวแปร Global settings
             settings.questionCount = globalQCount;
             settings.timeLimitMinutes = globalTimeLimit;
             settings.selectedSet = selectedSet;
         
-            // 2. ดึงค่าลิงก์ Google Sheets Integration ทั้งหมด
-            settings.usersCsvUrl = document.getElementById('setting-users-csv-url')?.value.trim() || "";
-            settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url')?.value.trim() || "";
-            settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || "";
-            settings.webAppUrl = document.getElementById('setting-webapp-url')?.value.trim() || ""; // 👈 บันทึกค่า Web App URL
+            // 2. ดึงค่าลิงก์
+            settings.usersCsvUrl = document.getElementById('setting-users-csv-url')?.value.trim() || settings.usersCsvUrl || "";
+            settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url')?.value.trim() || settings.sheetCsvUrl || "";
+            settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || settings.resultsCsvUrl || "";
+            settings.webAppUrl = document.getElementById('setting-webapp-url')?.value.trim() || settings.webAppUrl || "";
         
             // 3. บันทึก Master Switch รายสาขา
             const globalElem = document.getElementById('setting-exam-global-enable');
@@ -1520,14 +1527,13 @@ async function fetchAndSyncUsers() {
                 timeLimitMinutes: globalTimeLimit
             };
         
-            // 4. ดึงหน่วยการเรียนรู้
+            // 4. บันทึกการตั้งค่ารายหน่วยการเรียนรู้ (อ่านค่าจาก DOM บนหน้าจอ)
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
             );
             const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
         
-            // 5. บันทึกค่ารายหน่วยรวมถึงสิทธิ์การเข้าถึงรายบุคคล
             categories.forEach((cat, idx) => {
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 const selectedAccessMode = document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all';
@@ -1545,13 +1551,13 @@ async function fetchAndSyncUsers() {
                 };
             });
         
-            // 6. บันทึกลง LocalStorage
+            // 5. บันทึกลง LocalStorage ทั้งหมด
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'บันทึกการเชื่อมต่อและสถานะระบบเรียบร้อยแล้ว');
-        }                                
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการตั้งค่าถูกบันทึกลงในระบบเรียบร้อยแล้ว');
+        }                           
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
@@ -1915,9 +1921,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
         function switchAdminTab(tabName) {
-            // ป้องกัน admin ประจำสาขาเข้าแท็บ data-sources
-            if (tabName === 'data-sources' && loggedInUser && loggedInUser.role !== 'superadmin') {
-                showAlertModal('warning', 'ไม่มีสิทธิ์เข้าถึง', 'เมนูนี้เฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
+            if (tabName === 'data-sources') {
+                showAlertModal('warning', 'ปิดการเข้าถึง', 'เมนูนี้ถูกปิดใช้งานในระบบ');
                 return;
             }
         
@@ -1942,17 +1947,25 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
                 
-                renderBranchButtons(); 
-                
-                // ถ้าเป็น admin ประจำสาขา บังคับให้สลับไปสาขาตนเองทันที
+                // ถ้าเป็น Admin สาขา บังคับเข้าสาขาตนเอง ถ้าเป็น Superadmin และยังไม่ได้เลือกสาขา ให้เลือกสาขาแรก
                 if (loggedInUser && loggedInUser.role === 'admin') {
                     currentSelectedBranch = loggedInUser.branch;
+                } else if (currentSelectedBranch === "ภาพรวมทุกสาขา") {
+                    const allBranches = Array.from(new Set(masterQuestions.map(q => q.branch).filter(Boolean)));
+                    if (allBranches.length > 0) currentSelectedBranch = allBranches[0];
                 }
+                
+                renderBranchButtons(); 
                 switchBranchSettings(currentSelectedBranch);
-            } else if (tabName === 'data-sources') {
-                if (tabData) tabData.classList.remove('hidden');
             } else {
+                // กรณีเลือกแท็บ Overview (ภาพรวม)
                 if (tabOverview) tabOverview.classList.remove('hidden');
+                
+                // ถ้าเป็น Superadmin ให้ตั้งค่ารีเซ็ตเป็น "ทั้งหมด" เสมอ
+                if (loggedInUser && loggedInUser.role === 'superadmin') {
+                    const filterSelect = document.getElementById('overview-branch-filter');
+                    if (filterSelect) filterSelect.value = "ทั้งหมด";
+                }
                 renderOverviewTable();
             }
         }
