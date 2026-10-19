@@ -853,11 +853,11 @@ function switchBranchSettings(branchName) {
             const passVal = document.getElementById('login-password').value.trim();
         
             try {
-                if (typeof fetchAndSyncUsers === 'function' && settings.usersCsvUrl) {
+                if (typeof fetchAndSyncUsers === 'function') {
                     await fetchAndSyncUsers();
                 }
             } catch (err) {
-                console.warn("Sync failed, using cached userDatabase", err);
+                console.warn("Sync users failed:", err);
             }
         
             const foundUser = userDatabase.find(u => u.username === userVal && u.password === passVal);
@@ -876,7 +876,7 @@ function switchBranchSettings(branchName) {
                     showStudentDashboard();
                 }
             } else {
-                showAlertModal('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง หรืออยู่ระหว่างการอัปเดตข้อมูล');
+                showAlertModal('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง');
             }
         }
 
