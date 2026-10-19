@@ -1074,8 +1074,7 @@ function switchBranchSettings(branchName) {
 
             const shuffled = [...pool].sort(() => 0.5 - Math.random());
             const drawCount = Math.min(finalQuestionCount, shuffled.length);
-            timeRemainingSeconds = finalTimeLimit * 60;
-            
+                        
             activeQuestions = shuffled.slice(0, drawCount).map((q, idx) => {
                 let optionsFormatted = q.options.map((optText, origIdx) => ({ text: optText, originalIndex: origIdx }));
                 if (settings.shuffleOptions) {
@@ -1093,7 +1092,7 @@ function switchBranchSettings(branchName) {
             userAnswers = {};
             currentQuestionIndex = 0;
             tabSwitchCount = 0;
-            timeRemainingSeconds = settings.timeLimitMinutes * 60;
+            timeRemainingSeconds = finalTimeLimit * 60;
             isExamActive = true;
             sessionStorage.setItem('is_exam_running', 'true');
 
