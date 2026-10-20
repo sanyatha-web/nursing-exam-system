@@ -1438,16 +1438,22 @@ async function fetchAndSyncUsers() {
                 const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
                 const branch = branchIdx !== -1 ? cols[branchIdx] : '';
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
-                const role = roleIdx !== -1 ? cols[roleIdx] : 'student';
+                const rawRole = roleIdx !== -1 ? cols[roleIdx] : 'student';
                 const password = passIdx !== -1 ? cols[passIdx] : '';
     
-                let userRole = 'student';
-                const roleLower = role.toLowerCase();
-                if (roleLower.includes('superadmin') || roleLower.includes('ผู้ดูแลระบบสูงสุด')) {
-                    userRole = 'superadmin';
-                } else if (roleLower.includes('admin') || roleLower.includes('อาจารย์') || roleLower.includes('ผู้ดูแล')) {
-                    userRole = 'admin';
-                }
+                // 🟢 แปลงคอลัมน์ Role ที่คั่นด้วย Comma ให้เป็น Array
+                const rolesArray = rawRole.split(/[,/]+/).map(r => r.trim().toLowerCase());
+                let userRoles = [];
+                
+                rolesArray.forEach(r => {
+                    if (r.includes('superadmin') || r.includes('ผู้ดูแลระบบสูงสุด')) userRoles.push('superadmin');
+                    else if (r.includes('admin') || r.includes('ผู้ดูแลสาขา')) userRoles.push('admin');
+                    else if (r.includes('manager') || r.includes('ผู้บริหาร')) userRoles.push('manager');
+                    else if (r.includes('preceptor') || r.includes('พี่เลี้ยง')) userRoles.push('preceptor');
+                    else if (r.includes('student') || r.includes('ผู้เรียน')) userRoles.push('student');
+                });
+
+                if (userRoles.length === 0) userRoles.push('student');
     
                 if (sapId && password) {
                     fetchedUsers.push({
@@ -1459,7 +1465,7 @@ async function fetchAndSyncUsers() {
                         fullname: `${prefix}${fname} ${lname}`.trim(),
                         branch: branch || 'ทั่วไป',
                         yearLevel: yearLevel || 'ไม่ระบุ',
-                        role: userRole
+                        roles: userRoles // 🟢 บันทึกเป็น Array รองรับหลายสิทธิ์
                     });
                 }
             }
@@ -3098,10 +3104,19 @@ function toggleModalUserSelection(username, isChecked) {
                             <div class="my-2 p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-2">
                                 <p class="font-semibold text-slate-700">ข้อที่ ${essay.questionIndex}: ${essay.questionText}</p>
                                 <p class="text-indigo-900 bg-indigo-50 p-2.5 rounded-lg border border-indigo-100">คำตอบ: ${essay.studentAnswer || '(ไม่ได้ตอบ)'}</p>
-                                <div class="flex items-center space-x-2 pt-1">
-                                    <label class="font-bold text-slate-600">ให้คะแนน:</label>
-                                    <input type="number" min="0" max="10" step="0.5" class="border border-slate-300 p-1 w-20 rounded-lg text-center bg-white" 
-                                        id="score-input-${itemIdx}-${eIdx}" value="${essay.scoreGiven || 0}">
+                                
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                                    <div class="flex items-center space-x-2">
+                                        <label class="font-bold text-slate-600">ให้คะแนน:</label>
+                                        <input type="number" min="0" max="10" step="0.5" class="border border-slate-300 p-1 w-20 rounded-lg text-center bg-white" 
+                                            id="score-input-${itemIdx}-${eIdx}" value="${essay.scoreGiven || 0}">
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <input type="text" id="feedback-input-${itemIdx}-${eIdx}" 
+                                            value="${essay.feedback || ''}" 
+                                            placeholder="กรอกข้อเสนอแนะ/Feedback ให้ผู้เรียน..." 
+                                            class="w-full border border-slate-300 p-1.5 rounded-lg bg-white text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -3127,15 +3142,36 @@ function toggleModalUserSelection(username, isChecked) {
             const essayAnswers = pendingList[itemIdx].essayAnswers || [];
             essayAnswers.forEach((essay, eIdx) => {
                 const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
+                const inputFeedback = document.getElementById(`feedback-input-${itemIdx}-${eIdx}`);
                 if (inputScore) {
                     essay.scoreGiven = parseFloat(inputScore.value) || 0;
+                }
+                if (inputFeedback) {
+                    essay.feedback = inputFeedback.value.trim();
                 }
             });
 
             pendingList[itemIdx].essayAnswers = essayAnswers;
             localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
 
-            showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'บันทึกคะแนนข้อสอบข้อเขียนเรียบร้อยแล้ว');
+            // 🟢 ส่งผลตรวจเข้า Google Sheets ผ่าน Web App URL
+            if (settings.webAppUrl) {
+                fetch(settings.webAppUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: "updateEssayGrading",
+                        studentId: pendingList[itemIdx].studentId,
+                        category: pendingList[itemIdx].category,
+                        essayAnswers: JSON.stringify(essayAnswers),
+                        gradedBy: loggedInUser ? loggedInUser.fullname : 'Preceptor',
+                        gradedAt: new Date().toLocaleString('th-TH')
+                    })
+                }).catch(err => console.error(err));
+            }
+
+            showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'บันทึกคะแนนและ Feedback ข้อสอบข้อเขียนเรียบร้อยแล้ว');
             renderEssayGradingCards(pendingList);
         }
         
