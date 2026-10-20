@@ -282,10 +282,19 @@
                                 <div class="w-12 h-6 bg-indigo-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                             </label>
                         </div>
-                        
                         <div class="pt-3 border-t border-indigo-800 flex flex-wrap gap-4 items-center">
                             <label class="block text-xs font-bold text-indigo-200">เลือกชุดการเรียนรู้ที่ต้องการตั้งค่า:</label>
                             <select id="setting-exam-set" onchange="renderUnitSettingsList()" class="px-3 py-1.5 border border-indigo-700 rounded-lg text-xs bg-indigo-950 text-amber-300 font-bold outline-none"></select>
+                        </div>
+                        <!-- 🟢 เพิ่มส่วนการตั้งค่าการสุ่มข้อสอบและตัวเลือกตรงนี้ -->
+                        <div class="pt-3 border-t border-indigo-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
+                                <span class="font-bold text-indigo-100"><i class="fa-solid fa-shuffle mr-1.5 text-amber-400"></i> สลับตำแหน่งตัวเลือก (Choices):</span>
+                                <select id="setting-shuffle-options" class="px-2 py-1 border border-indigo-700 rounded-lg bg-indigo-900 text-amber-300 font-bold outline-none">
+                                    <option value="true">สลับตัวเลือก</option>
+                                    <option value="false">คงลำดับเดิม</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
