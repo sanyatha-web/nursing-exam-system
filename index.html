@@ -2219,7 +2219,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 switchBranchSettings(currentSelectedBranch);
             } else if (tabName === 'data-sources') {
                 if (tabData) tabData.classList.remove('hidden');
-            } else if (tabName === 'essay-grading') {
+            } else if (tabName === 'essay-grading') { // 🟢 เพิ่มเงื่อนไขเปิดแท็บและเรนเดอร์รายการตรงนี้
                 if (tabEssay) tabEssay.classList.remove('hidden');
                 const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 renderEssayGradingCards(pendingList);
@@ -2889,6 +2889,7 @@ function toggleModalUserSelection(username, isChecked) {
             container.innerHTML = html;
         }
 
+        // ฟังก์ชันบันทึกคะแนนข้อเขียน
         function saveEssayGrading(itemIdx) {
             let pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
             if (!pendingList[itemIdx]) return;
@@ -2901,7 +2902,6 @@ function toggleModalUserSelection(username, isChecked) {
                 }
             });
 
-            // อัปเดตและบันทึกลง LocalStorage
             pendingList[itemIdx].essayAnswers = essayAnswers;
             localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
 
