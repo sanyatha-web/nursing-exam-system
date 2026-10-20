@@ -2189,14 +2189,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
             const tabData = document.getElementById('tab-admin-data-sources');
-            const tabEssay = document.getElementById('tab-admin-essay-grading'); // 🟢 เพิ่มการดึง element แท็บข้อเขียน
+            const tabEssay = document.getElementById('tab-admin-essay-grading');
             const branchWrapper = document.getElementById('branch-selector-wrapper');
         
             if (tabOverview) tabOverview.classList.add('hidden');
             if (tabExam) tabExam.classList.add('hidden');
             if (tabTracker) tabTracker.classList.add('hidden');
             if (tabData) tabData.classList.add('hidden');
-            if (tabEssay) tabEssay.classList.add('hidden'); // 🟢 เพิ่มการสั่งซ่อนแท็บข้อเขียน
+            if (tabEssay) tabEssay.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
         
             if (tabName === 'student-tracker') {
@@ -2206,7 +2206,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 });
             } else if (tabName === 'exam-settings') {
                 if (tabExam) tabExam.classList.remove('hidden');
-                if (branchWrapper) branchWrapper.classList.remove('hidden');
+                if (branchWrapper) branchWrapper.classList.remove('hidden'); // 🟢 เพิ่มบรรทัดนี้เพื่อเปิดแถบเลือกสาขา
                 
                 if (loggedInUser && loggedInUser.role === 'admin') {
                     currentSelectedBranch = loggedInUser.branch;
@@ -2219,7 +2219,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 switchBranchSettings(currentSelectedBranch);
             } else if (tabName === 'data-sources') {
                 if (tabData) tabData.classList.remove('hidden');
-            } else if (tabName === 'essay-grading') { // 🟢 เพิ่มเงื่อนไขเปิดแท็บและเรนเดอร์รายการตรงนี้
+            } else if (tabName === 'essay-grading') {
                 if (tabEssay) tabEssay.classList.remove('hidden');
                 const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 renderEssayGradingCards(pendingList);
