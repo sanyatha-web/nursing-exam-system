@@ -1460,98 +1460,98 @@ async function fetchAndSyncUsers() {
         }
         
         function parseCSVToQuestions(csvText, isOverwrite = false) {
-    if (!csvText || csvText.trim() === '') return false;
-    if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
+            if (!csvText || csvText.trim() === '') return false;
+            if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
 
-    function parseCSVLine(text) {
-        let p = '', c = '', r = [];
-        let q = false;
-        for (let i = 0; i < text.length; i++) {
-            c = text[i];
-            if (c === '"') {
-                if (q && text[i+1] === '"') { p += '"'; i++; }
-                else { q = !q; }
-            } else if (c === ',' && !q) {
+            function parseCSVLine(text) {
+                let p = '', c = '', r = [];
+                let q = false;
+                for (let i = 0; i < text.length; i++) {
+                    c = text[i];
+                    if (c === '"') {
+                        if (q && text[i+1] === '"') { p += '"'; i++; }
+                        else { q = !q; }
+                    } else if (c === ',' && !q) {
+                        r.push(p.trim());
+                        p = '';
+                    } else {
+                        p += c;
+                    }
+                }
                 r.push(p.trim());
-                p = '';
-            } else {
-                p += c;
+                return r;
             }
+
+            const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
+            if (lines.length < 2) return false;
+
+            const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
+
+            const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
+            const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
+            const setIdx = headerCols.findIndex(h => 
+                h.includes('ชุดข้อสอบ') || h.includes('ชุดการเรียนรู้') || h.includes('ชุด') || h.includes('set')
+            );
+            const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย') || h.includes('หมวด'));
+            const skillIdx = headerCols.findIndex(h => h.includes('ทักษะ') || h.includes('ประเภท') || h.includes('skill'));
+            const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์') || h.includes('question'));
+            const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ') || h.includes('รูป') || h.includes('media'));
+            const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('choice1') || h.includes('option1'));
+            const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2') || h.includes('choice2') || h.includes('option2'));
+            const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3') || h.includes('choice3') || h.includes('option3'));
+            const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4') || h.includes('choice4') || h.includes('option4'));
+            const ansIdx = headerCols.findIndex(h => h.includes('เฉลย') || h.includes('answer') || h.includes('correct'));
+
+            if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
+                console.error("✕ ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions โปรดตรวจสอบลิงก์ CSV");
+                return false;
+            }
+
+            const imported = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCSVLine(lines[i]);
+                if (cols.length < 6) continue;
+
+                const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx] : 'ข้อสอบกลาง';
+                const yearVal = yearIdx !== -1 && cols[yearIdx] ? cols[yearIdx] : 'ทุกชั้นปี';
+                const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
+                const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
+                const skillVal = skillIdx !== -1 && cols[skillIdx] ? cols[skillIdx] : category;
+                const question = cols[qIdx];
+                const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
+                const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
+                const correctVal = parseInt(cols[ansIdx]) - 1;
+
+                if (question && options.every(o => o !== undefined && o !== '') && !isNaN(correctVal)) {
+                    imported.push({ 
+                        branch: branchVal,
+                        yearLevel: yearVal,
+                        setGroup: setVal,
+                        category: category, 
+                        skill: skillVal,
+                        question: question,
+                        media: media,
+                        options: options, 
+                        correct: correctVal 
+                    });
+                }
+            }
+
+            if (imported.length > 0) {
+                if (isOverwrite) {
+                    masterQuestions = imported;
+                } else {
+                    masterQuestions = masterQuestions.concat(imported);
+                }
+
+                localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
+                updateAdminSettingsUI();
+                return true;
+            }
+
+            return false;
         }
-        r.push(p.trim());
-        return r;
-    }
-
-    const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
-    if (lines.length < 2) return false;
-
-    const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
-    
-    // พิมพ์ตรวจสอบหัวคอลัมน์เฉพาะของฝั่ง Questions
-    console.log("=== QUESTIONS Sheet Headers ===", headerCols);
-
-    const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
-    const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
-    const setIdx = headerCols.findIndex(h => 
-        h.includes('ชุดข้อสอบ') || h.includes('ชุดการเรียนรู้') || h.includes('ชุด') || h.includes('set')
-    );
-    const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย') || h.includes('หมวด'));
-    const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์') || h.includes('question'));
-    const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ') || h.includes('รูป') || h.includes('media'));
-    const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('choice1') || h.includes('option1'));
-    const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2') || h.includes('choice2') || h.includes('option2'));
-    const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3') || h.includes('choice3') || h.includes('option3'));
-    const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4') || h.includes('choice4') || h.includes('option4'));
-    const ansIdx = headerCols.findIndex(h => h.includes('เฉลย') || h.includes('answer') || h.includes('correct'));
-
-    if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
-        console.error("❌ ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions โปรดตรวจสอบลิงก์ CSV");
-        return false;
-    }
-
-    const imported = [];
-
-    for (let i = 1; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
-        if (cols.length < 6) continue;
-
-        const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx] : 'ข้อสอบกลาง';
-        const yearVal = yearIdx !== -1 && cols[yearIdx] ? cols[yearIdx] : 'ทุกชั้นปี';
-        const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
-        const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
-        const question = cols[qIdx];
-        const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
-        const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
-        const correctVal = parseInt(cols[ansIdx]) - 1;
-
-        if (question && options.every(o => o !== undefined && o !== '') && !isNaN(correctVal)) {
-            imported.push({ 
-                branch: branchVal,
-                yearLevel: yearVal,
-                setGroup: setVal,
-                category: category, 
-                question: question,
-                media: media,
-                options: options, 
-                correct: correctVal 
-            });
-        }
-    }
-
-    if (imported.length > 0) {
-        if (isOverwrite) {
-            masterQuestions = imported;
-        } else {
-            masterQuestions = masterQuestions.concat(imported);
-        }
-
-        localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
-        updateAdminSettingsUI();
-        return true;
-    }
-
-    return false;
-}
 
         // ==========================================
         // Logic การสุ่มข้อสอบอัจฉริยะ (Dynamic Matrix Randomization)
@@ -2697,8 +2697,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                 const allowedCount = (uConf.allowedUsers || []).length;
                 const unitPool = pool.filter(q => q.category === cat);
-                // ดึงรายการทักษะแบบ Dynamic จากคลังข้อสอบปัจจุบัน
-                const unitSkills = Array.from(new Set(unitPool.map(q => q.skill || q.category).filter(Boolean)));
+                
+                // ดึงรายการทักษะอย่างถูกต้อง (หาก q.skill ไม่มี ให้ใช้ q.category แทน)
+                const rawSkills = unitPool.map(q => (q.skill && q.skill.trim() !== '') ? q.skill.trim() : q.category).filter(Boolean);
+                const unitSkills = Array.from(new Set(rawSkills));
 
                 // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
                 let currentAllocatedSum = 0;
@@ -2784,7 +2786,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     ${unitSkills.map(skillName => {
                                         const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
-                                        const totalAvailable = unitPool.filter(q => (q.skill || q.category) === skillName).length;
+                                        const totalAvailable = unitPool.filter(q => ((q.skill && q.skill.trim() !== '') ? q.skill.trim() : q.category) === skillName).length;
                                         return `
                                             <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
                                                 <div class="flex flex-col pr-2 min-w-0">
@@ -2806,6 +2808,19 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     </div>
                 `;
             }).join('');
+        }
+
+        // ฟังก์ชันสำหรับสลับการแสดงผลเปิด-ปิด ช่องสุ่มสัดส่วนทักษะรายหน่วย (แก้ปัญหาช่องไม่หุบ/ไม่ง้าง)
+        function toggleUnitSkillInputs(idx) {
+            const checkbox = document.getElementById(`unit-distribute-${idx}`);
+            const container = document.getElementById(`unit-skill-container-${idx}`);
+            if (checkbox && container) {
+                if (checkbox.checked) {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            }
         }
         
         // ฟังก์ชันตรวจสอบและดักจับไม่ให้สัดส่วนทักษะรวมเกิน "จำนวนข้อสอบทั้งหมด"
