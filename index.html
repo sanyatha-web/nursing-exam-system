@@ -2764,7 +2764,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             </button>
                         </div>
 
-                        <!-- ส่วนที่ 3: ตั้งค่าการสุ่มคละทักษะรายหน่วย (ย้ายมาไว้ใต้สิทธิ์ผู้เข้าสอบ) -->
+                        <!-- ส่วนที่ 3: ตั้งค่าการสุ่มคละทักษะรายหน่วย พร้อมข้อความกำกับทักษะชัดเจน -->
                         <div class="pt-2 border-t border-slate-200 text-xs bg-white p-3 rounded-lg border border-slate-100 space-y-2">
                             <div class="flex items-center justify-between">
                                 <span class="font-bold text-slate-700"><i class="fa-solid fa-layer-group text-indigo-500 mr-1.5"></i> สุ่มคละตามประเภท/ทักษะ:</span>
@@ -2774,23 +2774,28 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 </label>
                             </div>
 
-                            <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-1.5">
-                                <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-1.5 rounded border border-indigo-100">
-                                    <span class="text-indigo-900 font-semibold">สถานะสัดส่วนข้อสอบ:</span>
+                            <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-2">
+                                <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                                    <span class="text-indigo-900 font-semibold"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> สัดส่วนข้อสอบที่จัดสรร:</span>
                                     <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} / ${uConf.questionCount} ข้อ</span>
                                 </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+                                <!-- ช่องกรอกสัดส่วนแยกตามทักษะ พร้อมข้อความกำกับชัดเจน -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     ${unitSkills.map(skillName => {
                                         const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
                                         const totalAvailable = unitPool.filter(q => (q.skill || q.category) === skillName).length;
                                         return `
-                                            <div class="flex items-center justify-between bg-slate-50 p-1.5 rounded border border-slate-200">
-                                                <span class="text-slate-700 text-[11px] truncate max-w-[160px]" title="${skillName}">• ${skillName} <span class="text-[10px] text-slate-400">(คลัง ${totalAvailable})</span></span>
-                                                <div class="flex items-center space-x-1">
+                                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
+                                                <div class="flex flex-col pr-2 min-w-0">
+                                                    <span class="font-bold text-slate-800 text-xs truncate" title="${skillName}">• ${skillName}</span>
+                                                    <span class="text-[10px] text-slate-500">ข้อสอบในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
+                                                </div>
+                                                <div class="flex items-center space-x-1 flex-shrink-0">
                                                     <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
                                                         oninput="validateUnitSkillInputs(${idx}, this)"
-                                                        class="unit-skill-input-${idx} w-12 px-1 py-0.5 text-center bg-white border border-slate-300 rounded text-indigo-700 font-bold outline-none text-[11px]">
-                                                    <span class="text-slate-400 text-[10px]">ข้อ</span>
+                                                        class="unit-skill-input-${idx} w-14 px-2 py-1 text-center bg-white border border-slate-300 rounded-lg text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                                    <span class="text-slate-500 font-semibold text-xs">ข้อ</span>
                                                 </div>
                                             </div>
                                         `;
