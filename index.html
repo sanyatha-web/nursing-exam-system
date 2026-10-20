@@ -1769,7 +1769,6 @@ async function fetchAndSyncUsers() {
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
             const globalElem = document.getElementById('setting-exam-global-enable');
         
-            // 🟢 อ่านและบันทึกการตั้งค่ารายหน่วยลง unitSettings
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
@@ -1779,7 +1778,6 @@ async function fetchAndSyncUsers() {
             categories.forEach((cat, idx) => {
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 
-                // รวบรวมสัดส่วนทักษะของหน่วยนี้
                 const unitSkillCounts = {};
                 document.querySelectorAll(`.unit-skill-input-${idx}`).forEach(input => {
                     const skillName = input.getAttribute('data-skill');
@@ -1794,7 +1792,7 @@ async function fetchAndSyncUsers() {
                     timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
                     antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked || false,
                     preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked || false,
-                    shuffleOptions: document.getElementById(`unit-shuffle-${idx}`)?.value === 'true',
+                    shuffleOptions: document.getElementById(`unit-shuffle-${idx}`)?.checked || false, // 🟢 แก้ไขตรงนี้อ่านจาก Checkbox
                     distributeBySkills: document.getElementById(`unit-distribute-${idx}`)?.checked || false,
                     skillCounts: unitSkillCounts,
                     accessMode: document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all',
@@ -2699,6 +2697,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                 const allowedCount = (uConf.allowedUsers || []).length;
                 const unitPool = pool.filter(q => q.category === cat);
+                // ดึงรายการทักษะแบบ Dynamic จากคลังข้อสอบปัจจุบัน
                 const unitSkills = Array.from(new Set(unitPool.map(q => q.skill || q.category).filter(Boolean)));
 
                 // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
@@ -2717,8 +2716,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             <span class="text-xs text-slate-400 font-mono">Key: ${cat}</span>
                         </div>
 
-                        <!-- ส่วนที่ 1: ตั้งค่าตัวเลขและสวิตช์ Anti-Cheat -->
-                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                        <!-- ส่วนที่ 1: ตั้งค่าตัวเลข สลับตัวเลือก และสวิตช์ Anti-Cheat -->
+                        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs items-center">
                             <div>
                                 <label class="block font-medium text-slate-600 mb-1">จำนวนข้อสอบทั้งหมด</label>
                                 <input type="number" id="unit-qcount-${idx}" value="${uConf.questionCount}" min="1" ${!isMasterOn ? 'disabled' : ''}
@@ -2730,6 +2729,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 <input type="number" id="unit-time-${idx}" value="${uConf.timeLimitMinutes}" min="0" ${!isMasterOn ? 'disabled' : ''} class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
                             </div>
                             <div class="flex items-center space-x-2 pt-4">
+                                <input type="checkbox" id="unit-shuffle-${idx}" ${uConf.shuffleOptions !== false ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="rounded text-amber-500 focus:ring-amber-400">
+                                <label class="font-semibold text-slate-700">สลับตำแหน่งตัวเลือก</label>
+                            </div>
+                            <div class="flex items-center space-x-2 pt-4">
                                 <input type="checkbox" id="unit-anticheat-${idx}" ${uConf.antiCheatEnable ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="rounded text-indigo-600">
                                 <label class="font-semibold text-slate-700">เปิดตรวจจับสลับจอ</label>
                             </div>
@@ -2739,50 +2742,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             </div>
                         </div>
 
-                        <!-- ส่วนที่ 2: ตั้งค่าการสลับตัวเลือก & สุ่มคละทักษะรายหน่วย -->
-                        <div class="pt-2 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white p-3 rounded-lg border border-slate-100">
-                            <div class="flex items-center justify-between">
-                                <span class="font-bold text-slate-700"><i class="fa-solid fa-shuffle text-amber-500 mr-1.5"></i> สลับตำแหน่งตัวเลือก:</span>
-                                <select id="unit-shuffle-${idx}" ${!isMasterOn ? 'disabled' : ''} class="px-2 py-1 border border-slate-300 rounded-lg bg-slate-50 text-slate-800 font-bold outline-none">
-                                    <option value="true" ${uConf.shuffleOptions !== false ? 'selected' : ''}>สลับตัวเลือก</option>
-                                    <option value="false" ${uConf.shuffleOptions === false ? 'selected' : ''}>คงลำดับเดิม</option>
-                                </select>
-                            </div>
-
-                            <div class="space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-slate-700"><i class="fa-solid fa-layer-group text-indigo-500 mr-1.5"></i> สุ่มคละตามประเภท/ทักษะ:</span>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="unit-distribute-${idx}" onchange="toggleUnitSkillInputs(${idx})" ${uConf.distributeBySkills ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="sr-only peer">
-                                        <div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
-                                    </label>
-                                </div>
-
-                                <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-1.5">
-                                    <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-1.5 rounded border border-indigo-100">
-                                        <span class="text-indigo-900 font-semibold">สถานะสัดส่วนข้อสอบ:</span>
-                                        <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} / ${uConf.questionCount} ข้อ</span>
-                                    </div>
-                                    ${unitSkills.map(skillName => {
-                                        const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
-                                        const totalAvailable = unitPool.filter(q => (q.skill || q.category) === skillName).length;
-                                        return `
-                                            <div class="flex items-center justify-between bg-slate-50 p-1 rounded border border-slate-200">
-                                                <span class="text-slate-700 text-[11px] truncate max-w-[140px]" title="${skillName}">• ${skillName} <span class="text-[10px] text-slate-400">(คลัง ${totalAvailable})</span></span>
-                                                <div class="flex items-center space-x-1">
-                                                    <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
-                                                        oninput="validateUnitSkillInputs(${idx}, this)"
-                                                        class="unit-skill-input-${idx} w-12 px-1 py-0.5 text-center bg-white border border-slate-300 rounded text-indigo-700 font-bold outline-none text-[11px]">
-                                                    <span class="text-slate-400 text-[10px]">ข้อ</span>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ส่วนที่ 3: สิทธิ์ผู้เข้าสอบ (รายบุคคล) -->
+                        <!-- ส่วนที่ 2: สิทธิ์ผู้เข้าสอบ (รายบุคคล) -->
                         <div class="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                             <div class="flex items-center space-x-4">
                                 <span class="font-bold text-slate-700"><i class="fa-solid fa-users-gear text-indigo-500 mr-1"></i> สิทธิ์ผู้เข้าสอบ:</span>
@@ -2802,6 +2762,41 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 <i class="fa-solid fa-user-plus"></i>
                                 <span id="btn-select-students-label-${idx}">จัดการผู้สอบ (${allowedCount} คน)</span>
                             </button>
+                        </div>
+
+                        <!-- ส่วนที่ 3: ตั้งค่าการสุ่มคละทักษะรายหน่วย (ย้ายมาไว้ใต้สิทธิ์ผู้เข้าสอบ) -->
+                        <div class="pt-2 border-t border-slate-200 text-xs bg-white p-3 rounded-lg border border-slate-100 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-slate-700"><i class="fa-solid fa-layer-group text-indigo-500 mr-1.5"></i> สุ่มคละตามประเภท/ทักษะ:</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="unit-distribute-${idx}" onchange="toggleUnitSkillInputs(${idx})" ${uConf.distributeBySkills ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="sr-only peer">
+                                    <div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+
+                            <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-1.5">
+                                <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-1.5 rounded border border-indigo-100">
+                                    <span class="text-indigo-900 font-semibold">สถานะสัดส่วนข้อสอบ:</span>
+                                    <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} / ${uConf.questionCount} ข้อ</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    ${unitSkills.map(skillName => {
+                                        const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
+                                        const totalAvailable = unitPool.filter(q => (q.skill || q.category) === skillName).length;
+                                        return `
+                                            <div class="flex items-center justify-between bg-slate-50 p-1.5 rounded border border-slate-200">
+                                                <span class="text-slate-700 text-[11px] truncate max-w-[160px]" title="${skillName}">• ${skillName} <span class="text-[10px] text-slate-400">(คลัง ${totalAvailable})</span></span>
+                                                <div class="flex items-center space-x-1">
+                                                    <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
+                                                        oninput="validateUnitSkillInputs(${idx}, this)"
+                                                        class="unit-skill-input-${idx} w-12 px-1 py-0.5 text-center bg-white border border-slate-300 rounded text-indigo-700 font-bold outline-none text-[11px]">
+                                                    <span class="text-slate-400 text-[10px]">ข้อ</span>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
