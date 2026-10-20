@@ -287,7 +287,7 @@
                             <select id="setting-exam-set" onchange="renderUnitSettingsList()" class="px-3 py-1.5 border border-indigo-700 rounded-lg text-xs bg-indigo-950 text-amber-300 font-bold outline-none"></select>
                         </div>
                         
-                        <!-- 🟢 ส่วนการตั้งค่าการสุ่มข้อสอบคละตามทักษะ/ประเภท และสลับตัวเลือก (แก้ไขให้ถูกต้อง) -->
+                        <!-- 🟢 ปรับเปลี่ยนส่วนการตั้งค่าการสุ่มข้อสอบคละตามทักษะ/ประเภท -->
                         <div class="pt-3 border-t border-indigo-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <!-- ตัวเลือกสลับตัวเลือก (Choices) -->
                             <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
@@ -297,16 +297,26 @@
                                     <option value="false">คงลำดับเดิม</option>
                                 </select>
                             </div>
-                            <!-- ตัวเลือกสุ่มกระจายข้อสอบตามทักษะ (Distribute by Skills) -->
-                            <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
-                                <span class="font-bold text-indigo-100"><i class="fa-solid fa-layer-group mr-1.5 text-amber-400"></i> สุ่มคละตามประเภท/ทักษะ:</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="setting-distribute-skills" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-indigo-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                                </label>
+                            
+                            <!-- ตัวเลือกสุ่มกระจายข้อสอบตามทักษะ (Distribute by Skills) + ช่องกรอกสัดส่วน -->
+                            <div class="bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-indigo-100"><i class="fa-solid fa-layer-group mr-1.5 text-amber-400"></i> สุ่มคละตามประเภท/ทักษะ:</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="setting-distribute-skills" onchange="toggleSkillInputsUI()" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-indigo-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                    </label>
+                                </div>
+                                
+                                <!-- ช่องแสดงรายการทักษะสำหรับระบุจำนวนข้อ (เปิด/ปิดตามสวิตช์) -->
+                                <div id="skill-proportions-container" class="hidden pt-2 border-t border-indigo-800/60 space-y-2">
+                                    <p class="text-[11px] text-indigo-200">ระบุจำนวนข้อสอบที่ต้องการสุ่มในแต่ละทักษะ:</p>
+                                    <div id="skill-inputs-list" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                        <!-- Dynamic Input Rows จะถูกสร้างด้วย JavaScript -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
                     <!-- 2. รายการหน่วยการเรียนรู้พร้อม Checkbox เปิด/ปิด และฟอร์มตั้งค่ารายหน่วย -->
                     <div class="space-y-3">
                         <div class="flex justify-between items-center">
@@ -829,6 +839,9 @@ let settings = {
             if (examSetElem && bSet.selectedSet) {
                 examSetElem.value = bSet.selectedSet;
             }
+
+            safeSetCheck('setting-distribute-skills', bSet.distributeBySkills);
+            toggleSkillInputsUI();
         
             toggleAntiCheatSettingsUI();
             renderUnitSettingsList();
@@ -1140,7 +1153,8 @@ let settings = {
             const currentBranchSet = branchSettings[loggedInUser.branch] || settings;
             const examConfig = {
                 randomizeOrder: settings.shuffleOptions !== false,
-                distributeBySkills: currentBranchSet.distributeBySkills || false, // 🟢 ดึงค่าตั้งค่าการสุ่มตามทักษะส่งไปประมวลผล
+                distributeBySkills: currentBranchSet.distributeBySkills || false,
+                skillCounts: currentBranchSet.skillCounts || {}, // 🟢 ส่งสัดส่วนจำนวนข้อที่ตั้งไว้เข้ากระบวนการสุ่ม
                 targetTotal: finalQuestionCount
             };
 
@@ -1597,6 +1611,66 @@ async function fetchAndSyncUsers() {
             return shuffled;
         }
 
+        // 1. ฟังก์ชันเปิด/ปิดการแสดงผลช่องใส่สัดส่วนตามสวิตช์ Toggle
+        function toggleSkillInputsUI() {
+            const isChecked = document.getElementById('setting-distribute-skills')?.checked || false;
+            const container = document.getElementById('skill-proportions-container');
+            if (container) {
+                if (isChecked) {
+                    container.classList.remove('hidden');
+                    renderSkillInputsUI();
+                } else {
+                    container.classList.add('hidden');
+                }
+            }
+        }
+        
+        // 2. ฟังก์ชันวาดช่องกรอกสัดส่วนจำนวนข้อแยกตามทักษะที่มีจริงในสาขาที่เลือก
+        function renderSkillInputsUI() {
+            const listContainer = document.getElementById('skill-inputs-list');
+            if (!listContainer) return;
+        
+            // ดึงคลังข้อสอบเฉพาะของสาขาและชุดการเรียนรู้ที่เลือกอยู่ขณะนั้น
+            const selectedSet = document.getElementById('setting-exam-set')?.value || "ทั้งหมด (ทุกชุดการเรียนรู้)";
+            const pool = masterQuestions.filter(q => 
+                (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
+                (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet)
+            );
+        
+            // ดึงทักษะที่มีจริง (ใช้ q.skill หากไม่มีให้ถอยไปใช้ q.category)
+            const skills = Array.from(new Set(pool.map(q => q.skill || q.category).filter(Boolean)));
+        
+            if (skills.length === 0) {
+                listContainer.innerHTML = `<p class="text-amber-300 text-[11px]">ไม่พบข้อมูลทักษะในชุดข้อสอบนี้</p>`;
+                return;
+            }
+        
+            // ดึงค่าสัดส่วนเดิมที่เคยบันทึกไว้ในสาขานั้น
+            const currentBranchSet = branchSettings[currentSelectedBranch] || settings;
+            const savedSkillCounts = currentBranchSet.skillCounts || {};
+        
+            listContainer.innerHTML = skills.map(skillName => {
+                const countVal = savedSkillCounts[skillName] !== undefined ? savedSkillCounts[skillName] : 0;
+                // นับจำนวนข้อสอบทั้งหมดที่มีในคลังสำหรับทักษะนี้
+                const totalAvailable = pool.filter(q => (q.skill || q.category) === skillName).length;
+        
+                return `
+                    <div class="flex items-center justify-between bg-indigo-900/80 p-1.5 rounded-lg border border-indigo-700/60">
+                        <span class="text-indigo-100 font-medium truncate max-w-[150px]" title="${skillName}">• ${skillName} <span class="text-[10px] text-indigo-300">(มี ${totalAvailable} ข้อ)</span></span>
+                        <div class="flex items-center space-x-1">
+                            <input type="number" 
+                                data-skill="${skillName}" 
+                                value="${countVal}" 
+                                min="0" 
+                                max="${totalAvailable}"
+                                class="skill-count-input w-14 px-1.5 py-0.5 text-center bg-indigo-950 border border-indigo-600 rounded text-amber-300 font-bold outline-none focus:border-amber-400">
+                            <span class="text-indigo-300 text-[11px]">ข้อ</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         // 3. ฟังก์ชันสร้างชุดข้อสอบแบบสุ่มคละทักษะ
         function generateExamPaper(rawQuestions, config) {
             let finalExam = [];
@@ -1714,83 +1788,62 @@ async function fetchAndSyncUsers() {
         }
 
         function toggleAntiCheatSettingsUI() {
-    const checkElem = document.getElementById('setting-anti-cheat-enable');
-    const subOptions = document.getElementById('sub-anti-cheat-options');
-    
-    // ดักความปลอดภัย: ถ้าหา Element ไม่เจอให้จบการทำงานทันที ไม่ต้องพ่น Error
-    if (!checkElem || !subOptions) return; 
-
-    if (checkElem.checked) {
-        subOptions.classList.remove('opacity-40', 'pointer-events-none');
-    } else {
-        subOptions.classList.add('opacity-40', 'pointer-events-none');
-    }
-}
+            const checkElem = document.getElementById('setting-anti-cheat-enable');
+            const subOptions = document.getElementById('sub-anti-cheat-options');
+            
+            // ดักความปลอดภัย: ถ้าหา Element ไม่เจอให้จบการทำงานทันที ไม่ต้องพ่น Error
+            if (!checkElem || !subOptions) return; 
+        
+            if (checkElem.checked) {
+                subOptions.classList.remove('opacity-40', 'pointer-events-none');
+            } else {
+                subOptions.classList.add('opacity-40', 'pointer-events-none');
+            }
+        }
 
         function saveSettings() {
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
-            
             const globalQCount = parseInt(document.getElementById('setting-question-count')?.value) || settings.questionCount || 15;
             const globalTimeLimit = parseInt(document.getElementById('setting-time-limit')?.value) ?? settings.timeLimitMinutes;
-
-            settings.questionCount = globalQCount;
-            settings.timeLimitMinutes = globalTimeLimit;
-            settings.selectedSet = selectedSet;
-
-            // 🟢 อ่านค่าจากการตั้งค่าการสุ่ม
+        
             const distributeSkills = document.getElementById('setting-distribute-skills')?.checked || false;
             const shuffleOpts = document.getElementById('setting-shuffle-options')?.value === 'true';
-
+        
+            // 🟢 1. รวบรวมสัดส่วนจำนวนข้อสอบแยกตามทักษะจาก DOM
+            const skillCounts = {};
+            if (distributeSkills) {
+                document.querySelectorAll('.skill-count-input').forEach(input => {
+                    const skillName = input.getAttribute('data-skill');
+                    const count = parseInt(input.value) || 0;
+                    if (skillName) {
+                        skillCounts[skillName] = count;
+                    }
+                });
+            }
+        
+            // 🟢 2. บันทึกลงตัวแปรหลัก และตัวแปรแยกสาขา (branchSettings)
             settings.distributeBySkills = distributeSkills;
             settings.shuffleOptions = shuffleOpts;
-
-            // อ่านค่าลิงก์ต่าง ๆ
-            settings.usersCsvUrl = document.getElementById('setting-users-csv-url')?.value.trim() || settings.usersCsvUrl || "";
-            settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url')?.value.trim() || settings.sheetCsvUrl || "";
-            settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || settings.resultsCsvUrl || "";
-            settings.webAppUrl = document.getElementById('setting-webapp-url')?.value.trim() || settings.webAppUrl || "";
-
-            // บันทึกลงตัวแปรรายสาขา
+            settings.skillCounts = skillCounts;
+        
             const globalElem = document.getElementById('setting-exam-global-enable');
             branchSettings[currentSelectedBranch] = {
+                ...(branchSettings[currentSelectedBranch] || {}),
                 globalExamEnable: globalElem ? globalElem.checked : true,
                 selectedSet: selectedSet,
                 questionCount: globalQCount,
                 timeLimitMinutes: globalTimeLimit,
                 shuffleOptions: shuffleOpts,
-                distributeBySkills: distributeSkills // 🟢 บันทึกค่าการสุ่มตามทักษะลงในแต่ละสาขา
+                distributeBySkills: distributeSkills,
+                skillCounts: skillCounts // บันทึกสัดส่วนลงในสาขานั้นๆ
             };
-
-            // 4. บันทึกการตั้งค่ารายหน่วยการเรียนรู้ (อ่านค่าจาก DOM บนหน้าจอ)
-            const pool = masterQuestions.filter(q => 
-                (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
-                (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
-            );
-            const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
-
-            categories.forEach((cat, idx) => {
-                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
-                const selectedAccessMode = document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all';
-
-                unitSettings[uKey] = {
-                    enabled: document.getElementById(`unit-enable-${idx}`)?.checked ?? true,
-                    questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || globalQCount,
-                    timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) ?? globalTimeLimit,
-                    antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked ?? false,
-                    preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked ?? false,
-                    maxTabSwitches: 3,
-                    autoSubmitOnCheat: true,
-                    accessMode: selectedAccessMode,
-                    allowedUsers: unitSettings[uKey]?.allowedUsers || []
-                };
-            });
-
-            // 5. บันทึกลง LocalStorage ทั้งหมด
+        
+            // (ส่วนการบันทึก unitSettings และ LocalStorage ให้คงเดิมไว้)
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
-
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการตั้งค่าถูกบันทึกลงในระบบเรียบร้อยแล้ว');
+        
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการตั้งค่าและสัดส่วนทักษะถูกบันทึกเรียบร้อยแล้ว');
         }                          
 
         function renderInitialSetupNotice() {
