@@ -861,29 +861,32 @@ let settings = {
         
             // 3. ตรวจสอบ Session และเปิดหน้าจอทันทีโดยไม่ต้องรอเน็ต
             const savedUserJson = sessionStorage.getItem('exam_session_user');
-                if (savedUserJson) {
-                    try {
-                        loggedInUser = JSON.parse(savedUserJson);
-                
-                        // 🟢 เช็กด้วย hasRole
-                        if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
-                            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
-                            document.getElementById('btn-header-logout')?.classList.add('hidden');
-                            showAdminDashboard();
-                
-                            const savedTab = sessionStorage.getItem('admin_last_tab') || 'overview';
-                            switchAdminTab(savedTab);
-                        } else {
-                            document.getElementById('btn-admin-nav')?.classList.add('hidden');
-                            document.getElementById('btn-header-logout')?.classList.remove('hidden');
-                            showStudentDashboard();
-                        }
-                    } catch (e) {
-                        console.error("Failed to restore session:", e);
-                        hideAllSections();
-                        document.getElementById('section-login')?.classList.remove('hidden');
+            if (savedUserJson) {
+                try {
+                    loggedInUser = JSON.parse(savedUserJson);
+            
+                    if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
+                        document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+                        document.getElementById('btn-header-logout')?.classList.add('hidden');
+                        showAdminDashboard();
+            
+                        const savedTab = sessionStorage.getItem('admin_last_tab') || 'overview';
+                        switchAdminTab(savedTab);
+                    } else {
+                        document.getElementById('btn-admin-nav')?.classList.add('hidden');
+                        document.getElementById('btn-header-logout')?.classList.remove('hidden');
+                        showStudentDashboard();
                     }
+                } catch (e) {
+                    console.error("Failed to restore session:", e);
+                    hideAllSections();
+                    document.getElementById('section-login')?.classList.remove('hidden');
                 }
+            } else {
+                // หากไม่มีเซสชันค้าง ให้แสดงหน้า Login ทันที
+                hideAllSections();
+                document.getElementById('section-login')?.classList.remove('hidden');
+            }
         
             // 4. แอบซิงค์ข้อมูลผู้ใช้งานและข้อสอบเบื้องหลังพร้อมกัน (Silent Background Sync)
             setTimeout(() => {
@@ -949,23 +952,28 @@ let settings = {
         // หน้าสำหรับอาจารย์ (Admin Dashboard & Overview)
         function showAdminDashboard() {
             hideAllSections();
-            document.getElementById('section-dashboard-admin').classList.remove('hidden');
-            document.getElementById('btn-admin-nav').classList.remove('hidden');
+            document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
+            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
         
-            const adminTitle = loggedInUser.role === 'superadmin' ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch})`;
-            document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : adminTitle;
+            if (!loggedInUser) return;
         
-            // 🟢 ซ่อนรายการเมนูข้อ 4 หากล็อกอินด้วยบทบาท Admin ประจำสาขา
+            const isSuper = hasRole(loggedInUser, 'superadmin');
+            const isAdminOnly = hasRole(loggedInUser, 'admin') && !isSuper;
+        
+            const adminTitle = isSuper ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch || 'ทั่วไป'})`;
+            const nameElem = document.getElementById('admin-fullname-display');
+            if (nameElem) nameElem.textContent = loggedInUser.fullname || adminTitle;
+        
             const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
             if (menuDataSources) {
-                if (loggedInUser && loggedInUser.role === 'admin') {
+                if (isAdminOnly) {
                     menuDataSources.classList.add('hidden');
                 } else {
                     menuDataSources.classList.remove('hidden');
                 }
             }
         
-            if (loggedInUser.role === 'superadmin') {
+            if (isSuper) {
                 currentSelectedBranch = "ภาพรวมทุกสาขา";
                 const filterSelect = document.getElementById('overview-branch-filter');
                 if (filterSelect) filterSelect.value = "ทั้งหมด";
@@ -2257,10 +2265,32 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         // 1. หน้าสำหรับอาจารย์ (Admin Dashboard & Overview)
         function showAdminDashboard() {
             hideAllSections();
-            document.getElementById('section-dashboard-admin').classList.remove('hidden');
-            document.getElementById('btn-admin-nav').classList.remove('hidden');
-
-            document.getElementById('admin-fullname-display').textContent = loggedInUser ? loggedInUser.fullname : "อาจารย์ผู้ดูแลระบบ";
+            document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
+            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+        
+            if (!loggedInUser) return;
+        
+            const isSuper = hasRole(loggedInUser, 'superadmin');
+            const isAdminOnly = hasRole(loggedInUser, 'admin') && !isSuper;
+        
+            const adminTitle = isSuper ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch || 'ทั่วไป'})`;
+            const nameElem = document.getElementById('admin-fullname-display');
+            if (nameElem) nameElem.textContent = loggedInUser.fullname || adminTitle;
+        
+            const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
+            if (menuDataSources) {
+                if (isAdminOnly) {
+                    menuDataSources.classList.add('hidden');
+                } else {
+                    menuDataSources.classList.remove('hidden');
+                }
+            }
+        
+            if (isSuper) {
+                currentSelectedBranch = "ภาพรวมทุกสาขา";
+                const filterSelect = document.getElementById('overview-branch-filter');
+                if (filterSelect) filterSelect.value = "ทั้งหมด";
+            }
         }
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
