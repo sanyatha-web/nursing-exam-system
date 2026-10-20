@@ -905,7 +905,9 @@ function switchBranchSettings(branchName) {
                 if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
                     document.getElementById('btn-admin-nav').classList.remove('hidden');
                     document.getElementById('btn-header-logout').classList.add('hidden');
+                    sessionStorage.setItem('admin_last_tab', 'overview');
                     showAdminDashboard();
+                    switchAdminTab('overview');
                 } else {
                     document.getElementById('btn-admin-nav').classList.add('hidden');
                     document.getElementById('btn-header-logout').classList.remove('hidden');
