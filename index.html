@@ -1814,7 +1814,7 @@ async function fetchAndSyncUsers() {
                     skillCounts: unitSkillCounts,
                     accessMode: document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all',
                     allowedUsers: unitSettings[uKey]?.allowedUsers || [],
-                    blindGrading: document.getElementById(`unit-blind-${idx}`)?.checked || false,
+                    blindGrading: document.getElementById(`unit-blind-${idx}`)?.checked || false
                 };
             });
         
@@ -2924,8 +2924,8 @@ function toggleAccessModeUI(index) {
     }
 }
         let currentEditingUnitKey = null;
-let currentEditingUnitIndex = null;
-let tempSelectedUsers = [];
+        let currentEditingUnitIndex = null;
+        let tempSelectedUsers = [];
 
 function openStudentSelectModal(uKey, idx) {
     currentEditingUnitKey = uKey;
