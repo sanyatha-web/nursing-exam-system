@@ -286,6 +286,25 @@
                             <label class="block text-xs font-bold text-indigo-200">เลือกชุดการเรียนรู้ที่ต้องการตั้งค่า:</label>
                             <select id="setting-exam-set" onchange="renderUnitSettingsList()" class="px-3 py-1.5 border border-indigo-700 rounded-lg text-xs bg-indigo-950 text-amber-300 font-bold outline-none"></select>
                         </div>
+                        <!-- 🟢 เพิ่มส่วนการตั้งค่าการสุ่มข้อสอบคละตามทักษะ/ประเภท และสลับตัวเลือก -->
+                        <div class="pt-3 border-t border-indigo-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <!-- ตัวเลือกสลับตัวเลือก (Choices) -->
+                            <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
+                                <span class="font-bold text-indigo-100"><i class="fa-solid fa-shuffle mr-1.5 text-amber-400"></i> สลับตำแหน่งตัวเลือก:</span>
+                                <select id="setting-shuffle-options" class="px-2 py-1 border border-indigo-700 rounded-lg bg-indigo-900 text-amber-300 font-bold outline-none">
+                                    <option value="true">สลับตัวเลือก</option>
+                                    <option value="false">คงลำดับเดิม</option>
+                                </select>
+                            </div>
+                            <!-- ตัวเลือกสุ่มกระจายข้อสอบตามทักษะ (Distribute by Skills) -->
+                            <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
+                                <span class="font-bold text-indigo-100"><i class="fa-solid fa-layer-group mr-1.5 text-amber-400"></i> สุ่มคละตามประเภท/ทักษะ:</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="setting-distribute-skills" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-indigo-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+                        </div>
                         <!-- 🟢 เพิ่มส่วนการตั้งค่าการสุ่มข้อสอบและตัวเลือกตรงนี้ -->
                         <div class="pt-3 border-t border-indigo-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
@@ -791,20 +810,19 @@ let settings = {
             }).join('');
         }
         
-// ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (ป้องกัน Error เรียกใช้ ID ที่ไม่มีอยู่จริง)
-function switchBranchSettings(branchName) {
+        // ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (ป้องกัน Error เรียกใช้ ID ที่ไม่มีอยู่จริง)
+        function switchBranchSettings(branchName) {
             currentSelectedBranch = branchName;
             renderBranchButtons(); 
-            
+        
             const labelElem = document.getElementById('current-branch-label');
             if (labelElem) labelElem.textContent = branchName;
-
+        
             const bSet = branchSettings[branchName] || settings;
-
-            // ครอบ Safe Call ทุกจุด ไม่ให้พ่น Error null
+        
             const safeSetCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
             const safeSetValue = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-
+        
             safeSetCheck('setting-exam-global-enable', bSet.globalExamEnable !== false);
             safeSetCheck('setting-anti-cheat-enable', bSet.antiCheatEnable);
             safeSetValue('setting-max-tab-switches', bSet.maxTabSwitches || 3);
@@ -814,11 +832,14 @@ function switchBranchSettings(branchName) {
             safeSetValue('setting-time-limit', bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15);
             safeSetValue('setting-shuffle-options', (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString());
             
+            // 🟢 เพิ่มบรรทัดนี้ลงไปเพื่อโหลดค่าสุ่มคละตามทักษะ
+            safeSetCheck('setting-distribute-skills', bSet.distributeBySkills);
+        
             const examSetElem = document.getElementById('setting-exam-set');
             if (examSetElem && bSet.selectedSet) {
                 examSetElem.value = bSet.selectedSet;
             }
-
+        
             toggleAntiCheatSettingsUI();
             renderUnitSettingsList();
         }
@@ -1126,9 +1147,10 @@ function switchBranchSettings(branchName) {
             }
         
             // ระบบสร้างและสุ่มชุดข้อสอบแบบ dynamic
+            const currentBranchSet = branchSettings[loggedInUser.branch] || settings;
             const examConfig = {
                 randomizeOrder: settings.shuffleOptions !== false,
-                distributeBySkills: false,
+                distributeBySkills: currentBranchSet.distributeBySkills || false, // 🟢 ดึงค่าตั้งค่าการสุ่มตามทักษะส่งไปประมวลผล
                 targetTotal: finalQuestionCount
             };
 
@@ -1718,7 +1740,6 @@ async function fetchAndSyncUsers() {
         function saveSettings() {
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
             
-            // 1. ดึงค่าจำนวนข้อและเวลาทำสอบจาก Input
             const globalQCount = parseInt(document.getElementById('setting-question-count')?.value) || settings.questionCount || 15;
             const globalTimeLimit = parseInt(document.getElementById('setting-time-limit')?.value) ?? settings.timeLimitMinutes;
         
@@ -1726,19 +1747,28 @@ async function fetchAndSyncUsers() {
             settings.timeLimitMinutes = globalTimeLimit;
             settings.selectedSet = selectedSet;
         
-            // 2. ดึงค่าลิงก์
+            // 🟢 อ่านค่าจากการตั้งค่าการสุ่ม
+            const distributeSkills = document.getElementById('setting-distribute-skills')?.checked || false;
+            const shuffleOpts = document.getElementById('setting-shuffle-options')?.value === 'true';
+        
+            settings.distributeBySkills = distributeSkills;
+            settings.shuffleOptions = shuffleOpts;
+        
+            // อ่านค่าลิงก์ต่าง ๆ
             settings.usersCsvUrl = document.getElementById('setting-users-csv-url')?.value.trim() || settings.usersCsvUrl || "";
             settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url')?.value.trim() || settings.sheetCsvUrl || "";
             settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || settings.resultsCsvUrl || "";
             settings.webAppUrl = document.getElementById('setting-webapp-url')?.value.trim() || settings.webAppUrl || "";
         
-            // 3. บันทึก Master Switch รายสาขา
+            // บันทึกลงตัวแปรรายสาขา
             const globalElem = document.getElementById('setting-exam-global-enable');
             branchSettings[currentSelectedBranch] = {
                 globalExamEnable: globalElem ? globalElem.checked : true,
                 selectedSet: selectedSet,
                 questionCount: globalQCount,
-                timeLimitMinutes: globalTimeLimit
+                timeLimitMinutes: globalTimeLimit,
+                shuffleOptions: shuffleOpts,
+                distributeBySkills: distributeSkills // 🟢 บันทึกค่าลงในแต่ละสาขา
             };
         
             // 4. บันทึกการตั้งค่ารายหน่วยการเรียนรู้ (อ่านค่าจาก DOM บนหน้าจอ)
@@ -1771,7 +1801,7 @@ async function fetchAndSyncUsers() {
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
             showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการตั้งค่าถูกบันทึกลงในระบบเรียบร้อยแล้ว');
-        }                           
+        }                          
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
