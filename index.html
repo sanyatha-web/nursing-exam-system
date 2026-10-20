@@ -1503,7 +1503,7 @@ async function fetchAndSyncUsers() {
             const ansIdx = headerCols.findIndex(h => h.includes('เฉลย') || h.includes('answer') || h.includes('correct'));
 
             if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
-                console.error("✕ ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions โปรดตรวจสอบลิงก์ CSV");
+                console.error("❌ ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions โปรดตรวจสอบลิงก์ CSV");
                 return false;
             }
 
@@ -1517,7 +1517,8 @@ async function fetchAndSyncUsers() {
                 const yearVal = yearIdx !== -1 && cols[yearIdx] ? cols[yearIdx] : 'ทุกชั้นปี';
                 const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
                 const category = catIdx !== -1 && cols[catIdx] ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
-                const skillVal = skillIdx !== -1 && cols[skillIdx] ? cols[skillIdx] : category;
+                // 🟢 ดึงเฉพาะค่าในคอลัมน์ทักษะจริง หากไม่มีให้เป็นค่าว่าง (ไม่เอาชื่อหน่วยมาแทน)
+                const skillVal = skillIdx !== -1 && cols[skillIdx] ? cols[skillIdx].trim() : '';
                 const question = cols[qIdx];
                 const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
                 const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
@@ -2668,6 +2669,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             
             if (!container) return;
 
+            // กรองข้อสอบตาม สาขา + ชุดการเรียนรู้
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
@@ -2696,11 +2698,16 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 };
 
                 const allowedCount = (uConf.allowedUsers || []).length;
+                
+                // กรองข้อสอบเฉพาะ [ สาขา + ชุดการเรียนรู้ + หน่วยการเรียนรู้นี้ ]
                 const unitPool = pool.filter(q => q.category === cat);
                 
-                // ดึงรายการทักษะอย่างถูกต้อง (หาก q.skill ไม่มี ให้ใช้ q.category แทน)
-                const rawSkills = unitPool.map(q => (q.skill && q.skill.trim() !== '') ? q.skill.trim() : q.category).filter(Boolean);
-                const unitSkills = Array.from(new Set(rawSkills));
+                // 🟢 ดึงเฉพาะคอลัมน์ทักษะจริงเท่านั้น (ไม่เอาชื่อหน่วยมาแทนเด็ดขาด)
+                const unitSkills = Array.from(new Set(
+                    unitPool
+                        .map(q => q.skill ? q.skill.trim() : '')
+                        .filter(skill => skill !== '')
+                ));
 
                 // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
                 let currentAllocatedSum = 0;
@@ -2766,7 +2773,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             </button>
                         </div>
 
-                        <!-- ส่วนที่ 3: ตั้งค่าการสุ่มคละทักษะรายหน่วย พร้อมข้อความกำกับทักษะชัดเจน -->
+                        <!-- ส่วนที่ 3: ตั้งค่าการสุ่มคละทักษะรายหน่วย -->
                         <div class="pt-2 border-t border-slate-200 text-xs bg-white p-3 rounded-lg border border-slate-100 space-y-2">
                             <div class="flex items-center justify-between">
                                 <span class="font-bold text-slate-700"><i class="fa-solid fa-layer-group text-indigo-500 mr-1.5"></i> สุ่มคละตามประเภท/ทักษะ:</span>
@@ -2777,37 +2784,56 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             </div>
 
                             <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-2">
-                                <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-2 rounded-lg border border-indigo-100">
-                                    <span class="text-indigo-900 font-semibold"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> สัดส่วนข้อสอบที่จัดสรร:</span>
-                                    <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} / ${uConf.questionCount} ข้อ</span>
-                                </div>
+                                ${unitSkills.length === 0 ? `
+                                    <div class="p-3 text-center text-[11px] text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
+                                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบการระบุ "ทักษะ" ในคลังข้อสอบสำหรับหน่วยการเรียนรู้นี้
+                                    </div>
+                                ` : `
+                                    <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                                        <span class="text-indigo-900 font-semibold"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> สัดส่วนข้อสอบที่จัดสรร:</span>
+                                        <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} /${uConf.questionCount} ข้อ</span>
+                                    </div>
 
-                                <!-- ช่องกรอกสัดส่วนแยกตามทักษะ พร้อมข้อความกำกับชัดเจน -->
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                    ${unitSkills.map(skillName => {
-                                        const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
-                                        const totalAvailable = unitPool.filter(q => ((q.skill && q.skill.trim() !== '') ? q.skill.trim() : q.category) === skillName).length;
-                                        return `
-                                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
-                                                <div class="flex flex-col pr-2 min-w-0">
-                                                    <span class="font-bold text-slate-800 text-xs truncate" title="${skillName}">• ${skillName}</span>
-                                                    <span class="text-[10px] text-slate-500">ข้อสอบในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
+                                    <!-- ช่องกรอกสัดส่วนแสดงเฉพาะทักษะจริง -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        ${unitSkills.map(skillName => {
+                                            const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
+                                            const totalAvailable = unitPool.filter(q => q.skill && q.skill.trim() === skillName).length;
+                                            return `
+                                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
+                                                    <div class="flex flex-col pr-2 min-w-0">
+                                                        <span class="font-bold text-slate-800 text-xs truncate" title="${skillName}">• ${skillName}</span>
+                                                        <span class="text-[10px] text-slate-500">ข้อสอบในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
+                                                    </div>
+                                                    <div class="flex items-center space-x-1 flex-shrink-0">
+                                                        <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
+                                                            oninput="validateUnitSkillInputs(${idx}, this)"
+                                                            class="unit-skill-input-${idx} w-14 px-2 py-1 text-center bg-white border border-slate-300 rounded-lg text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                                        <span class="text-slate-500 font-semibold text-xs">ข้อ</span>
+                                                    </div>
                                                 </div>
-                                                <div class="flex items-center space-x-1 flex-shrink-0">
-                                                    <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
-                                                        oninput="validateUnitSkillInputs(${idx}, this)"
-                                                        class="unit-skill-input-${idx} w-14 px-2 py-1 text-center bg-white border border-slate-300 rounded-lg text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                                    <span class="text-slate-500 font-semibold text-xs">ข้อ</span>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                `}
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        // ฟังก์ชันควบคุมการหุบ-กาง ช่องกรอกสัดส่วน
+        function toggleUnitSkillInputs(idx) {
+            const checkbox = document.getElementById(`unit-distribute-${idx}`);
+            const container = document.getElementById(`unit-skill-container-${idx}`);
+            if (checkbox && container) {
+                if (checkbox.checked) {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            }
         }
 
         // ฟังก์ชันสำหรับสลับการแสดงผลเปิด-ปิด ช่องสุ่มสัดส่วนทักษะรายหน่วย (แก้ปัญหาช่องไม่หุบ/ไม่ง้าง)
