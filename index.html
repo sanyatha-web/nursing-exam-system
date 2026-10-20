@@ -2463,7 +2463,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     const isAntiCheat = matchedConf ? matchedConf.antiCheatEnable : bSet.antiCheatEnable;
                     const isPreventScreenshot = matchedConf ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
                     
-                    // 🟢 [จุดที่เพิ่มในขั้นตอนที่ 5] อ่านค่า สลับตัวเลือก และ สุ่มคละทักษะ รายหน่วย
+                    // อ่านค่า สลับตัวเลือก และ สุ่มคละทักษะ รายหน่วย
                     const isShuffle = matchedConf ? (matchedConf.shuffleOptions !== false) : true;
                     const isDistribute = matchedConf ? (matchedConf.distributeBySkills || false) : false;
         
@@ -2528,7 +2528,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
             tableBody.innerHTML = tableRowsHtml;
         } // ปิด renderOverviewTable
-
+ 
         function viewAccessUsersModal(unitKey) {
             // 1. ค้นหาการตั้งค่าตามคีย์ตรงๆ หรือคีย์สำรอง
             let matchedConf = unitSettings[unitKey];
