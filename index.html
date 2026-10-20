@@ -780,7 +780,7 @@ let settings = {
             }).join('');
         }
         
-        // ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก (ป้องกัน Error เรียกใช้ ID ที่ไม่มีอยู่จริง)
+        // ฟังก์ชันสลับไปตั้งค่าสาขาที่เลือก
         function switchBranchSettings(branchName) {
             currentSelectedBranch = branchName;
             renderBranchButtons(); 
@@ -801,20 +801,14 @@ let settings = {
             safeSetValue('setting-question-count', bSet.questionCount || 15);
             safeSetValue('setting-time-limit', bSet.timeLimitMinutes !== undefined ? bSet.timeLimitMinutes : 15);
             safeSetValue('setting-shuffle-options', (bSet.shuffleOptions !== undefined ? bSet.shuffleOptions : true).toString());
-            
-            // 🟢 เพิ่มบรรทัดนี้ลงไปเพื่อโหลดค่าสุ่มคละตามทักษะ
-            safeSetCheck('setting-distribute-skills', bSet.distributeBySkills);
         
             const examSetElem = document.getElementById('setting-exam-set');
             if (examSetElem && bSet.selectedSet) {
                 examSetElem.value = bSet.selectedSet;
             }
-
-            safeSetCheck('setting-distribute-skills', bSet.distributeBySkills);
-            toggleSkillInputsUI();
         
             toggleAntiCheatSettingsUI();
-            renderUnitSettingsList();
+            renderUnitSettingsList(); // 🟢 จะทำการวาดการตั้งค่าสลับตัวเลือก/สุ่มทักษะรายหน่วยขึ้นมาใหม่อัตโนมัติ
         }
         
         // Initialize Application
