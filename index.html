@@ -286,11 +286,12 @@
                             <label class="block text-xs font-bold text-indigo-200">เลือกชุดการเรียนรู้ที่ต้องการตั้งค่า:</label>
                             <select id="setting-exam-set" onchange="renderUnitSettingsList()" class="px-3 py-1.5 border border-indigo-700 rounded-lg text-xs bg-indigo-950 text-amber-300 font-bold outline-none"></select>
                         </div>
-                        <!-- 🟢 เพิ่มส่วนการตั้งค่าการสุ่มข้อสอบคละตามทักษะ/ประเภท และสลับตัวเลือก -->
+                        
+                        <!-- 🟢 ส่วนการตั้งค่าการสุ่มข้อสอบคละตามทักษะ/ประเภท และสลับตัวเลือก (แก้ไขให้ถูกต้อง) -->
                         <div class="pt-3 border-t border-indigo-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <!-- ตัวเลือกสลับตัวเลือก (Choices) -->
                             <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
-                                <span class="font-bold text-indigo-100"><i class="fa-solid fa-shuffle mr-1.5 text-amber-400"></i> สลับตำแหน่งตัวเลือก:</span>
+                                <span class="font-bold text-indigo-100"><i class="fa-solid fa-shuffle mr-1.5 text-amber-400"></i> สลับตำแหน่งตัวเลือก (Choices):</span>
                                 <select id="setting-shuffle-options" class="px-2 py-1 border border-indigo-700 rounded-lg bg-indigo-900 text-amber-300 font-bold outline-none">
                                     <option value="true">สลับตัวเลือก</option>
                                     <option value="false">คงลำดับเดิม</option>
@@ -305,6 +306,7 @@
                                 </label>
                             </div>
                         </div>
+                    </div>
                         <!-- 🟢 เพิ่มส่วนการตั้งค่าการสุ่มข้อสอบและตัวเลือกตรงนี้ -->
                         <div class="pt-3 border-t border-indigo-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <div class="flex items-center justify-between bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/80">
@@ -1742,24 +1744,24 @@ async function fetchAndSyncUsers() {
             
             const globalQCount = parseInt(document.getElementById('setting-question-count')?.value) || settings.questionCount || 15;
             const globalTimeLimit = parseInt(document.getElementById('setting-time-limit')?.value) ?? settings.timeLimitMinutes;
-        
+
             settings.questionCount = globalQCount;
             settings.timeLimitMinutes = globalTimeLimit;
             settings.selectedSet = selectedSet;
-        
+
             // 🟢 อ่านค่าจากการตั้งค่าการสุ่ม
             const distributeSkills = document.getElementById('setting-distribute-skills')?.checked || false;
             const shuffleOpts = document.getElementById('setting-shuffle-options')?.value === 'true';
-        
+
             settings.distributeBySkills = distributeSkills;
             settings.shuffleOptions = shuffleOpts;
-        
+
             // อ่านค่าลิงก์ต่าง ๆ
             settings.usersCsvUrl = document.getElementById('setting-users-csv-url')?.value.trim() || settings.usersCsvUrl || "";
             settings.sheetCsvUrl = document.getElementById('setting-sheet-csv-url')?.value.trim() || settings.sheetCsvUrl || "";
             settings.resultsCsvUrl = document.getElementById('setting-results-csv-url')?.value.trim() || settings.resultsCsvUrl || "";
             settings.webAppUrl = document.getElementById('setting-webapp-url')?.value.trim() || settings.webAppUrl || "";
-        
+
             // บันทึกลงตัวแปรรายสาขา
             const globalElem = document.getElementById('setting-exam-global-enable');
             branchSettings[currentSelectedBranch] = {
@@ -1768,20 +1770,20 @@ async function fetchAndSyncUsers() {
                 questionCount: globalQCount,
                 timeLimitMinutes: globalTimeLimit,
                 shuffleOptions: shuffleOpts,
-                distributeBySkills: distributeSkills // 🟢 บันทึกค่าลงในแต่ละสาขา
+                distributeBySkills: distributeSkills // 🟢 บันทึกค่าการสุ่มตามทักษะลงในแต่ละสาขา
             };
-        
+
             // 4. บันทึกการตั้งค่ารายหน่วยการเรียนรู้ (อ่านค่าจาก DOM บนหน้าจอ)
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
             );
             const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
-        
+
             categories.forEach((cat, idx) => {
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 const selectedAccessMode = document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all';
-        
+
                 unitSettings[uKey] = {
                     enabled: document.getElementById(`unit-enable-${idx}`)?.checked ?? true,
                     questionCount: parseInt(document.getElementById(`unit-qcount-${idx}`)?.value) || globalQCount,
@@ -1794,12 +1796,12 @@ async function fetchAndSyncUsers() {
                     allowedUsers: unitSettings[uKey]?.allowedUsers || []
                 };
             });
-        
+
             // 5. บันทึกลง LocalStorage ทั้งหมด
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
-        
+
             showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการตั้งค่าถูกบันทึกลงในระบบเรียบร้อยแล้ว');
         }                          
 
