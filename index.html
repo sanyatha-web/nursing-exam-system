@@ -278,7 +278,7 @@
                                 <p class="text-xs text-indigo-200 mt-1">เปิดหรือปิดการสอบของชุดการเรียนรู้นี้ทั้งหมดในปุ่มเดียว</p>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="setting-exam-global-enable" checked class="sr-only peer">
+                                <input type="checkbox" id="setting-exam-global-enable" checked onchange="renderUnitSettingsList()" class="sr-only peer">
                                 <div class="w-12 h-6 bg-indigo-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                             </label>
                         </div>
@@ -2666,20 +2666,22 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         function renderUnitSettingsList() {
             const container = document.getElementById('unit-settings-container');
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
+            const isMasterOn = document.getElementById('setting-exam-global-enable')?.checked !== false;
+            
             if (!container) return;
-        
+
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
             );
-        
+
             const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
-        
+
             if (categories.length === 0) {
                 container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">ไม่พบหน่วยการเรียนรู้ในชุดข้อสอบนี้</div>`;
                 return;
             }
-        
+
             container.innerHTML = categories.map((cat, idx) => {
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 const uConf = unitSettings[uKey] || {
@@ -2688,81 +2690,88 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     timeLimitMinutes: 15,
                     antiCheatEnable: false,
                     preventScreenshot: false,
-                    shuffleOptions: true,       // 🟢 เพิ่มค่าเริ่มต้น สลับตัวเลือก
-                    distributeBySkills: false,  // 🟢 เพิ่มค่าเริ่มต้น สุ่มคละทักษะ
-                    skillCounts: {},            // 🟢 เพิ่มสัดส่วนทักษะรายหน่วย
+                    shuffleOptions: true,
+                    distributeBySkills: false,
+                    skillCounts: {},
                     accessMode: 'all',
                     allowedUsers: []
                 };
-        
+
                 const allowedCount = (uConf.allowedUsers || []).length;
-        
-                // ดึงรายการทักษะเฉพาะของหน่วยการเรียนรู้นี้
                 const unitPool = pool.filter(q => q.category === cat);
                 const unitSkills = Array.from(new Set(unitPool.map(q => q.skill || q.category).filter(Boolean)));
-        
+
+                // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
+                let currentAllocatedSum = 0;
+                unitSkills.forEach(skillName => {
+                    currentAllocatedSum += (uConf.skillCounts && uConf.skillCounts[skillName]) ? parseInt(uConf.skillCounts[skillName]) : 0;
+                });
+
                 return `
-                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
+                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3 transition-all ${!isMasterOn ? 'opacity-40 pointer-events-none select-none' : ''}">
                         <div class="flex items-center justify-between border-b border-slate-200 pb-2">
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" id="unit-enable-${idx}" ${uConf.enabled ? 'checked' : ''} class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                                <input type="checkbox" id="unit-enable-${idx}" ${uConf.enabled ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
                                 <span class="font-bold text-sm text-slate-800">${cat}</span>
                             </label>
                             <span class="text-xs text-slate-400 font-mono">Key: ${cat}</span>
                         </div>
-        
-                        <!-- 🟢 ส่วนที่ 1: ตั้งค่าตัวเลขและสวิตช์ Anti-Cheat -->
+
+                        <!-- ส่วนที่ 1: ตั้งค่าตัวเลขและสวิตช์ Anti-Cheat -->
                         <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                             <div>
-                                <label class="block font-medium text-slate-600 mb-1">จำนวนข้อสอบ</label>
-                                <input type="number" id="unit-qcount-${idx}" value="${uConf.questionCount}" min="1" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+                                <label class="block font-medium text-slate-600 mb-1">จำนวนข้อสอบทั้งหมด</label>
+                                <input type="number" id="unit-qcount-${idx}" value="${uConf.questionCount}" min="1" ${!isMasterOn ? 'disabled' : ''}
+                                    onchange="validateUnitSkillInputs(${idx})" oninput="validateUnitSkillInputs(${idx})"
+                                    class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-bold text-indigo-700">
                             </div>
                             <div>
                                 <label class="block font-medium text-slate-600 mb-1">เวลาทำ (นาที)</label>
-                                <input type="number" id="unit-time-${idx}" value="${uConf.timeLimitMinutes}" min="0" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+                                <input type="number" id="unit-time-${idx}" value="${uConf.timeLimitMinutes}" min="0" ${!isMasterOn ? 'disabled' : ''} class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
                             </div>
                             <div class="flex items-center space-x-2 pt-4">
-                                <input type="checkbox" id="unit-anticheat-${idx}" ${uConf.antiCheatEnable ? 'checked' : ''} class="rounded text-indigo-600">
+                                <input type="checkbox" id="unit-anticheat-${idx}" ${uConf.antiCheatEnable ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="rounded text-indigo-600">
                                 <label class="font-semibold text-slate-700">เปิดตรวจจับสลับจอ</label>
                             </div>
                             <div class="flex items-center space-x-2 pt-4">
-                                <input type="checkbox" id="unit-screenshot-${idx}" ${uConf.preventScreenshot ? 'checked' : ''} class="rounded text-indigo-600">
+                                <input type="checkbox" id="unit-screenshot-${idx}" ${uConf.preventScreenshot ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="rounded text-indigo-600">
                                 <label class="font-semibold text-slate-700">บล็อกการแคปจอ</label>
                             </div>
                         </div>
-        
-                        <!-- 🟢 ส่วนที่ 2: ตั้งค่าการสลับตัวเลือก & สุ่มคละทักษะรายหน่วย -->
+
+                        <!-- ส่วนที่ 2: ตั้งค่าการสลับตัวเลือก & สุ่มคละทักษะรายหน่วย -->
                         <div class="pt-2 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white p-3 rounded-lg border border-slate-100">
-                            <!-- สลับตัวเลือก -->
                             <div class="flex items-center justify-between">
                                 <span class="font-bold text-slate-700"><i class="fa-solid fa-shuffle text-amber-500 mr-1.5"></i> สลับตำแหน่งตัวเลือก:</span>
-                                <select id="unit-shuffle-${idx}" class="px-2 py-1 border border-slate-300 rounded-lg bg-slate-50 text-slate-800 font-bold outline-none">
+                                <select id="unit-shuffle-${idx}" ${!isMasterOn ? 'disabled' : ''} class="px-2 py-1 border border-slate-300 rounded-lg bg-slate-50 text-slate-800 font-bold outline-none">
                                     <option value="true" ${uConf.shuffleOptions !== false ? 'selected' : ''}>สลับตัวเลือก</option>
                                     <option value="false" ${uConf.shuffleOptions === false ? 'selected' : ''}>คงลำดับเดิม</option>
                                 </select>
                             </div>
-        
-                            <!-- สุ่มคละทักษะ -->
+
                             <div class="space-y-2">
                                 <div class="flex items-center justify-between">
                                     <span class="font-bold text-slate-700"><i class="fa-solid fa-layer-group text-indigo-500 mr-1.5"></i> สุ่มคละตามประเภท/ทักษะ:</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="unit-distribute-${idx}" onchange="toggleUnitSkillInputs(${idx})" ${uConf.distributeBySkills ? 'checked' : ''} class="sr-only peer">
+                                        <input type="checkbox" id="unit-distribute-${idx}" onchange="toggleUnitSkillInputs(${idx})" ${uConf.distributeBySkills ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="sr-only peer">
                                         <div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
                                     </label>
                                 </div>
-        
-                                <!-- ช่องใส่สัดส่วนจำนวนข้อตามทักษะในหน่วยนี้ -->
-                                <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-1">
-                                    <p class="text-[10px] text-slate-500 font-medium">ระบุจำนวนข้อสอบที่ต้องการสุ่มในแต่ละทักษะ:</p>
+
+                                <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-1.5">
+                                    <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-1.5 rounded border border-indigo-100">
+                                        <span class="text-indigo-900 font-semibold">สถานะสัดส่วนข้อสอบ:</span>
+                                        <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} / ${uConf.questionCount} ข้อ</span>
+                                    </div>
                                     ${unitSkills.map(skillName => {
                                         const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
                                         const totalAvailable = unitPool.filter(q => (q.skill || q.category) === skillName).length;
                                         return `
                                             <div class="flex items-center justify-between bg-slate-50 p-1 rounded border border-slate-200">
-                                                <span class="text-slate-700 text-[11px] truncate max-w-[140px]" title="${skillName}">• ${skillName} (${totalAvailable} ข้อ)</span>
+                                                <span class="text-slate-700 text-[11px] truncate max-w-[140px]" title="${skillName}">• ${skillName} <span class="text-[10px] text-slate-400">(คลัง ${totalAvailable})</span></span>
                                                 <div class="flex items-center space-x-1">
-                                                    <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}"
+                                                    <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
+                                                        oninput="validateUnitSkillInputs(${idx}, this)"
                                                         class="unit-skill-input-${idx} w-12 px-1 py-0.5 text-center bg-white border border-slate-300 rounded text-indigo-700 font-bold outline-none text-[11px]">
                                                     <span class="text-slate-400 text-[10px]">ข้อ</span>
                                                 </div>
@@ -2772,24 +2781,24 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 </div>
                             </div>
                         </div>
-        
-                        <!-- 🟢 ส่วนที่ 3: สิทธิ์ผู้เข้าสอบ (รายบุคคล) -->
+
+                        <!-- ส่วนที่ 3: สิทธิ์ผู้เข้าสอบ (รายบุคคล) -->
                         <div class="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                             <div class="flex items-center space-x-4">
                                 <span class="font-bold text-slate-700"><i class="fa-solid fa-users-gear text-indigo-500 mr-1"></i> สิทธิ์ผู้เข้าสอบ:</span>
                                 <label class="inline-flex items-center space-x-1 cursor-pointer">
-                                    <input type="radio" name="unit-access-${idx}" value="all" ${uConf.accessMode !== 'custom' ? 'checked' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
+                                    <input type="radio" name="unit-access-${idx}" value="all" ${uConf.accessMode !== 'custom' ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
                                     <span>ทุกคน (Default)</span>
                                 </label>
                                 <label class="inline-flex items-center space-x-1 cursor-pointer">
-                                    <input type="radio" name="unit-access-${idx}" value="custom" ${uConf.accessMode === 'custom' ? 'checked' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
+                                    <input type="radio" name="unit-access-${idx}" value="custom" ${uConf.accessMode === 'custom' ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
                                     <span>เฉพาะบุคคล</span>
                                 </label>
                             </div>
-        
+
                             <button type="button" id="btn-select-students-${idx}" onclick="openStudentSelectModal('${uKey}', ${idx})" 
-                                class="px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1.5 ${uConf.accessMode === 'custom' ? 'bg-amber-500 hover:bg-amber-600 text-slate-900' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"
-                                ${uConf.accessMode !== 'custom' ? 'disabled' : ''}>
+                                class="px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1.5 ${uConf.accessMode === 'custom' && isMasterOn ? 'bg-amber-500 hover:bg-amber-600 text-slate-900' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"
+                                ${uConf.accessMode !== 'custom' || !isMasterOn ? 'disabled' : ''}>
                                 <i class="fa-solid fa-user-plus"></i>
                                 <span id="btn-select-students-label-${idx}">จัดการผู้สอบ (${allowedCount} คน)</span>
                             </button>
@@ -2799,15 +2808,37 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }).join('');
         }
         
-        // 🟢 ฟังก์ชันสลับเปิด/ปิดช่องใส่สัดส่วนทักษะของหน่วยนั้นๆ
-        function toggleUnitSkillInputs(index) {
-            const isChecked = document.getElementById(`unit-distribute-${index}`)?.checked;
-            const container = document.getElementById(`unit-skill-container-${index}`);
-            if (container) {
-                if (isChecked) {
-                    container.classList.remove('hidden');
+        // ฟังก์ชันตรวจสอบและดักจับไม่ให้สัดส่วนทักษะรวมเกิน "จำนวนข้อสอบทั้งหมด"
+        function validateUnitSkillInputs(index, changedInput = null) {
+            const totalMaxInput = document.getElementById(`unit-qcount-${index}`);
+            const totalMax = parseInt(totalMaxInput?.value) || 0;
+            const skillInputs = document.querySelectorAll(`.unit-skill-input-${index}`);
+            const statusLabel = document.getElementById(`unit-skill-status-${index}`);
+
+            let currentSum = 0;
+            skillInputs.forEach(input => {
+                currentSum += parseInt(input.value) || 0;
+            });
+
+            // ถ้าผลรวมเกิน ให้ปรับลดค่าในช่องที่กำลังพิมพ์อยู่ลงมาเท่าที่เหลือ
+            if (currentSum > totalMax && changedInput) {
+                const otherSum = currentSum - (parseInt(changedInput.value) || 0);
+                const maxAllowedForThisInput = Math.max(0, totalMax - otherSum);
+                changedInput.value = maxAllowedForThisInput;
+                currentSum = otherSum + maxAllowedForThisInput;
+            }
+
+            if (statusLabel) {
+                const remaining = totalMax - currentSum;
+                if (remaining > 0) {
+                    statusLabel.className = "font-bold text-amber-600";
+                    statusLabel.textContent = `จัดสรร ${currentSum} / ${totalMax} ข้อ (ขาดอีก ${remaining} ข้อ)`;
+                } else if (remaining === 0) {
+                    statusLabel.className = "font-bold text-emerald-600";
+                    statusLabel.textContent = `จัดสรรครบ ${totalMax} / ${totalMax} ข้อ`;
                 } else {
-                    container.classList.add('hidden');
+                    statusLabel.className = "font-bold text-rose-600";
+                    statusLabel.textContent = `จัดสรรเกิน ${currentSum} / ${totalMax} ข้อ`;
                 }
             }
         }
