@@ -2219,8 +2219,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 switchBranchSettings(currentSelectedBranch);
             } else if (tabName === 'data-sources') {
                 if (tabData) tabData.classList.remove('hidden');
-            } else if (tabName === 'essay-grading') { // 🟢 เพิ่มเงื่อนไขการเปิดแท็บข้อเขียน
+            } else if (tabName === 'essay-grading') {
                 if (tabEssay) tabEssay.classList.remove('hidden');
+                const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
+                renderEssayGradingCards(pendingList);
             } else {
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 
@@ -2885,6 +2887,26 @@ function toggleModalUserSelection(username, isChecked) {
             });
 
             container.innerHTML = html;
+        }
+
+        function saveEssayGrading(itemIdx) {
+            let pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
+            if (!pendingList[itemIdx]) return;
+
+            const essayAnswers = pendingList[itemIdx].essayAnswers || [];
+            essayAnswers.forEach((essay, eIdx) => {
+                const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
+                if (inputScore) {
+                    essay.scoreGiven = parseFloat(inputScore.value) || 0;
+                }
+            });
+
+            // อัปเดตและบันทึกลง LocalStorage
+            pendingList[itemIdx].essayAnswers = essayAnswers;
+            localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
+
+            showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'บันทึกคะแนนข้อสอบข้อเขียนเรียบร้อยแล้ว');
+            renderEssayGradingCards(pendingList);
         }
         
     </script>
