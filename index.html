@@ -57,27 +57,31 @@
 
                     <!-- แถบเมนูย่อย 4 รายการ -->
                     <div id="admin-dropdown-menu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-100 py-2 z-50 text-slate-800">
-                        <a href="javascript:void(0)" onclick="switchAdminTab('overview')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                        <a href="javascript:void(0)" id="menu-item-overview" onclick="switchAdminTab('overview')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-table-columns w-5 text-indigo-500"></i>
                             <span>1. ภาพรวมการตั้งค่าทุกสาขา</span>
                         </a>
-                        <a href="javascript:void(0)" onclick="switchAdminTab('exam-settings')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                        <a href="javascript:void(0)" id="menu-item-manager" onclick="switchAdminTab('manager-dashboard')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                            <i class="fa-solid fa-chart-pie w-5 text-indigo-500"></i>
+                            <span>รายงานผลสัมฤทธิ์สาขา (Manager)</span>
+                        </a>
+                        <a href="javascript:void(0)" id="menu-item-exam-settings" onclick="switchAdminTab('exam-settings')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-sliders w-5 text-indigo-500"></i>
                             <span>2. ตั้งค่าการสอบรายสาขา</span>
                         </a>
-                        <a href="javascript:void(0)" onclick="switchAdminTab('student-tracker')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                        <a href="javascript:void(0)" id="menu-item-student-tracker" onclick="switchAdminTab('student-tracker')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-user-check w-5 text-indigo-500"></i>
                             <span>3. ติดตามการสอบรายบุคคล</span>
                         </a>
-                        <a href="javascript:void(0)" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                        <a href="javascript:void(0)" id="menu-item-data-sources" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-database w-5 text-indigo-500"></i>
                             <span>4. แหล่งข้อมูลนำเข้า/ออก</span>
                         </a>
-                        <a href="javascript:void(0)" onclick="switchAdminTab('essay-grading')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+                        <a href="javascript:void(0)" id="menu-item-essay-grading" onclick="switchAdminTab('essay-grading')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-pen-to-square w-5 text-indigo-500"></i>
                             <span>5. ตรวจสอบข้อสอบข้อเขียน</span>
                         </a>
-                    <div class="border-t border-slate-100 my-1"></div>
+                        <div class="border-t border-slate-100 my-1"></div>
                         <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
                             <i class="fa-solid fa-right-from-bracket w-5"></i>
                             <span>ออกจากระบบ</span>
@@ -687,12 +691,24 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // ฐานข้อมูลผู้ใช้เริ่มต้น (แยก Role ชัดเจน)
+        // ฐานข้อมูลผู้ใช้เริ่มต้น (รองรับ Multi-Role ผ่านอาร์เรย์ roles)
         const DEFAULT_USERS = [
-            { username: "650001", password: "123", fullname: "นายสมชาย ใจดี", branch: "การพยาบาลอายุรศาสตร์ทั่วไป", role: "student" },
-            { username: "650002", password: "123", fullname: "นางสาวสมหญิง รักดี", branch: "การพยาบาลออร์โธปิดิกส์", role: "student" },
-            { username: "admin1", password: "123", fullname: "อาจารย์ผู้ดูแลระบบสูงสุด", branch: "อาจารย์ผู้สอน", role: "superadmin" }
+            { username: "650001", password: "123", fullname: "นายสมชาย ใจดี", branch: "การพยาบาลอายุรศาสตร์ทั่วไป", yearLevel: "ชั้นปีที่ 1", roles: ["student"] },
+            { username: "650002", password: "123", fullname: "นางสาวสมหญิง รักดี", branch: "การพยาบาลออร์โธปิดิกส์", yearLevel: "ชั้นปีที่ 2", roles: ["student"] },
+            { username: "preceptor1", password: "123", fullname: "อ.พยาบาลพี่เลี้ยง สมศรี", branch: "การพยาบาลอายุรศาสตร์ทั่วไป", roles: ["preceptor"] },
+            { username: "manager1", password: "123", fullname: "ผก.บริหารประจำสาขา", branch: "การพยาบาลอายุรศาสตร์ทั่วไป", roles: ["manager"] },
+            { username: "admin1", password: "123", fullname: "อาจารย์ผู้ดูแลประจำสาขา", branch: "การพยาบาลอายุรศาสตร์ทั่วไป", roles: ["admin"] },
+            { username: "superadmin1", password: "123", fullname: "อาจารย์ผู้ดูแลระบบสูงสุด", branch: "อาจารย์ผู้สอน", roles: ["superadmin"] }
         ];
+
+        // ฟังก์ชันช่วยเช็กสิทธิ์ผู้ใช้
+        function hasRole(user, roleName) {
+            if (!user) return false;
+            if (user.roles && Array.isArray(user.roles)) {
+                return user.roles.includes(roleName) || user.roles.includes('superadmin');
+            }
+            return user.role === roleName || user.role === 'superadmin';
+        }
         
         // ฟังก์ชัน เปิด-ปิด Dropdown Menu ของอาจารย์
         function toggleAdminDropdown(e) {
@@ -1798,6 +1814,7 @@ async function fetchAndSyncUsers() {
                     skillCounts: unitSkillCounts,
                     accessMode: document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all',
                     allowedUsers: unitSettings[uKey]?.allowedUsers || []
+                    blindGrading: document.getElementById(`unit-blind-${idx}`)?.checked || false,
                 };
             });
         
@@ -2227,45 +2244,68 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
         function switchAdminTab(tabName) {
-            if (tabName === 'data-sources') {
-                if (loggedInUser && loggedInUser.role === 'admin') {
-                    showAlertModal('warning', 'ปิดการเข้าถึง', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
-                    return;
-                }
+            if (!loggedInUser) return;
+
+            // 1. ควบคุมสิทธิ์การเข้าถึงแต่ละเมนู
+            const isSuperAdmin = hasRole(loggedInUser, 'superadmin');
+            const isAdmin = hasRole(loggedInUser, 'admin');
+            const isManager = hasRole(loggedInUser, 'manager');
+            const isPreceptor = hasRole(loggedInUser, 'preceptor');
+
+            if (tabName === 'data-sources' && !isSuperAdmin) {
+                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
+                return;
             }
-        
+
+            if (tabName === 'overview' && !isSuperAdmin) {
+                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้สำหรับ Superadmin เท่านั้น');
+                return;
+            }
+
+            if (tabName === 'exam-settings' && !isAdmin && !isSuperAdmin) {
+                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้สำหรับ อาจารย์ประจำสาขา (Admin) เท่านั้น');
+                return;
+            }
+
             sessionStorage.setItem('admin_last_tab', tabName);
+
+            // 2. ซ่อน/แสดง เมนูดร็อปดาวน์ตามสิทธิ์
+            const mOverview = document.getElementById('menu-item-overview');
+            const mManager = document.getElementById('menu-item-manager');
+            const mExam = document.getElementById('menu-item-exam-settings');
+            const mTracker = document.getElementById('menu-item-student-tracker');
+            const mData = document.getElementById('menu-item-data-sources');
+            const mEssay = document.getElementById('menu-item-essay-grading');
+
+            if (mOverview) mOverview.classList.toggle('hidden', !isSuperAdmin);
+            if (mManager) mManager.classList.toggle('hidden', !isManager && !isSuperAdmin);
+            if (mExam) mExam.classList.toggle('hidden', !isAdmin && !isSuperAdmin);
+            if (mTracker) mTracker.classList.toggle('hidden', !isAdmin && !isManager && !isSuperAdmin);
+            if (mData) mData.classList.toggle('hidden', !isSuperAdmin);
+            if (mEssay) mEssay.classList.toggle('hidden', !isPreceptor && !isAdmin && !isSuperAdmin);
+
+            // 3. สลับแท็บหน้าจอ
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
             const tabData = document.getElementById('tab-admin-data-sources');
             const tabEssay = document.getElementById('tab-admin-essay-grading');
             const branchWrapper = document.getElementById('branch-selector-wrapper');
-        
+
             if (tabOverview) tabOverview.classList.add('hidden');
             if (tabExam) tabExam.classList.add('hidden');
             if (tabTracker) tabTracker.classList.add('hidden');
             if (tabData) tabData.classList.add('hidden');
             if (tabEssay) tabEssay.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
-        
+
             if (tabName === 'student-tracker') {
                 if (tabTracker) tabTracker.classList.remove('hidden');
-                fetchAndSyncResults().then(() => {
-                    renderStudentTrackerTable();
-                });
+                fetchAndSyncResults().then(() => renderStudentTrackerTable());
             } else if (tabName === 'exam-settings') {
                 if (tabExam) tabExam.classList.remove('hidden');
-                if (branchWrapper) branchWrapper.classList.remove('hidden'); // 🟢 เพิ่มบรรทัดนี้เพื่อเปิดแถบเลือกสาขา
-                
-                if (loggedInUser && loggedInUser.role === 'admin') {
-                    currentSelectedBranch = loggedInUser.branch;
-                } else if (currentSelectedBranch === "ภาพรวมทุกสาขา") {
-                    const allBranches = Array.from(new Set(masterQuestions.map(q => q.branch).filter(Boolean)));
-                    if (allBranches.length > 0) currentSelectedBranch = allBranches[0];
-                }
-                
-                renderBranchButtons(); 
+                if (branchWrapper) branchWrapper.classList.remove('hidden');
+                renderBranchButtons();
                 switchBranchSettings(currentSelectedBranch);
             } else if (tabName === 'data-sources') {
                 if (tabData) tabData.classList.remove('hidden');
@@ -2275,11 +2315,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 renderEssayGradingCards(pendingList);
             } else {
                 if (tabOverview) tabOverview.classList.remove('hidden');
-                
-                if (loggedInUser && loggedInUser.role === 'superadmin') {
-                    const filterSelect = document.getElementById('overview-branch-filter');
-                    if (filterSelect) filterSelect.value = "ทั้งหมด";
-                }
                 renderOverviewTable();
             }
         }
@@ -2749,6 +2784,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 <input type="checkbox" id="unit-screenshot-${idx}" ${uConf.preventScreenshot ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="rounded text-indigo-600">
                                 <label class="font-semibold text-slate-700">บล็อกการแคปจอ</label>
                             </div>
+                            <div class="flex items-center space-x-2 pt-4">
+                                <input type="checkbox" id="unit-blind-${idx}" ${uConf.blindGrading ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="rounded text-amber-600">
+                                <label class="font-semibold text-slate-700">🔒 บังคับซ่อนชื่อผู้สอบ (Blind Grading)</label>
+                            </div>
                         </div>
 
                         <!-- ส่วนที่ 2: สิทธิ์ผู้เข้าสอบ (รายบุคคล) -->
@@ -3050,7 +3089,24 @@ function toggleModalUserSelection(username, isChecked) {
                 html += `
                     <div class="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
                         <div class="flex justify-between items-center font-bold text-sm border-b border-slate-200 pb-2">
-                            <span class="text-slate-800">ผู้สอบ: ${item.studentName} (${item.studentId})</span>
+                            // ค้นหาว่าหน่วยการเรียนรู้นี้ตั้งค่าซ่อนชื่อไว้หรือไม่
+                            const uKey = `${item.branch}__${item.examSet}__${item.category}`;
+                            const uConf = unitSettings[uKey] || {};
+                            const isBlindMode = uConf.blindGrading === true;
+                        
+                            const displayName = isBlindMode ? `ผู้สอบ #ANON-${(itemIdx + 1).toString().padStart(4, '0')}` : `${item.studentName} (${item.studentId})`;
+                            const blindBadge = isBlindMode ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold border border-indigo-200">🔒 โหมดซ่อนชื่อผู้สอบ</span>` : '';
+                        
+                            html += `
+                                <div class="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
+                                    <div class="flex justify-between items-center font-bold text-sm border-b border-slate-200 pb-2">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-slate-800">ผู้สอบ: ${displayName}</span>
+                                            ${blindBadge}
+                                        </div>
+                                        <span class="text-amber-600 bg-amber-100 px-2.5 py-0.5 rounded-full text-xs">รอการตรวจ</span>
+                                    </div>
+                            `;
                             <span class="text-amber-600 bg-amber-100 px-2.5 py-0.5 rounded-full text-xs">รอการตรวจ</span>
                         </div>
                 `;
