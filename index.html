@@ -709,25 +709,25 @@
         let studentData = {};
 
         // Settings State
-let currentSelectedBranch = "ภาพรวมทุกสาขา"; // สาขาที่กำลังเลือกตั้งค่า
-let branchSettings = {}; // ตัวแปรเก็บการตั้งค่าแยกตามสาขา
-let unitSettings = {};
-
-let settings = {
-    // ⚠️ ใส่ gid= ของแผ่นงาน Questions ใน Google Sheets ของอาจารย์ให้ถูกต้อง
-    sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=0&single=true&output=csv",
-    usersCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=2036632186&single=true&output=csv",
-    globalExamEnable: true,
-    antiCheatEnable: false,
-    preventScreenshot: false,
-    maxTabSwitches: 3,
-    autoSubmitOnCheat: true,
-    selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
-    questionCount: 15,
-    timeLimitMinutes: 15,
-    shuffleOptions: true,
-    webAppUrl: ""
-};
+        let currentSelectedBranch = "ภาพรวมทุกสาขา"; // สาขาที่กำลังเลือกตั้งค่า
+        let branchSettings = {}; // ตัวแปรเก็บการตั้งค่าแยกตามสาขา
+        let unitSettings = {};
+        
+        let settings = {
+            // ⚠️ ใส่ gid= ของแผ่นงาน Questions ใน Google Sheets ของอาจารย์ให้ถูกต้อง
+            sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=0&single=true&output=csv",
+            usersCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTHQmXHC4feffrX-vhmvNof6KVXPeCLrxVlamPhEDI0WFR4Zft4TPNJ1Ql4vBGnxuDdH-MTMIHMFWKg/pub?gid=2036632186&single=true&output=csv",
+            globalExamEnable: true,
+            antiCheatEnable: false,
+            preventScreenshot: false,
+            maxTabSwitches: 3,
+            autoSubmitOnCheat: true,
+            selectedSet: "ทั้งหมด (ทุกชุดการเรียนรู้)",
+            questionCount: 15,
+            timeLimitMinutes: 15,
+            shuffleOptions: true,
+            webAppUrl: ""
+        };
         
         // ฟังก์ชันสร้างปุ่มเลือกสาขาวิชา (ตัดปุ่มภาพรวมทุกสาขาออกแล้ว)
         function renderBranchButtons() {
