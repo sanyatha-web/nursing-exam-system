@@ -853,38 +853,26 @@ let settings = {
                 if (savedUserJson) {
                     try {
                         loggedInUser = JSON.parse(savedUserJson);
-            
-                        if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
+                
+                        // 🟢 เช็กด้วย hasRole
+                        if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
                             document.getElementById('btn-admin-nav')?.classList.remove('hidden');
                             document.getElementById('btn-header-logout')?.classList.add('hidden');
                             showAdminDashboard();
-            
-                            // 🟢 เพิ่ม/ตรวจสอบ 2 บรรทัดนี้ตรงนี้ครับ!
+                
                             const savedTab = sessionStorage.getItem('admin_last_tab') || 'overview';
                             switchAdminTab(savedTab);
                         } else {
-                        document.getElementById('btn-admin-nav')?.classList.add('hidden');
-                        document.getElementById('btn-header-logout')?.classList.remove('hidden');
-        
-                        const wasExamRunning = sessionStorage.getItem('is_exam_running');
-                        if (wasExamRunning === 'true') {
-                            sessionStorage.removeItem('is_exam_running');
-                            isExamActive = false;
-                            showStudentDashboard();
-                            showAlertModal('warning', 'รีเฟรชหน้าจอ', 'การทำข้อสอบหลุดเนื่องจากคุณได้ทำการรีเฟรชหน้าจอ ระบบนำคุณกลับสู่หน้าโปรไฟล์');
-                        } else {
+                            document.getElementById('btn-admin-nav')?.classList.add('hidden');
+                            document.getElementById('btn-header-logout')?.classList.remove('hidden');
                             showStudentDashboard();
                         }
+                    } catch (e) {
+                        console.error("Failed to restore session:", e);
+                        hideAllSections();
+                        document.getElementById('section-login')?.classList.remove('hidden');
                     }
-                } catch (e) {
-                    console.error("Failed to restore session:", e);
-                    hideAllSections();
-                    document.getElementById('section-login')?.classList.remove('hidden');
                 }
-            } else {
-                hideAllSections();
-                document.getElementById('section-login')?.classList.remove('hidden');
-            }
         
             // 4. แอบซิงค์ข้อมูลผู้ใช้งานและข้อสอบเบื้องหลังพร้อมกัน (Silent Background Sync)
             setTimeout(() => {
@@ -915,13 +903,29 @@ let settings = {
                 loggedInUser = foundUser;
                 sessionStorage.setItem('exam_session_user', JSON.stringify(foundUser));
         
-                if (loggedInUser.role === 'superadmin' || loggedInUser.role === 'admin') {
+                // 🟢 เปลี่ยนมาใช้ hasRole ในการตรวจสอบสิทธิ์
+                const isSuperAdmin = hasRole(loggedInUser, 'superadmin');
+                const isAdmin = hasRole(loggedInUser, 'admin');
+                const isManager = hasRole(loggedInUser, 'manager');
+                const isPreceptor = hasRole(loggedInUser, 'preceptor');
+        
+                // ถ้าเป็น อาจารย์ผู้ดูแลระบบ, ผู้บริหาร หรือ พี่เลี้ยง ให้เข้าหน้า Admin Dashboard
+                if (isSuperAdmin || isAdmin || isManager || isPreceptor) {
                     document.getElementById('btn-admin-nav').classList.remove('hidden');
                     document.getElementById('btn-header-logout').classList.add('hidden');
-                    sessionStorage.setItem('admin_last_tab', 'overview');
+                    
+                    // เลือกเปิดแท็บแรกตามสิทธิ์ที่มีให้อัตโนมัติ
+                    let defaultTab = 'overview';
+                    if (isSuperAdmin) defaultTab = 'overview';
+                    else if (isManager) defaultTab = 'manager-dashboard';
+                    else if (isAdmin) defaultTab = 'exam-settings';
+                    else if (isPreceptor) defaultTab = 'essay-grading';
+        
+                    sessionStorage.setItem('admin_last_tab', defaultTab);
                     showAdminDashboard();
-                    switchAdminTab('overview');
+                    switchAdminTab(defaultTab);
                 } else {
+                    // ถ้าเป็นนักศึกษา (Student) อย่างเดียว ให้ไปหน้า Student Dashboard
                     document.getElementById('btn-admin-nav').classList.add('hidden');
                     document.getElementById('btn-header-logout').classList.remove('hidden');
                     showStudentDashboard();
