@@ -81,6 +81,17 @@
                             <i class="fa-solid fa-pen-to-square w-5 text-indigo-500"></i>
                             <span>5. ตรวจสอบข้อสอบข้อเขียน</span>
                         </a>
+                        <div id="tab-admin-manager-dashboard" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <h3 class="font-bold text-slate-800 text-base flex items-center">
+                                    <i class="fa-solid fa-chart-pie text-indigo-600 mr-2"></i> รายงานภาพรวมผลสัมฤทธิ์ทางการเรียนรายสาขา
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-0.5">สรุปสถิติอัตราการผ่านและคะแนนเฉลี่ยของผู้เรียนในสาขา</p>
+                            </div>
+                            <div id="manager-stats-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <!-- JS Render Stats -->
+                            </div>
+                        </div>
                         <div class="border-t border-slate-100 my-1"></div>
                         <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
                             <i class="fa-solid fa-right-from-bracket w-5"></i>
