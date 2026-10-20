@@ -405,6 +405,20 @@
                     </div>
                 </div>
             </div>
+            <!-- ---------------- แท็บที่ 5: ตรวจสอบข้อสอบข้อเขียน (สำหรับอาจารย์) ---------------- -->
+            <div id="tab-admin-essay-grading" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <h3 class="font-bold text-slate-800 text-base flex items-center">
+                        <i class="fa-solid fa-pen-to-square text-indigo-600 mr-2"></i> รายการข้อสอบข้อเขียนที่รอการตรวจ
+                    </h3>
+                    <span id="pending-count-badge" class="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                        รอการตรวจ
+                    </span>
+                </div>
+                <div id="essay-pending-list" class="space-y-4">
+                    <!-- โค้ด JavaScript จะวาดรายการตรวจข้อเขียนลงตรงนี้ -->
+                </div>
+            </div>
         </section>
 
         <!-- STEP 3: EXAM WORKSPACE SECTION -->
@@ -1096,9 +1110,15 @@ function switchBranchSettings(branchName) {
                 return;
             }
         
-            // สุ่มข้อสอบตามจำนวน finalQuestionCount
-            const shuffled = [...pool].sort(() => 0.5 - Math.random());
-            const drawCount = Math.min(finalQuestionCount, shuffled.length);
+            // ระบบสร้างและสุ่มชุดข้อสอบแบบ dynamic
+            const examConfig = {
+                randomizeOrder: settings.shuffleOptions !== false,
+                distributeBySkills: false,
+                targetTotal: finalQuestionCount
+            };
+
+            const selectedPool = generateExamPaper(pool, examConfig);
+            const drawCount = selectedPool.length;
             
             // ตั้งค่าเวลาตาม finalTimeLimit
             timeRemainingSeconds = finalTimeLimit * 60;
@@ -1528,6 +1548,71 @@ async function fetchAndSyncUsers() {
     return false;
 }
 
+        // ==========================================
+        // Logic การสุ่มข้อสอบอัจฉริยะ (Dynamic Matrix Randomization)
+        // ==========================================
+
+        // 1. ดึงรายการทักษะที่มีอยู่จริงในคลังข้อสอบ
+        function getAvailableSkills(questionPool) {
+            const skills = questionPool
+                .map(q => q.skill ? q.skill.trim().toLowerCase() : '')
+                .filter(skill => skill !== '');
+            return [...new Set(skills)];
+        }
+
+        // 2. ฟังก์ชันสลับตำแหน่งข้อสอบ (Fisher-Yates Shuffle)
+        function shuffleArray(array) {
+            let shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // 3. ฟังก์ชันสร้างชุดข้อสอบแบบสุ่มคละทักษะ
+        function generateExamPaper(rawQuestions, config) {
+            let finalExam = [];
+
+            if (!config.randomizeOrder) {
+                let sortedPool = [...rawQuestions].sort((a, b) => Number(a.id || a.no) - Number(b.id || b.no));
+                return sortedPool.slice(0, config.targetTotal);
+            }
+
+            if (!config.distributeBySkills) {
+                let shuffledPool = shuffleArray(rawQuestions);
+                return shuffledPool.slice(0, config.targetTotal);
+            }
+
+            let selectedIds = new Set();
+            const availableSkills = getAvailableSkills(rawQuestions);
+
+            availableSkills.forEach(skillName => {
+                let skillPool = rawQuestions.filter(q => 
+                    q.skill && q.skill.trim().toLowerCase() === skillName
+                );
+                skillPool = shuffleArray(skillPool);
+                const targetCount = config.skillCounts ? (config.skillCounts[skillName] || 0) : 0;
+                const sampled = skillPool.slice(0, targetCount);
+
+                sampled.forEach(q => {
+                    finalExam.push(q);
+                    selectedIds.add(q.id || q.question);
+                });
+            });
+
+            // เติมข้อสอบที่เหลือให้ครบจำนวนที่กำหนด
+            if (finalExam.length < config.targetTotal) {
+                let remainingPool = rawQuestions.filter(q => !selectedIds.has(q.id || q.question));
+                remainingPool = shuffleArray(remainingPool);
+                const needed = config.targetTotal - finalExam.length;
+                const fallbackSample = remainingPool.slice(0, needed);
+                finalExam.push(...fallbackSample);
+            }
+
+            return shuffleArray(finalExam);
+        }
+
         function updateAdminSettingsUI() {
     const setSelect = document.getElementById('setting-exam-set');
     if (!setSelect) return;
@@ -1716,33 +1801,65 @@ async function fetchAndSyncUsers() {
             const optionsContainer = document.getElementById('options-container');
             optionsContainer.innerHTML = '';
 
-            const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+            // 1. ตรวจสอบและแสดงผลสื่อ (รูปภาพ / วิดีโอ)
+            const mediaUrl = q.media || q.mediaIdx;
+            if (mediaUrl) {
+                let mediaHtml = '';
+                if (mediaUrl.includes('youtube') || mediaUrl.includes('embed')) {
+                    const embedUrl = mediaUrl.replace('watch?v=', 'embed/');
+                    mediaHtml = `
+                        <div class="my-3 aspect-video w-full max-w-2xl mx-auto overflow-hidden rounded-xl shadow border">
+                            <iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allowfullscreen></iframe>
+                        </div>`;
+                } else {
+                    mediaHtml = `
+                        <div class="my-3 text-center">
+                            <img src="${mediaUrl}" alt="สื่อประกอบโจทย์" class="max-h-80 mx-auto rounded-xl shadow border" />
+                        </div>`;
+                }
+                optionsContainer.innerHTML += mediaHtml;
+            }
 
-            q.options.forEach((opt, idx) => {
-                const isSelected = userAnswers[currentQuestionIndex] === opt.originalIndex;
-                const optionDiv = document.createElement('div');
-                optionDiv.onclick = () => selectOption(opt.originalIndex);
-                optionDiv.className = `p-4 rounded-xl border-2 cursor-pointer transition flex items-center justify-between ${
-                    isSelected 
-                    ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-sm' 
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700'
-                }`;
-
-                optionDiv.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <span class="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center ${
-                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
-                        }">${optionLabels[idx] || idx+1}</span>
-                        <span class="text-sm font-medium leading-relaxed">${opt.text}</span>
-                    </div>
-                    <div class="w-5 h-5 rounded-full border flex items-center justify-center ${
-                        isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'
-                    }">
-                        ${isSelected ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+            // 2. ตรวจสอบประเภทข้อสอบ (ข้อเขียน vs เลือกตอบ)
+            const qType = q.type || 'choice';
+            if (qType === 'text' || qType === 'media_text') {
+                const currentAns = userAnswers[currentQuestionIndex] || '';
+                optionsContainer.innerHTML += `
+                    <div class="mt-4">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">พิมพ์คำตอบบรรยายของคุณที่นี่:</label>
+                        <textarea rows="4" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
+                            placeholder="กรอกคำตอบของคุณ..." 
+                            oninput="saveEssayAnswer(${currentQuestionIndex}, this.value)">${currentAns}</textarea>
                     </div>
                 `;
-                optionsContainer.appendChild(optionDiv);
-            });
+            } else {
+                const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+                q.options.forEach((opt, idx) => {
+                    const isSelected = userAnswers[currentQuestionIndex] === opt.originalIndex;
+                    const optionDiv = document.createElement('div');
+                    optionDiv.onclick = () => selectOption(opt.originalIndex);
+                    optionDiv.className = `p-4 rounded-xl border-2 cursor-pointer transition flex items-center justify-between ${
+                        isSelected 
+                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-sm' 
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700'
+                    }`;
+
+                    optionDiv.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <span class="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center ${
+                                isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                            }">${optionLabels[idx] || idx+1}</span>
+                            <span class="text-sm font-medium leading-relaxed">${opt.text}</span>
+                        </div>
+                        <div class="w-5 h-5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'
+                        }">
+                            ${isSelected ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                        </div>
+                    `;
+                    optionsContainer.appendChild(optionDiv);
+                });
+            }
 
             document.getElementById('btn-prev-question').disabled = currentQuestionIndex === 0;
             const nextBtn = document.getElementById('btn-next-question');
@@ -1755,6 +1872,12 @@ async function fetchAndSyncUsers() {
             }
 
             renderQuestionNavGrid();
+        }
+
+        // ฟังก์ชันบันทึกคำตอบข้อเขียนชั่วคราว
+        function saveEssayAnswer(qIndex, textValue) {
+            userAnswers[qIndex] = textValue;
+            sessionStorage.setItem('user_answers', JSON.stringify(userAnswers));
         }
 
         function selectOption(originalOptionIndex) {
@@ -1895,14 +2018,29 @@ async function fetchAndSyncUsers() {
             clearInterval(timerInterval);
 
             let rawScore = 0;
+            let choiceCount = 0;
+            let essayList = [];
+
             activeQuestions.forEach((q, idx) => {
-                if (userAnswers[idx] === q.correctOriginalIndex) {
-                    rawScore++;
+                const qType = q.type || 'choice';
+                if (qType === 'text' || qType === 'media_text') {
+                    essayList.push({
+                        questionIndex: idx + 1,
+                        questionText: q.question,
+                        studentAnswer: userAnswers[idx] || '(ไม่ได้ตอบ)',
+                        scoreGiven: null
+                    });
+                } else {
+                    choiceCount++;
+                    if (userAnswers[idx] === q.correctOriginalIndex) {
+                        rawScore++;
+                    }
                 }
             });
 
             const total = activeQuestions.length;
-            const percentage = ((rawScore / total) * 100).toFixed(2);
+            const percentage = choiceCount > 0 ? ((rawScore / total) * 100).toFixed(2) : "0.00";
+
             let timeSpentFormatted = "";
             if (settings.timeLimitMinutes === 0) {
                 timeSpentFormatted = "ไม่จำกัดเวลา";
@@ -1914,7 +2052,7 @@ async function fetchAndSyncUsers() {
             }
 
             document.getElementById('result-score-display').textContent = `${rawScore} / ${total}`;
-            document.getElementById('result-percentage').textContent = `คิดเป็น ${percentage}%`;
+            document.getElementById('result-percentage').textContent = `คิดเป็น ${percentage}% (เฉพาะข้อเลือกตอบ)`;
             document.getElementById('result-student-name').textContent = studentData.name;
             document.getElementById('result-student-id').textContent = studentData.id;
             document.getElementById('result-category').textContent = `${studentData.branch} (${studentData.category})`;
@@ -1926,23 +2064,24 @@ async function fetchAndSyncUsers() {
             document.getElementById('section-result').classList.remove('hidden');
 
             postResultToGoogleSheets({
-            timestamp: new Date().toLocaleString('th-TH'),
-            studentId: studentData.id,
-            fname: studentData.fname,
-            lname: studentData.lname,
-            examSet: settings.selectedSet,
-            branch: studentData.branch,
-            yearLevel: studentData.yearLevel,
-            category: studentData.category,
-            score: rawScore,
-            totalQuestions: total,
-            percentage: percentage,
-            timeSpent: timeSpentFormatted,
-            tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
-            antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
-            preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
-            autoSubmitted: isAutoSubmitted ? "สลับจอเกิน/หมดเวลา" : "ปกติ"
-        });
+                timestamp: new Date().toLocaleString('th-TH'),
+                studentId: studentData.id,
+                fname: studentData.fname,
+                lname: studentData.lname,
+                examSet: settings.selectedSet,
+                branch: studentData.branch,
+                yearLevel: studentData.yearLevel,
+                category: studentData.category,
+                score: rawScore,
+                totalQuestions: total,
+                percentage: percentage,
+                essayAnswers: JSON.stringify(essayList),
+                timeSpent: timeSpentFormatted,
+                tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
+                antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
+                preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
+                autoSubmitted: isAutoSubmitted ? "สลับจอเกิน/หมดเวลา" : "ปกติ"
+            });
         }
 
         function postResultToGoogleSheets(payload) {
@@ -2692,6 +2831,53 @@ function toggleModalUserSelection(username, isChecked) {
     }
     updateModalStudentCount();
 }
+
+        // ฟังก์ชันแสดงผลรายการตรวจข้อเขียนสำหรับอาจารย์
+        function renderEssayGradingCards(pendingExamList) {
+            const container = document.getElementById('essay-pending-list');
+            if (!container) return;
+
+            if (!pendingExamList || pendingExamList.length === 0) {
+                container.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">ไม่มีรายการข้อสอบข้อเขียนที่รอการตรวจในขณะนี้</p>';
+                return;
+            }
+
+            let html = '';
+            pendingExamList.forEach((item, itemIdx) => {
+                html += `
+                    <div class="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
+                        <div class="flex justify-between items-center font-bold text-sm border-b border-slate-200 pb-2">
+                            <span class="text-slate-800">ผู้สอบ: ${item.studentName} (${item.studentId})</span>
+                            <span class="text-amber-600 bg-amber-100 px-2.5 py-0.5 rounded-full text-xs">รอการตรวจ</span>
+                        </div>
+                `;
+
+                if (item.essayAnswers && Array.isArray(item.essayAnswers)) {
+                    item.essayAnswers.forEach((essay, eIdx) => {
+                        html += `
+                            <div class="my-2 p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-2">
+                                <p class="font-semibold text-slate-700">ข้อที่ ${essay.questionIndex}: ${essay.questionText}</p>
+                                <p class="text-indigo-900 bg-indigo-50 p-2.5 rounded-lg border border-indigo-100">คำตอบ: ${essay.studentAnswer || '(ไม่ได้ตอบ)'}</p>
+                                <div class="flex items-center space-x-2 pt-1">
+                                    <label class="font-bold text-slate-600">ให้คะแนน:</label>
+                                    <input type="number" min="0" max="10" step="0.5" class="border border-slate-300 p-1 w-20 rounded-lg text-center bg-white" 
+                                        id="score-input-${itemIdx}-${eIdx}" value="${essay.scoreGiven || 0}">
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += `
+                        <button onclick="saveEssayGrading(${itemIdx})" class="mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition">
+                            💾 บันทึกคะแนนข้อเขียน
+                        </button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
         
     </script>
 </body>
