@@ -1069,7 +1069,8 @@ let settings = {
                         loggedInUser = JSON.parse(savedUserJson);
                 
                         if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
-                            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+                            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
+                            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
                             document.getElementById('btn-header-logout')?.classList.add('hidden');
                             showAdminDashboard();
                 
@@ -1086,7 +1087,8 @@ let settings = {
                             const savedTab = sessionStorage.getItem('admin_last_tab') || defaultTab;
                             switchAdminTab(savedTab);
                         } else {
-                            document.getElementById('btn-admin-nav')?.classList.add('hidden');
+                            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
+                            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
                             document.getElementById('btn-header-logout')?.classList.remove('hidden');
                             showStudentDashboard();
                         }
@@ -1133,7 +1135,8 @@ let settings = {
         
                 // ถ้าเป็นบุคลากร/อาจารย์ ให้เข้าหน้า Admin Dashboard
                 if (isSuperAdmin || isAdmin || isManager || isPreceptor) {
-                    document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+                    document.getElementById('nav-4-buttons')?.classList.remove('hidden');
+                    document.getElementById('btn-admin-gear')?.classList.remove('hidden');
                     document.getElementById('btn-header-logout')?.classList.add('hidden');
                     
                     // 🟢 กำหนดหน้าแรก (Default Home Tab) แยกตามบทบาทที่ระบุ
@@ -1152,7 +1155,8 @@ let settings = {
                     switchAdminTab(defaultTab);
                 } else {
                     // นักศึกษา ➔ เข้าหน้า Student Dashboard
-                    document.getElementById('btn-admin-nav')?.classList.add('hidden');
+                    document.getElementById('nav-4-buttons')?.classList.remove('hidden');
+                    document.getElementById('btn-admin-gear')?.classList.remove('hidden');
                     document.getElementById('btn-header-logout')?.classList.remove('hidden');
                     showStudentDashboard();
                 }
@@ -1165,7 +1169,8 @@ let settings = {
         function showAdminDashboard() {
             hideAllSections();
             document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
-            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+            document.getElementById('nav-4-buttons')?.classList.remove('hidden'); // 🟢 แสดงกลุ่ม 4 ปุ่มซ้าย
+            document.getElementById('btn-admin-gear')?.classList.remove('hidden'); // 🟢 แสดงปุ่มฟันเฟืองขวา
         
             if (!loggedInUser) return;
         
@@ -1185,23 +1190,11 @@ let settings = {
                 }
             }
         
-            // เรียกตรวจเช็กการซ่อน/แสดงปุ่มเมนูบน Header ให้ตรงกับสิทธิ์ของผู้ใช้
-            const savedTab = sessionStorage.getItem('admin_last_tab') || (isSuper || hasRole(loggedInUser, 'manager') ? 'manager-dashboard' : 'overview');
-            switchAdminTab(savedTab);
-        }
-
-        // หน้าสำหรับผู้เรียน (Student Dashboard)
-        function showStudentDashboard() {
-            hideAllSections();
-            document.getElementById('section-dashboard-student').classList.remove('hidden');
-            document.getElementById('btn-admin-nav').classList.add('hidden'); // ซ่อนปุ่มแผงควบคุมอาจารย์
-
-            document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname;
-            document.getElementById('dashboard-user-id').textContent = loggedInUser.username;
-            document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch;
-            document.getElementById('dashboard-active-set-badge').textContent = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
-
-            loadCategoriesForLoggedInUser();
+            if (isSuper) {
+                currentSelectedBranch = "ภาพรวมทุกสาขา";
+                const filterSelect = document.getElementById('overview-branch-filter');
+                if (filterSelect) filterSelect.value = "ทั้งหมด";
+            }
         }
 
         function hideAllSections() {
@@ -1214,26 +1207,25 @@ let settings = {
 
         function handleLogout() {
             loggedInUser = null;
-            currentSelectedBranch = "ภาพรวมทุกสาขา"; // รีเซ็ตสาขาที่เลือกให้เป็นค่าเริ่มต้น
-
+            currentSelectedBranch = "ภาพรวมทุกสาขา";
+        
             sessionStorage.removeItem('exam_session_user');
             sessionStorage.removeItem('admin_last_tab');
             sessionStorage.removeItem('is_exam_running');
             
             hideAllSections();
             
-            // ซ่อนปุ่มบน Header ทั้งหมด
-            document.getElementById('btn-admin-nav')?.classList.add('hidden');
+            // 🟢 ซ่อนปุ่มบน Header ทั้งหมดเมื่อออกจากระบบ
+            document.getElementById('nav-4-buttons')?.classList.add('hidden');
+            document.getElementById('btn-admin-gear')?.classList.add('hidden');
             document.getElementById('btn-header-logout')?.classList.add('hidden');
             
-            // รีเซ็ต Dropdown Filter ให้กลับมาเป็น "ทั้งหมด"
             const overviewFilter = document.getElementById('overview-branch-filter');
             if (overviewFilter) {
                 overviewFilter.value = "ทั้งหมด";
                 overviewFilter.disabled = false;
             }
         
-            // แสดงหน้าล็อกอินกลับมา
             document.getElementById('section-login')?.classList.remove('hidden');
             if (document.getElementById('login-username')) document.getElementById('login-username').value = '';
             if (document.getElementById('login-password')) document.getElementById('login-password').value = '';
@@ -2471,12 +2463,31 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         // -------------------------------------------------------------
         // ระบบจัดการหน้า Dashboard ของอาจารย์ และภาพรวมการตั้งค่า (Home)
         // -------------------------------------------------------------
-
+        // หน้าสำหรับผู้เรียน (Student Dashboard)
+                function showStudentDashboard() {
+                    hideAllSections();
+                    document.getElementById('section-dashboard-student')?.classList.remove('hidden');
+                    
+                    // 🟢 ซ่อนปุ่มส่วนของอาจารย์บน Header ทั้งหมด
+                    document.getElementById('nav-4-buttons')?.classList.add('hidden');
+                    document.getElementById('btn-admin-gear')?.classList.add('hidden');
+        
+                    if (loggedInUser) {
+                        document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname || '';
+                        document.getElementById('dashboard-user-id').textContent = loggedInUser.username || '';
+                        document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch || '';
+                        document.getElementById('dashboard-active-set-badge').textContent = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
+                    }
+        
+                    loadCategoriesForLoggedInUser();
+                }
+                
         // 1. หน้าสำหรับอาจารย์ (Admin Dashboard & Overview)
         function showAdminDashboard() {
             hideAllSections();
             document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
-            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
+            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
         
             if (!loggedInUser) return;
         
@@ -2512,7 +2523,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const isManager = hasRole(loggedInUser, 'manager');
             const isPreceptor = hasRole(loggedInUser, 'preceptor');
         
-            // 1. ตรวจสอบสิทธิ์เข้าถึงแท็บ
             if (tabName === 'data-sources' && !isSuperAdmin) {
                 showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
                 return;
@@ -2520,7 +2530,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
             sessionStorage.setItem('admin_last_tab', tabName);
         
-            // 2. ซ่อน/แสดง ปุ่มหลักบน Header ตามบทบาท
+            // 🟢 เปิดแสดงกลุ่มปุ่มบน Header
+            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
+            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
+        
             const btnHome = document.getElementById('nav-btn-home');
             const btnExam = document.getElementById('nav-btn-exam-settings');
             const btnTracker = document.getElementById('nav-btn-student-tracker');
@@ -2533,7 +2546,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (btnEssay) btnEssay.classList.toggle('hidden', !isPreceptor && !isAdmin && !isSuperAdmin);
             if (menuData) menuData.classList.toggle('hidden', !isSuperAdmin);
         
-            // 3. ไฮไลต์ปุ่มที่กำลังใช้งานบน Header
             const allNavBtns = [btnHome, btnExam, btnTracker, btnEssay];
             allNavBtns.forEach(btn => {
                 if (btn) btn.classList.remove('bg-white/20', 'text-white', 'shadow-inner');
@@ -2544,7 +2556,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (tabName === 'student-tracker' && btnTracker) btnTracker.classList.add('bg-white/20', 'text-white');
             if (tabName === 'essay-grading' && btnEssay) btnEssay.classList.add('bg-white/20', 'text-white');
         
-            // 4. ซ่อนทุกแท็บเนื้อหาก่อนเปิดแท็บที่เลือก
+            // ซ่อน/แสดง แท็บเนื้อหาตามปกติ...
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
@@ -2561,7 +2573,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (tabManager) tabManager.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
         
-            // 5. สลับเปิดเนื้อหาแท็บตามที่เลือก
             if (tabName === 'manager-dashboard') {
                 if (tabManager) tabManager.classList.remove('hidden');
                 if (typeof fetchAndSyncResults === 'function') {
