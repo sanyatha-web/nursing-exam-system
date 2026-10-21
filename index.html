@@ -243,7 +243,7 @@
                     </div>
                 </div>
 
-                <!-- 1. การ์ดสรุปยอดปรับปรุงใหม่ 4 ใบ (KPI Summary Cards) -->
+                <!-- 1. การ์ดสรุปยอด 4 ใบ (KPI Summary Cards) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <!-- การ์ด 1: จำนวนนักเรียนทั้งหมด -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
@@ -286,7 +286,7 @@
                     </div>
                 </div>
 
-                <!-- 📌 2. ย้ายตารางสรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ ขึ้นมาไว้อันดับที่ 2 -->
+                <!-- 📌 2. สรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ (ย้ายขึ้นมาไว้อันดับที่ 2) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                         <div>
@@ -303,7 +303,7 @@
                     </div>
                 </div>
 
-                <!-- 📌 3. สรุปผลสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม ย้ายมาไว้อันดับที่ 3 -->
+                <!-- 📌 3. สรุปผลสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม (ย้ายมาไว้อันดับที่ 3) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                         <div>
@@ -3337,7 +3337,7 @@ function toggleModalUserSelection(username, isChecked) {
             container.innerHTML = html;
         }
 
-        // Global Store เก็บข้อมูล Modal ป้องกันปัญหา JSON Stringify Error
+        // Global Store เก็บข้อมูล Modal
         let currentManagerModalData = {
             title: '',
             subtitle: '',
@@ -3346,7 +3346,7 @@ function toggleModalUserSelection(username, isChecked) {
             activeTab: 'failed'
         };
 
-        // Cache เก็บข้อมูลชั่วคราวสำหรับ Modal
+        // Cache เก็บข้อมูลชั่วคราวสำหรับ Modal (แก้ปัญหากดปุ่มแล้วไม่ขึ้น Pop-up)
         let managerModalCache = {};
 
         // ฟังก์ชันเรนเดอร์ Manager Dashboard
@@ -3430,12 +3430,299 @@ function toggleModalUserSelection(username, isChecked) {
             const overallProgress = normalResults.length > 0 ? (totalPercentageSum / normalResults.length).toFixed(1) : "0.0";
             document.getElementById('kpi-overall-progress').textContent = `${overallProgress}%`;
 
-            // 📌 6. เรนเดอร์ Accordion แสดงชุดและหน่วยการเรียนรู้ (ดึงจาก MasterQuestions ป้องกันหน่วยหาย)
+            // 📌 6. เรนเดอร์ Accordion แสดงชุดและหน่วยการเรียนรู้ (ดึงจาก masterQuestions ช่วยให้หน่วยขึ้นแสดงผลครบ)
             renderNormalUnitsAccordion(branchStudents, normalResults, availableNormalQuestions);
 
             // 📌 7. เรนเดอร์การ์ดกลางภาค/ปลายภาค และนับผู้ต้องสอบซ่อม/ยังไม่สอบใส่การ์ดที่ 4
             const remedialCount = renderTermExamsTracker(branchStudents, termExamResults);
             document.getElementById('kpi-remedial-count').textContent = `${remedialCount} คน`;
+        }
+
+        // ฟังก์ชันเรนเดอร์ Accordion แสดงครบทุกหน่วย
+        function renderNormalUnitsAccordion(studentsList, normalResults, availableQuestions) {
+            const container = document.getElementById('manager-sets-accordion-container');
+            if (!container) return;
+
+            const setsStructure = {};
+
+            availableQuestions.forEach(q => {
+                const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
+
+                if (!setsStructure[setName]) setsStructure[setName] = {};
+                if (!setsStructure[setName][catName]) setsStructure[setName][catName] = [];
+            });
+
+            normalResults.forEach(r => {
+                const setName = r.examSet || 'ชุดการเรียนรู้ทั่วไป';
+                const catName = r.category || 'หน่วยการเรียนรู้ทั่วไป';
+
+                if (!setsStructure[setName]) setsStructure[setName] = {};
+                if (!setsStructure[setName][catName]) setsStructure[setName][catName] = [];
+
+                setsStructure[setName][catName].push(r);
+            });
+
+            const setNames = Object.keys(setsStructure);
+            if (setNames.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">ไม่พบข้อมูลชุดการเรียนรู้ในสาขานี้</p>`;
+                return;
+            }
+
+            let html = '';
+            setNames.forEach((setName, setIdx) => {
+                const unitsMap = setsStructure[setName];
+                const unitNames = Object.keys(unitsMap);
+
+                let setTotalScores = [];
+                unitNames.forEach(u => setsMap[u]?.forEach(r => setTotalScores.push(r.percentage)));
+                const setAvg = setTotalScores.length > 0 ? (setTotalScores.reduce((a, b) => a + b, 0) / setTotalScores.length).toFixed(1) : "0.0";
+                const setBarColor = setAvg >= 80 ? 'bg-emerald-500' : (setAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+
+                html += `
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                        <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold text-slate-800 text-sm">${setName}</h5>
+                                    <p class="text-[11px] text-slate-400">${unitNames.length} หน่วยการเรียนรู้ย่อย</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 min-w-[180px]">
+                                <div class="w-full space-y-1">
+                                    <div class="flex justify-between text-[11px] font-bold">
+                                        <span class="text-slate-500">เฉลี่ยชุด:</span>
+                                        <span class="text-indigo-900">${setAvg}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                        <div class="${setBarColor} h-2 rounded-full" style="width: ${Math.min(setAvg, 100)}%"></div>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+
+                        <div id="set-body-${setIdx}" class="hidden divide-y divide-slate-100 bg-white border-t border-slate-200">
+                `;
+
+                unitNames.forEach((catName, unitIdx) => {
+                    const history = unitsMap[catName];
+                    const uAvg = history.length > 0 ? (history.reduce((a, b) => a + b.percentage, 0) / history.length).toFixed(1) : "0.0";
+
+                    const passedList = [];
+                    const failedList = [];
+
+                    studentsList.forEach(st => {
+                        const stAttempts = history.filter(r => r.sapId === st.username);
+                        if (stAttempts.length === 0) {
+                            failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
+                        } else {
+                            const best = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
+                            if (best.percentage >= 80) {
+                                passedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'สอบผ่าน' });
+                            } else {
+                                failedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'ไม่ผ่าน' });
+                            }
+                        }
+                    });
+
+                    // บันทึกลง Cache
+                    const cacheKey = `unit_${setIdx}_${unitIdx}`;
+                    managerModalCache[cacheKey] = { title: catName, subtitle: setName, passedList, failedList };
+
+                    const uBarColor = uAvg >= 80 ? 'bg-emerald-500' : (uAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+
+                    html += `
+                        <div class="p-4 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-slate-800 text-xs"><i class="fa-solid fa-book-bookmark text-indigo-600 mr-1.5"></i>${catName}</span>
+                                <div class="flex items-center space-x-2 text-xs">
+                                    <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">ผ่าน ${passedList.length}</span>
+                                    <span class="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded">ไม่ผ่าน ${failedList.length}</span>
+                                    <button onclick="openManagerDetailModalFromCache('${cacheKey}')" 
+                                        class="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white rounded font-bold text-[11px] shadow">
+                                        🔍 รายชื่อ
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div class="${uBarColor} h-2 rounded-full" style="width: ${Math.min(uAvg, 100)}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ฟังก์ชันเรนเดอร์การ์ดกลางภาค/ปลายภาค (ใช้ Cache ป้องกันปุ่มกดไม่ขึ้น)
+        function renderTermExamsTracker(studentsList, termResults) {
+            const container = document.getElementById('manager-term-exams-container');
+            if (!container) return 0;
+
+            const termExamNames = Array.from(new Set(termResults.map(r => r.category || r.examSet)));
+            if (!termExamNames.includes('ข้อสอบวัดผลกลางภาค') && termResults.length === 0) {
+                termExamNames.push('ข้อสอบวัดผลกลางภาค', 'ข้อสอบวัดผลปลายภาค');
+            }
+
+            let html = '';
+            let totalRemedialCount = 0;
+
+            termExamNames.forEach((examTitle, examIdx) => {
+                const examHistory = termResults.filter(r => (r.category || r.examSet) === examTitle);
+                const years = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
+                let yearBreakdownHtml = '';
+
+                years.forEach((yearName, yIdx) => {
+                    const yearStudents = studentsList.filter(s => s.yearLevel === yearName);
+                    if (yearStudents.length === 0) return;
+
+                    const passedList = [];
+                    const failedList = [];
+
+                    yearStudents.forEach(st => {
+                        const stAttempts = examHistory.filter(r => r.sapId === st.username);
+                        const attemptCount = stAttempts.length;
+
+                        if (attemptCount === 0) {
+                            failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
+                        } else {
+                            const bestResult = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
+                            if (bestResult.percentage >= 80) {
+                                passedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'สอบผ่านเกณฑ์' });
+                            } else {
+                                failedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'ไม่ผ่าน (ต้องสอบซ่อม)' });
+                            }
+                        }
+                    });
+
+                    totalRemedialCount += failedList.length;
+
+                    // บันทึกลง Cache
+                    const cacheKey = `term_${examIdx}_${yIdx}`;
+                    managerModalCache[cacheKey] = { title: `${examTitle} (${yearName})`, subtitle: examTitle, passedList, failedList };
+
+                    yearBreakdownHtml += `
+                        <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                            <div class="font-bold text-slate-800">${yearName} <span class="text-slate-400 font-normal">(${yearStudents.length} คน)</span></div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg">ผ่าน ${passedList.length}</span>
+                                <span class="font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-lg">ตก/ซ่อม ${failedList.length}</span>
+                                <button onclick="openManagerDetailModalFromCache('${cacheKey}')" 
+                                    class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] shadow transition">
+                                    <i class="fa-solid fa-list-check"></i> รายชื่อ
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                    <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <h5 class="font-bold text-slate-800 text-sm flex items-center">
+                                <i class="fa-solid fa-file-signature text-rose-600 mr-2"></i> ${examTitle}
+                            </h5>
+                            <span class="text-[11px] font-bold text-slate-500">เกณฑ์ผ่าน 80%</span>
+                        </div>
+                        <div class="space-y-2">
+                            ${yearBreakdownHtml || '<p class="text-xs text-slate-400 italic">ไม่พบข้อมูลนักศึกษารายชั้นปี</p>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            return totalRemedialCount;
+        }
+
+        // ฟังก์ชันเปิด Modal จาก Cache (แก้ปัญหากดไม่ขึ้น)
+        function openManagerDetailModalFromCache(cacheKey) {
+            const data = managerModalCache[cacheKey];
+            if (!data) return;
+
+            currentManagerModalData = {
+                title: data.title,
+                subtitle: data.subtitle,
+                passedList: data.passedList || [],
+                failedList: data.failedList || [],
+                activeTab: 'failed'
+            };
+
+            document.getElementById('manager-modal-title').textContent = data.title;
+            document.getElementById('manager-modal-subtitle').textContent = data.subtitle;
+            document.getElementById('manager-modal-search').value = '';
+
+            switchManagerModalTab('failed');
+            document.getElementById('modal-manager-detail').classList.remove('hidden');
+        }
+
+        function closeManagerDetailModal() {
+            document.getElementById('modal-manager-detail').classList.add('hidden');
+        }
+
+        function switchManagerModalTab(tabType) {
+            currentManagerModalData.activeTab = tabType;
+            const btnPassed = document.getElementById('modal-tab-btn-passed');
+            const btnFailed = document.getElementById('modal-tab-btn-failed');
+
+            if (tabType === 'passed') {
+                btnPassed.className = "px-3 py-1.5 rounded-md transition bg-white text-emerald-700 shadow-sm font-bold";
+                btnFailed.className = "px-3 py-1.5 rounded-md transition text-slate-600 font-bold";
+            } else {
+                btnFailed.className = "px-3 py-1.5 rounded-md transition bg-white text-rose-700 shadow-sm font-bold";
+                btnPassed.className = "px-3 py-1.5 rounded-md transition text-slate-600 font-bold";
+            }
+
+            renderManagerModalList();
+        }
+
+        function renderManagerModalList() {
+            const container = document.getElementById('manager-modal-list-container');
+            const searchVal = (document.getElementById('manager-modal-search')?.value || '').toLowerCase().trim();
+            if (!container) return;
+
+            const isPassedTab = currentManagerModalData.activeTab === 'passed';
+            const rawList = isPassedTab ? currentManagerModalData.passedList : currentManagerModalData.failedList;
+
+            document.getElementById('modal-count-passed').textContent = currentManagerModalData.passedList.length;
+            document.getElementById('modal-count-failed').textContent = currentManagerModalData.failedList.length;
+
+            const filtered = rawList.filter(item => {
+                const st = item.student || {};
+                const nameMatch = (st.fullname || '').toLowerCase().includes(searchVal);
+                const idMatch = (st.username || '').toLowerCase().includes(searchVal);
+                return nameMatch || idMatch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบข้อมูลรายชื่อนักศึกษาตามที่ค้นหา</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => {
+                const st = item.student || {};
+                return `
+                    <div class="p-2.5 flex justify-between items-center text-xs hover:bg-slate-50 transition">
+                        <div>
+                            <div class="font-bold text-slate-800">${st.fullname || 'ไม่ระบุชื่อ'}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">SAP-ID: ${st.username || '-'} • ${st.yearLevel || '-'}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold ${isPassedTab ? 'text-emerald-600' : 'text-rose-600'}">
+                                ${item.attemptCount > 0 ? `${item.score}/${item.total \vert{}\vert{} 15} (${item.percentage.toFixed(1)}%)` : 'ยังไม่ได้สอบ'}
+                            </div>
+                            <div class="text-[10px] text-slate-400">สอบไปแล้ว: <strong class="text-indigo-600">${item.attemptCount} ครั้ง</strong></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // ฟังก์ชันเรนเดอร์ Accordion แสดงครบทุกหน่วยแม้ยังไม่มีคนสอบ
@@ -3718,7 +4005,7 @@ function toggleModalUserSelection(username, isChecked) {
                         </div>
                         <div class="text-right">
                             <div class="font-bold ${isPassedTab ? 'text-emerald-600' : 'text-rose-600'}">
-                                ${item.attemptCount > 0 ? `${item.score}/${item.total \vert{}\vert{} 15} (${item.percentage.toFixed(1)}%)` : 'ยังไม่ได้สอบ'}
+                                ${item.attemptCount > 0 ? `${item.score}/${item.total || 15} (${item.percentage.toFixed(1)}%)` : 'ยังไม่ได้สอบ'}
                             </div>
                             <div class="text-[10px] text-slate-400">สอบไปแล้ว: <strong class="text-indigo-600">${item.attemptCount} ครั้ง</strong></div>
                         </div>
