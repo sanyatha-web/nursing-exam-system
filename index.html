@@ -1110,7 +1110,7 @@ let settings = {
                     document.getElementById('btn-header-logout')?.classList.add('hidden');
                     
                     // 🟢 กำหนดหน้าแรก (Default Home Tab) แยกตามบทบาทที่ระบุ
-                    let defaultTab = 'overview';
+                    let defaultTab = 'manager-dashboard';
                     if (isSuperAdmin || isManager) {
                         defaultTab = 'manager-dashboard'; // Superadmin และ Manager ➔ หน้ารายงานผลสัมฤทธิ์สาขา
                     } else if (isAdmin) {
@@ -1133,7 +1133,7 @@ let settings = {
             }
         }
 
-        // หน้าสำหรับอาจารย์ (Admin Dashboard & Overview)
+        // ✅ ฟังก์ชัน showAdminDashboard ฉบับแก้ไขไม่ให้ดึงหน้า Overview มาบังคับเปิด
         function showAdminDashboard() {
             hideAllSections();
             document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
@@ -1155,12 +1155,6 @@ let settings = {
                 } else {
                     menuDataSources.classList.remove('hidden');
                 }
-            }
-        
-            if (isSuper) {
-                currentSelectedBranch = "ภาพรวมทุกสาขา";
-                const filterSelect = document.getElementById('overview-branch-filter');
-                if (filterSelect) filterSelect.value = "ทั้งหมด";
             }
         }
 
@@ -2477,7 +2471,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         }
 
-        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (แก้ไขให้เปิด Manager Dashboard ได้สมบูรณ์)
         function switchAdminTab(tabName) {
             if (!loggedInUser) return;
@@ -2538,6 +2531,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (branchWrapper) branchWrapper.classList.add('hidden');
 
             // 4. เปิดแท็บตามที่เลือก
+            // 🟢 ตรวจสอบส่วนท้ายสุดของ switchAdminTab(tabName)
             if (tabName === 'manager-dashboard') {
                 if (tabManager) tabManager.classList.remove('hidden');
                 if (typeof fetchAndSyncResults === 'function') {
@@ -2563,7 +2557,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 if (tabEssay) tabEssay.classList.remove('hidden');
                 const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 renderEssayGradingCards(pendingList);
-            } else {
+            } else if (tabName === 'overview') {
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 renderOverviewTable();
             }
