@@ -2757,7 +2757,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบ (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ✅ ฟังก์ชันตารางติดตามการสอบรายบุคคล (แยกบทเรียนตามชั้นปี + สาขา)
+        // ✅ ฟังก์ชันตารางติดตามการสอบรายบุคคล (แก้ไข Syntax Error เรียบร้อย)
         function renderStudentTrackerTable() {
             const tableBody = document.getElementById('tracker-table-body');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
@@ -2861,7 +2861,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 <td class="p-3 text-center whitespace-nowrap">
                                     <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${
                                         isPassed 
-                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
                                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
                                         : 'bg-rose-100 text-rose-800 border border-rose-200'
                                     }">
