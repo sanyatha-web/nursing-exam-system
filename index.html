@@ -1129,7 +1129,8 @@ let settings = {
                     document.getElementById('btn-header-logout')?.classList.add('hidden');
                     
                     // 🟢 กำหนดหน้าแรก (Default Home Tab) แยกตามบทบาทที่ระบุ
-                    let defaultTab = 'manager-dashboard';
+                    let defaultTab = 'manager-dashboard'; // ค่าเริ่มต้นหลัก
+                    
                     if (isSuperAdmin || isManager) {
                         defaultTab = 'manager-dashboard'; // Superadmin และ Manager ➔ หน้ารายงานผลสัมฤทธิ์สาขา
                     } else if (isAdmin) {
@@ -1152,7 +1153,7 @@ let settings = {
             }
         }
 
-        // ✅ ฟังก์ชัน showAdminDashboard ฉบับแก้ไขไม่ให้ดึงหน้า Overview มาบังคับเปิด
+        // ✅ ฟังก์ชัน showAdminDashboard ฉบับแก้ไขให้ซ่อน/แสดงปุ่มบน Header ตามบทบาททันที
         function showAdminDashboard() {
             hideAllSections();
             document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
@@ -1175,6 +1176,10 @@ let settings = {
                     menuDataSources.classList.remove('hidden');
                 }
             }
+        
+            // เรียกตรวจเช็กการซ่อน/แสดงปุ่มเมนูบน Header ให้ตรงกับสิทธิ์ของผู้ใช้
+            const savedTab = sessionStorage.getItem('admin_last_tab') || (isSuper || hasRole(loggedInUser, 'manager') ? 'manager-dashboard' : 'overview');
+            switchAdminTab(savedTab);
         }
 
         // หน้าสำหรับผู้เรียน (Student Dashboard)
