@@ -1737,26 +1737,20 @@ async function fetchAndSyncUsers() {
         
             const branchIdx = headerCols.findIndex(h => h.includes('สาขา'));
             const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
-            const setIdx = headerCols.findIndex(h => 
-                h.includes('ชุดข้อสอบ') || h.includes('ชุดการเรียนรู้') || h.includes('ชุด') || h.includes('set')
-            );
-            const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย') || h.includes('หมวด') || h.includes('unit'));
+            const setIdx = headerCols.findIndex(h => h.includes('ชุด'));
+            const catIdx = headerCols.findIndex(h => h.includes('หน่วย') || h.includes('หมวด') || h.includes('unit'));
             const typeIdx = headerCols.findIndex(h => h.includes('ประเภท') || h.includes('type') || h.includes('ชนิด'));
             const skillIdx = headerCols.findIndex(h => h.includes('ทักษะ') || h.includes('skill'));
             const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์') || h.includes('question'));
             const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ') || h.includes('รูป') || h.includes('media'));
             
-            const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('ตัวเลือก ก') || h.includes('choice1') || h.includes('option1'));
-            const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2') || h.includes('ตัวเลือก ข') || h.includes('choice2') || h.includes('option2'));
-            const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3') || h.includes('ตัวเลือก ค') || h.includes('choice3') || h.includes('option3'));
-            const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4') || h.includes('ตัวเลือก ง') || h.includes('choice4') || h.includes('option4'));
+            const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('ตัวเลือก ก') || h.includes('choice1'));
+            const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2') || h.includes('ตัวเลือก ข') || h.includes('choice2'));
+            const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3') || h.includes('ตัวเลือก ค') || h.includes('choice3'));
+            const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4') || h.includes('ตัวเลือก ง') || h.includes('choice4'));
             const ansIdx = headerCols.findIndex(h => h.includes('เฉลย') || h.includes('answer') || h.includes('correct'));
         
-            if (qIdx === -1) {
-                console.error("❌ ไม่พบหัวคอลัมน์คำถามใน Sheet Questions");
-                return false;
-            }
-        
+            const targetQIdx = qIdx !== -1 ? qIdx : 6;
             const imported = [];
         
             for (let i = 1; i < lines.length; i++) {
@@ -1768,8 +1762,13 @@ async function fetchAndSyncUsers() {
                 const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx].trim() : 'ชุดการเรียนรู้ทั่วไป';
                 const categoryVal = catIdx !== -1 && cols[catIdx] ? cols[catIdx].trim() : 'หน่วยการเรียนรู้ทั่วไป';
                 const skillVal = skillIdx !== -1 && cols[skillIdx] ? cols[skillIdx].trim() : '';
-                const question = cols[qIdx] ? cols[qIdx].trim() : '';
+                const question = cols[targetQIdx] ? cols[targetQIdx].trim() : '';
                 const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx].trim() : '';
+                
+                // 🟢 คลีนค่าประเภทข้อสอบให้เป็นมาตรฐาน (choice, text, media_choice, media_text)
+                let rawType = typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : 'choice';
+                if (!rawType || rawType === '') rawType = 'choice';
+                
                 const options = [
                     opt1Idx !== -1 ? cols[opt1Idx] : '',
                     opt2Idx !== -1 ? cols[opt2Idx] : '',
@@ -1777,14 +1776,9 @@ async function fetchAndSyncUsers() {
                     opt4Idx !== -1 ? cols[opt4Idx] : ''
                 ];
                 const correctVal = ansIdx !== -1 ? parseInt(cols[ansIdx]) - 1 : -1;
-                const typeVal = typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : 'choice';
-                const cleanedType = typeVal ? typeVal.trim().toLowerCase() : 'choice';
-                const isTextType = cleanedType === 'text' || cleanedType === 'media_text';
+                const isTextType = rawType === 'text' || rawType === 'media_text';
                 
-                // 🟢 กรองโจทย์คำถามไม่ให้ซ้ำกัน
-                const isDuplicate = imported.some(item => item.question === question && item.category === categoryVal);
-                
-                if (question && !isDuplicate) {
+                if (question && question.toLowerCase() !== 'คำถาม' && question.toLowerCase() !== 'โจทย์') {
                     imported.push({ 
                         branch: branchVal,
                         yearLevel: yearVal,
@@ -1792,7 +1786,7 @@ async function fetchAndSyncUsers() {
                         category: categoryVal, 
                         unit: categoryVal,      
                         unitName: categoryVal,  
-                        type: cleanedType,
+                        type: rawType,
                         skill: skillVal,
                         question: question,
                         media: media,
@@ -1803,15 +1797,12 @@ async function fetchAndSyncUsers() {
             }
         
             if (imported.length > 0) {
-                // 🟢 เขียนทับข้อสอบใหม่ลงระบบโดยตรง
                 masterQuestions = imported;
                 localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
-                
                 if (typeof updateAdminSettingsUI === 'function') updateAdminSettingsUI();
                 if (typeof renderOverviewTable === 'function') renderOverviewTable();
                 return true;
             }
-        
             return false;
         }
 
@@ -3273,17 +3264,24 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                 const allowedCount = (uConf.allowedUsers || []).length;
                 
-                // 🟢 ดึงข้อมูลข้อสอบในหน่วยนี้จาก pool
-                const unitPool = pool.filter(q => q.category === cat || q.unit === cat || q.unitName === cat);
+                // 🟢 ดึงข้อมูลข้อสอบในหน่วยนี้ โดยลบช่องว่างส่วนเกินออก
+                const unitPool = pool.filter(q => 
+                    (q.category && q.category.trim() === cat.trim()) || 
+                    (q.unit && q.unit.trim() === cat.trim())
+                );
                 
-                // 🟢 ดึงประเภทข้อสอบที่มีจริงในหน่วยนี้ (เช่น choice, text, media_choice, media_text)
-                const unitTypes = Array.from(new Set(unitPool.map(q => (q.type ? q.type.trim().toLowerCase() : 'choice'))));
+                // 🟢 ดึงประเภทข้อสอบที่มีอยู่จริงในคลังของหน่วยนี้
+                const unitTypes = Array.from(new Set(unitPool.map(q => {
+                    return q.type ? q.type.toString().trim().toLowerCase() : 'choice';
+                }).filter(Boolean)));
+                
                 if (unitTypes.length === 0) unitTypes.push('choice');
 
-                // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
+                // คำนวณผลรวมข้อสอบที่จัดสรรไว้
                 let currentAllocatedSum = 0;
                 unitTypes.forEach(typeName => {
-                    currentAllocatedSum += (uConf.skillCounts && uConf.skillCounts[typeName]) ? parseInt(uConf.skillCounts[typeName]) : 0;
+                    const cleanKey = typeName.trim().toLowerCase();
+                    currentAllocatedSum += (uConf.skillCounts && uConf.skillCounts[cleanKey]) ? parseInt(uConf.skillCounts[cleanKey]) : 0;
                 });
 
                 return `
@@ -3377,6 +3375,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                                 ? uConf.skillCounts[cleanKey] 
                                                 : 0;
                                         
+                                            // 🟢 นับจำนวนข้อสอบจริงในคลังของประเภทนี้
                                             const totalAvailable = unitPool.filter(q => {
                                                 const rawType = q.type ? q.type.toString().trim().toLowerCase() : 'choice';
                                                 return rawType === cleanKey;
@@ -3395,7 +3394,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                                         <span class="text-[10px] text-slate-500">ในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
                                                     </div>
                                                     <div class="flex items-center space-x-1 flex-shrink-0">
-                                                        <input type="number" data-unit-index="${idx}" data-type="${typeName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
+                                                        <input type="number" data-unit-index="${idx}" data-type="${cleanKey}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
                                                             oninput="validateUnitSkillInputs(${idx}, this)"
                                                             class="unit-type-input-${idx} w-14 px-2 py-1 text-center bg-white border border-slate-300 rounded-lg text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                                         <span class="text-slate-500 font-semibold text-xs">ข้อ</span>
