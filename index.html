@@ -3228,7 +3228,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             switchBranchSettings(branchName);
         }
 
-        // 5. ฟังก์ชันเรนเดอร์รายการหน่วยการเรียนรู้พร้อม Checkbox และการตั้งค่า
+       // 5. ฟังก์ชันเรนเดอร์รายการหน่วยการเรียนรู้พร้อม Checkbox และการตั้งค่า
         function renderUnitSettingsList() {
             const container = document.getElementById('unit-settings-container');
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
@@ -3266,19 +3266,13 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                 const allowedCount = (uConf.allowedUsers || []).length;
                 
-                // 🟢 ทำความสะอาดชื่อหน่วยที่จะนำมาค้นหา (ตัดช่องว่างออกทั้งหมดและแปลงเป็นตัวพิมพ์เล็ก)
-                const targetUnitName = (uConf.unitName || '').toString().replace(/\s+/g, '').toLowerCase();
+                // 🟢 ดึงข้อมูลข้อสอบในหน่วยนี้จาก pool
+                const unitPool = pool.filter(q => q.category === cat || q.unit === cat || q.unitName === cat);
                 
-                const unitPool = questions.filter(q => {
-                    if (!q) return false;
-                
-                    // ดึงค่าหน่วย/ชุดการเรียนรู้จากข้อสอบ (เช็กทั้ง q.unit, q.lesson หรือ q.unitName)
-                    const qUnit = (q.unit || q.lesson || q.unitName || '').toString().replace(/\s+/g, '').toLowerCase();
-                
-                    // เทียบว่าชื่อหน่วยตรงกันเป๊ะๆ หรือไม่
-                    return qUnit === targetUnitName;
-                });
-                
+                // 🟢 ดึงประเภทข้อสอบที่มีจริงในหน่วยนี้ (เช่น choice, text, media_choice, media_text)
+                const unitTypes = Array.from(new Set(unitPool.map(q => (q.type ? q.type.trim().toLowerCase() : 'choice'))));
+                if (unitTypes.length === 0) unitTypes.push('choice');
+
                 // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
                 let currentAllocatedSum = 0;
                 unitTypes.forEach(typeName => {
@@ -3371,29 +3365,21 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     <!-- ช่องกรอกสัดส่วนแสดงประเภทข้อสอบอัตโนมัติ (Dynamic Types) -->
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                         ${unitTypes.map(typeName => {
-                                            // ทำความสะอาดประเภทคีย์เพื่อป้องกันเคสจับคู่ไม่เจอ
                                             const cleanKey = typeName.trim().toLowerCase();
-                                        
                                             const countVal = (uConf.skillCounts && uConf.skillCounts[cleanKey] !== undefined) 
                                                 ? uConf.skillCounts[cleanKey] 
                                                 : 0;
                                         
-                                            // 🟢 กรองนับจำนวนข้อสอบตามประเภท โดยทำความสะอาดค่า type ก่อนเทียบทุกครั้ง
                                             const totalAvailable = unitPool.filter(q => {
-                                                // หากไม่มี q.type หรือค่าเป็นว่าง ให้ถือว่าเป็น 'choice'
                                                 const rawType = q.type ? q.type.toString().trim().toLowerCase() : 'choice';
-                                                const qType = rawType || 'choice';
-                                            
-                                                return qType === cleanKey;
+                                                return rawType === cleanKey;
                                             }).length;
                                         
-                                            // แปลงชื่อแสดงผลให้ตรงกับใน Google Sheets
                                             let displayTypeName = cleanKey;
                                             if (cleanKey === 'choice') displayTypeName = 'ปรนัย (choice)';
                                             else if (cleanKey === 'text') displayTypeName = 'อัตนัย/ข้อเขียน (text)';
                                             else if (cleanKey === 'media_choice') displayTypeName = 'ปรนัยมีสื่อประกอบ (media_choice)';
                                             else if (cleanKey === 'media_text') displayTypeName = 'อัตนัยมีสื่อประกอบ (media_text)';
-                                            else displayTypeName = `${cleanKey}`; // กรณีมีประเภทอื่นๆ ในชีท
                             
                                             return `
                                                 <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
