@@ -2492,7 +2492,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             } else if (tabName === 'manager-dashboard') {
                 if (tabManager) tabManager.classList.remove('hidden');
                 fetchAndSyncResults().then(() => renderManagerDashboard());
-            }
             } else {
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 renderOverviewTable();
