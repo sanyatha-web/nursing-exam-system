@@ -1772,19 +1772,21 @@ async function fetchAndSyncUsers() {
                 const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
                 const correctVal = parseInt(cols[ansIdx]) - 1;
                 const typeVal = typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : 'choice';
-
-                if (question && options.every(o => o !== undefined && o !== '') && !isNaN(correctVal)) {
+                const isTextType = typeVal.includes('text');
+                const isValidChoice = options.every(o => o !== undefined && o !== '') && !isNaN(correctVal);
+                
+                if (question && (isTextType || isValidChoice)) {
                     imported.push({ 
                         branch: branchVal,
                         yearLevel: yearVal,
                         setGroup: setVal,
                         category: category, 
-                        type: typeVal, // 🟢 บันทึกประเภทของข้อสอบลงวัตถุ
+                        type: typeVal, 
                         skill: skillVal,
                         question: question,
                         media: media,
-                        options: options, 
-                        correct: correctVal 
+                        options: isTextType ? [] : options, 
+                        correct: isTextType ? -1 : correctVal 
                     });
                 }
             }
