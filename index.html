@@ -1042,11 +1042,12 @@ let settings = {
         
         // Initialize Application
         // Initialize Application
+        // Initialize Application
         window.addEventListener('DOMContentLoaded', () => {
             // 1. โหลดการตั้งค่าเดิมขึ้นมา
             loadSettings();
 
-            // 🟢 ล้างข้อมูลคลังข้อสอบค้างเก่าในเบราว์เซอร์ เพื่อป้องกันตัวเลขนับทวีคูณเพี้ยน
+            // 🟢 เพิ่ม 2 บรรทัดนี้: ล้างคลังข้อสอบค้างเก่าเพื่อบังคับรับข้อมูลใหม่จาก Google Sheets ล่าสุด
             localStorage.removeItem('online_exam_questions');
             masterQuestions = [];
 
@@ -1780,7 +1781,7 @@ async function fetchAndSyncUsers() {
                 const cleanedType = typeVal ? typeVal.trim().toLowerCase() : 'choice';
                 const isTextType = cleanedType === 'text' || cleanedType === 'media_text';
                 
-                // 🟢 กรองข้อสอบ: ถ้ามีโจทย์คำถาม และยังไม่มีโจทย์นี้อยู่ในรายการ
+                // 🟢 กรองโจทย์คำถามไม่ให้ซ้ำกัน
                 const isDuplicate = imported.some(item => item.question === question && item.category === categoryVal);
                 
                 if (question && !isDuplicate) {
@@ -1802,7 +1803,7 @@ async function fetchAndSyncUsers() {
             }
         
             if (imported.length > 0) {
-                // 🟢 เขียนทับ masterQuestions ใหม่ทั้งหมดโดยตรง
+                // 🟢 เขียนทับข้อสอบใหม่ลงระบบโดยตรง
                 masterQuestions = imported;
                 localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
                 
