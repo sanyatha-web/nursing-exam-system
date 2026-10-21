@@ -3233,6 +3233,15 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const isMasterOn = document.getElementById('setting-exam-global-enable')?.checked !== false;
             
             if (!container) return;
+            // 🟢 1. เพิ่มจุดนี้: ถ้าคลังข้อสอบยังโหลดไม่เสร็จ ให้แสดง Loading แทนการแจ้งเตือนว่าไม่พบข้อมูล
+            if (!masterQuestions || masterQuestions.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-xs text-indigo-600 font-bold bg-indigo-50/50 rounded-2xl border border-indigo-100 animate-pulse flex flex-col items-center justify-center space-y-2">
+                        <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-500"></i>
+                        <span>กำลังโหลดข้อมูลหน่วยการเรียนรู้จาก Google Sheets...</span>
+                    </div>`;
+                return;
+            }
 
             // กรองข้อสอบตาม สาขา + ชุดการเรียนรู้
             const pool = masterQuestions.filter(q => 
