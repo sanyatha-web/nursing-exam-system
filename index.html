@@ -2958,7 +2958,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามคำค้นหา "${searchVal}"</div>`;
         }
 
-        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (แสดงแยกทั้งหมวดบทเรียนปกติ + หมวดสอบเลื่อนชั้น/ประมวลความรู้)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (แสดงประวัติการสอบเลื่อนชั้นย้อนหลังตามชั้นปีจนถึงปี 3)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -2969,7 +2969,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const printArea = document.getElementById('transcript-print-area');
             const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
         
-            // 1. ดึงบทเรียนปกติ
+            // 1. ดึงข้อมูลบทเรียนปกติเฉพาะของสาขานี้
             const branchQuestions = masterQuestions.filter(q => !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === student.branch);
             const availableUnits = Array.from(new Set(branchQuestions.map(q => q.category || 'หน่วยการเรียนรู้ทั่วไป')));
         
@@ -3021,62 +3021,86 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 }
             });
         
-            // 2. ดึงประวัติการสอบเลื่อนชั้นปี / สอบประมวลความรู้
-            const isYear3 = student.yearLevel === 'ชั้นปีที่ 3';
-            const termExamTitle = isYear3 ? 'การสอบประมวลความรู้ (Comprehensive Exam)' : `การสอบเลื่อนชั้น (${student.yearLevel || 'ประจำปี'})`;
+            // 2. กำหนดรายการการสอบวัดผลประจำชั้นปีแบบย้อนหลังตามระดับชั้นปีของนักศึกษา
+            const currentYear = student.yearLevel || '';
+            const termExamsToDisplay = [];
         
-            const termAttempts = studentHistory.filter(r => {
-                const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
-                if (isYear3) {
-                    return name.includes('ประมวล') || name.includes('comprehensive') || name.includes('ปลายภาค');
+            // กำหนดโครงสร้างการสอบประจำแต่ละชั้นปี
+            if (currentYear.includes('1')) {
+                termExamsToDisplay.push({ title: 'การสอบเลื่อนชั้นปีที่ 1', keyKeyword: 'เลื่อนชั้นปีที่ 1' });
+            } else if (currentYear.includes('2')) {
+                termExamsToDisplay.push(
+                    { title: 'การสอบเลื่อนชั้นปีที่ 1', keyKeyword: 'เลื่อนชั้นปีที่ 1' },
+                    { title: 'การสอบเลื่อนชั้นปีที่ 2', keyKeyword: 'เลื่อนชั้นปีที่ 2' }
+                );
+            } else if (currentYear.includes('3')) {
+                termExamsToDisplay.push(
+                    { title: 'การสอบเลื่อนชั้นปีที่ 1', keyKeyword: 'เลื่อนชั้นปีที่ 1' },
+                    { title: 'การสอบเลื่อนชั้นปีที่ 2', keyKeyword: 'เลื่อนชั้นปีที่ 2' },
+                    { title: 'การสอบประมวลความรู้ (Comprehensive Exam)', keyKeyword: 'ประมวล' }
+                );
+            } else {
+                // กรณีไม่ระบุชั้นปี ให้แสดงรายการสอบประเมินทั่วไป
+                termExamsToDisplay.push({ title: 'การสอบวัดผลประจำชั้นปี', keyKeyword: 'เลื่อนชั้น' });
+            }
+        
+            let termExamsHtml = '';
+        
+            termExamsToDisplay.forEach(examConfig => {
+                const termAttempts = studentHistory.filter(r => {
+                    const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
+                    const keyword = examConfig.keyKeyword.toLowerCase();
+                    
+                    if (keyword === 'ประมวล') {
+                        return name.includes('ประมวล') || name.includes('comprehensive');
+                    }
+                    return name.includes(keyword) || (name.includes('เลื่อนชั้น') && name.includes(keyword.slice(-1)));
+                });
+        
+                if (termAttempts.length === 0) {
+                    termExamsHtml += `
+                        <div class="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100 flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-indigo-950">${examConfig.title}</div>
+                                <div class="text-[11px] text-slate-400">ยังไม่มีประวัติการเข้าสอบในระบบ</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                ยังไม่ได้สอบ
+                            </span>
+                        </div>
+                    `;
                 } else {
-                    return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค');
+                    const bestTerm = termAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, termAttempts[0]);
+                    const isTermPassed = bestTerm.percentage >= 80;
+        
+                    let termHistoryRows = termAttempts.map(a => `
+                        <div class="flex justify-between items-center text-[11px] text-slate-600 py-1 border-t border-indigo-100">
+                            <span>• สอบเมื่อ: ${a.timestamp}</span>
+                            <span class="font-bold text-indigo-950">${a.score}/${a.total} (${a.percentage.toFixed(1)}%)</span>
+                        </div>
+                    `).join('');
+        
+                    termExamsHtml += `
+                        <div class="p-3 bg-indigo-50/70 rounded-xl border border-indigo-200 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="font-bold text-indigo-950">${examConfig.title}</div>
+                                    <div class="text-[11px] text-indigo-700 font-semibold">สอบไปแล้วทั้งหมด: ${termAttempts.length} ครั้ง</div>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${isTermPassed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}">
+                                    ${isTermPassed ? '✓ ผ่านเกณฑ์ (≥80%)' : '✕ ต้องสอบซ่อม (<80%)'}
+                                </span>
+                            </div>
+                            <div class="bg-white/90 p-2 rounded-lg space-y-0.5">
+                                <div class="font-bold text-slate-700 text-[11px]">ประวัติการสอบประเมินผล:</div>
+                                ${termHistoryRows}
+                            </div>
+                        </div>
+                    `;
                 }
             });
         
-            let termExamHtml = '';
-            if (termAttempts.length === 0) {
-                termExamHtml = `
-                    <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex justify-between items-center">
-                        <div>
-                            <div class="font-bold text-indigo-900">${termExamTitle}</div>
-                            <div class="text-[11px] text-slate-400">ยังไม่ได้เข้าสอบประเมินวัดผล</div>
-                        </div>
-                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border">
-                            ยังไม่ได้สอบ
-                        </span>
-                    </div>
-                `;
-            } else {
-                const bestTerm = termAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, termAttempts[0]);
-                const isTermPassed = bestTerm.percentage >= 80;
-        
-                let termHistoryRows = termAttempts.map(a => `
-                    <div class="flex justify-between items-center text-[11px] text-slate-600 py-1 border-t border-indigo-100">
-                        <span>• สอบเมื่อ: ${a.timestamp}</span>
-                        <span class="font-bold text-indigo-950">${a.score}/${a.total} (${a.percentage.toFixed(1)}%)</span>
-                    </div>
-                `).join('');
-        
-                termExamHtml = `
-                    <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-200 space-y-2">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-indigo-950">${termExamTitle}</div>
-                                <div class="text-[11px] text-indigo-700 font-semibold">สอบไปแล้วทั้งหมด: ${termAttempts.length} ครั้ง</div>
-                            </div>
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${isTermPassed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}">
-                                ${isTermPassed ? '✓ ผ่านเกณฑ์ (≥80%)' : '✕ ต้องสอบซ่อม (<80%)'}
-                            </span>
-                        </div>
-                        <div class="bg-white/80 p-2 rounded-lg space-y-0.5">
-                            <div class="font-bold text-slate-700 text-[11px]">ประวัติการสอบประเมินผล:</div>
-                            ${termHistoryRows}
-                        </div>
-                    </div>
-                `;
-            }
-        
+            // 3. ประกอบโครงสร้าง HTML แสดงใน Modal
             printArea.innerHTML = `
                 <div class="space-y-4">
                     <!-- ข้อมูลหัวโปรไฟล์ -->
@@ -3087,19 +3111,21 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         </div>
                         <div class="text-right">
                             <div class="text-xs text-amber-300 font-bold">ใบทรานสคริปต์สมุดพก</div>
-                            <div class="text-[10px] text-indigo-200">รายงานผลการเรียนสะสม</div>
+                            <div class="text-[10px] text-indigo-200">ประวัติผลการประเมินสะสม</div>
                         </div>
                     </div>
         
-                    <!-- ส่วนที่ 1: การสอบประเมินวัดผลประจำชั้นปี -->
+                    <!-- ส่วนที่ 1: ประวัติการสอบประเมินวัดผลประจำชั้นปี (ย้อนหลังตามชั้นปี) -->
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
-                            <i class="fa-solid fa-graduation-cap text-indigo-600 mr-2"></i> การสอบวัดผลประจำชั้นปี (${isYear3 ? 'ประมวลความรู้' : 'เลื่อนชั้นปี'})
+                            <i class="fa-solid fa-graduation-cap text-indigo-600 mr-2"></i> ประวัติการสอบเลื่อนชั้นปี / สอบประมวลความรู้สะสม
                         </h5>
-                        ${termExamHtml}
+                        <div class="space-y-2">
+                            ${termExamsHtml}
+                        </div>
                     </div>
         
-                    <!-- ส่วนที่ 2: รายละเอียดบทเรียนปกติ -->
+                    <!-- ส่วนที่ 2: รายละเอียดบทเรียนปกติรายหน่วย -->
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
                             <i class="fa-solid fa-list-check text-indigo-600 mr-2"></i> รายละเอียดผลการสอบบทเรียนรายหน่วย
