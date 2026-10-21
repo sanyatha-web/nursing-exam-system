@@ -468,67 +468,43 @@
                 </div>
             </div>
 
-            <!-- ---------------- แท็บที่ 3: ติดตามการสอบรายบุคคล (คงไว้เฉพาะช่องค้นหา + บัตรโปรไฟล์) ---------------- -->
+            <!-- ---------------- แท็บที่ 3: ติดตามการสอบรายบุคคล (เพิ่มตัวกรองสาขา + ชั้นปี + ความก้าวหน้าสะสม) ---------------- -->
             <div id="tab-admin-student-tracker" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-6 p-6">
-                <!-- Header & Search Box -->
+                <!-- Header & Filters Bar -->
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
                         <h3 class="font-bold text-slate-800 text-base flex items-center">
                             <i class="fa-solid fa-user-check text-indigo-600 mr-2"></i> รายงานติดตามสถานะการเรียนและสอบรายบุคคล
                         </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">ค้นหารายชื่อเพื่อตรวจสอบภาพรวมความก้าวหน้าและออกใบทรานสคริปต์สมุดพก</p>
+                        <p class="text-xs text-slate-500 mt-0.5">ตรวจสอบภาพรวมความก้าวหน้าสะสมตามชั้นปีและออกใบทรานสคริปต์สมุดพก</p>
                     </div>
             
-                    <!-- คงไว้เฉพาะช่องค้นหา Search Box -->
-                    <div class="relative w-full md:w-72">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
-                        <input type="text" id="tracker-search-input" oninput="renderStudentTrackerUI()" placeholder="ค้นหา รหัส SAP-ID หรือ ชื่อ-นามสกุล..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                    <!-- แถบตัวกรอง 3 ส่วน: ค้นหา + สาขา + ชั้นปี -->
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <!-- 1. ช่องค้นหา -->
+                        <div class="relative min-w-[180px]">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+                            <input type="text" id="tracker-search-input" oninput="renderStudentTrackerUI()" placeholder="ค้นหา SAP-ID หรือ ชื่อ..." class="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        </div>
+            
+                        <!-- 2. Dropdown กรองสาขา (ปลดล็อกให้ Superadmin) -->
+                        <select id="tracker-branch-filter" onchange="renderStudentTrackerUI()" class="px-3 py-1.5 border border-slate-300 rounded-xl font-semibold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="ทั้งหมด">ทุกสาขาวิชา</option>
+                        </select>
+            
+                        <!-- 3. Dropdown กรองชั้นปี -->
+                        <select id="tracker-year-filter" onchange="renderStudentTrackerUI()" class="px-3 py-1.5 border border-slate-300 rounded-xl font-semibold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="ทั้งหมด">ทุกชั้นปี (ปี 1-3)</option>
+                            <option value="ชั้นปีที่ 1">ชั้นปีที่ 1</option>
+                            <option value="ชั้นปีที่ 2">ชั้นปีที่ 2</option>
+                            <option value="ชั้นปีที่ 3">ชั้นปีที่ 3</option>
+                        </select>
                     </div>
                 </div>
             
                 <!-- คอนเทนเนอร์แสดงบัตรโปรไฟล์ความก้าวหน้า (Student Progress Cards Grid) -->
                 <div id="tracker-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Dynamic Student Progress Cards -->
-                </div>
-            </div>
-            
-            <!-- 📌 MODAL: ป๊อบอัปแสดงสมุดพกโต้ตอบและออกรายงาน PDF รายบุคคล (Interactive Transcript) -->
-            <div id="modal-student-transcript" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-                <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-3xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
-                    <!-- Modal Header -->
-                    <div class="flex justify-between items-center border-b pb-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center">
-                                <i class="fa-solid fa-id-card text-lg"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-slate-800 text-base" id="transcript-student-name">สมุดพกรายงานผลการเรียน</h3>
-                                <p class="text-xs text-slate-500" id="transcript-student-sub">SAP-ID: - | สาขา: -</p>
-                            </div>
-                        </div>
-                        <button onclick="closeStudentTranscriptModal()" class="text-slate-400 hover:text-slate-600">
-                            <i class="fa-solid fa-xmark text-xl"></i>
-                        </button>
-                    </div>
-            
-                    <!-- Printable Transcript Content Area -->
-                    <div id="transcript-print-area" class="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-4 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                        <!-- Dynamic Transcript Details -->
-                    </div>
-            
-                    <!-- Modal Actions -->
-                    <div class="flex justify-between items-center pt-2 border-t text-xs">
-                        <span class="text-slate-400 italic">* ข้อมูลอัปเดตล่าสุดจากระบบบันทึกผลสอบ</span>
-                        <div class="flex space-x-2">
-                            <button type="button" onclick="printStudentTranscript()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition flex items-center space-x-1.5">
-                                <i class="fa-solid fa-print"></i>
-                                <span>พิมพ์ใบทรานสคริปต์ (PDF)</span>
-                            </button>
-                            <button type="button" onclick="closeStudentTranscriptModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
-                                ปิดหน้าต่าง
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -2813,22 +2789,42 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบ (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้ารายบุคคล (คำนวณรวมบทเรียน + สอบเลื่อนชั้น/ประมวลความรู้)
+        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (พร้อมตัวกรองสาขา และ ชั้นปี)
         function renderStudentTrackerUI() {
             const container = document.getElementById('tracker-cards-container');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
+            const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
         
-            // ดึงเฉพาะรายชื่อนักศึกษา
+            // 1. จัดการตัวกรองสาขา (Branch Filter Option Population)
+            const branchSelect = document.getElementById('tracker-branch-filter');
+            if (branchSelect) {
+                if (loggedInUser && hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'superadmin')) {
+                    branchSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
+                    branchSelect.disabled = true;
+                } else {
+                    branchSelect.disabled = false;
+                    const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
+                    if (branchSelect.options.length <= 1) {
+                        branchSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขาวิชา (${allBranches.length})</option>` + 
+                            allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+                    }
+                }
+            }
+        
+            const selectedBranch = branchSelect ? branchSelect.value : 'ทั้งหมด';
+        
+            // 2. ดึงเฉพาะรายชื่อนักศึกษา (กรองเจ้าหน้าที่ออก)
             const students = userDatabase.filter(u => {
                 if (!u) return false;
-                const isStudentRole = hasRole(u, 'student');
-                const isNotStaff = !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
-                return isStudentRole && isNotStaff;
+                const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
+                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
+                const matchYear = yearFilter === 'ทั้งหมด' || u.yearLevel === yearFilter;
+                return isStudent && matchBranch && matchYear;
             });
         
             if (students.length === 0) {
-                container.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบข้อมูลผู้เรียนในระบบ</div>`;
+                container.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบข้อมูลผู้เรียนตามเงื่อนไขที่กรอง</div>`;
                 return;
             }
         
@@ -2841,64 +2837,71 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const matchSearch = sapId.toLowerCase().includes(searchVal) || fullname.toLowerCase().includes(searchVal);
                 if (!matchSearch) return;
         
-                // 1. ดึงคลังบทเรียนปกติเฉพาะของสาขานักศึกษาคนนี้
-                const branchQuestions = masterQuestions.filter(q => {
-                    const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === student.branch;
-                    const nameCheck = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
-                    return matchBranch && !nameCheck.includes('กลางภาค') && !nameCheck.includes('ปลายภาค');
-                });
-        
-                const availableUnits = Array.from(new Set(branchQuestions.map(q => q.category || 'หน่วยการเรียนรู้ทั่วไป')));
-                
-                // กำหนดชื่อข้อสอบวัดผลประจำชั้นปี
-                const isYear3 = student.yearLevel === 'ชั้นปีที่ 3';
-                const termExamTitle = isYear3 ? 'การสอบประมวลความรู้ (Comprehensive Exam)' : `การสอบเลื่อนชั้น${student.yearLevel || ''}`;
-        
-                // จำนวนวิชาทั้งหมด = จำนวนหน่วยบทเรียนปกติ + 1 (การสอบเลื่อนชั้น/ประมวลความรู้)
-                const totalUnitsCount = availableUnits.length + 1;
-        
-                // ดึงประวัติผลการสอบของนักศึกษาคนนี้
                 const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
+                const yearLevel = student.yearLevel || 'ชั้นปีที่ 1';
         
-                // 2. คำนวณจำนวนหน่วยการเรียนรู้ปกติที่สอบผ่านเกณฑ์ (>= 80%)
-                let passedUnitsCount = 0;
-                availableUnits.forEach(uCat => {
-                    const uAttempts = studentHistory.filter(r => r.category === uCat);
-                    if (uAttempts.length > 0) {
-                        const bestScore = Math.max(...uAttempts.map(a => a.percentage || 0));
-                        if (bestScore >= 80) passedUnitsCount++;
-                    }
-                });
+                // 3. กำหนดโครงสร้างบทเรียนและการสอบวัดผลสะสมตามชั้นปีและโครงสร้างสาขา
+                let targetExamList = [];
         
-                // 3. ตรวจสอบสถานะการสอบเลื่อนชั้น / ประมวลความรู้
-                const termAttempts = studentHistory.filter(r => {
-                    const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
-                    if (isYear3) {
-                        return name.includes('ประมวล') || name.includes('comprehensive') || name.includes('ปลายภาค');
-                    } else {
-                        return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค');
-                    }
-                });
+                // ปี 1: บทเรียนปี 1 + สอบเลื่อนชั้นปี 1 (รวม 2 ส่วน)
+                targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ประจำปี 1', isSet: true, yearMatch: 'ปี 1' });
+                targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 1', isSet: false, keyword: 'เลื่อนชั้นปีที่ 1' });
         
-                let isTermExamPassed = false;
-                if (termAttempts.length > 0) {
-                    const bestTermScore = Math.max(...termAttempts.map(a => a.percentage || 0));
-                    if (bestTermScore >= 80) {
-                        isTermExamPassed = true;
-                        passedUnitsCount++; // บวกเพิ่ม 1 ในยอดวิชาที่ผ่าน
-                    }
+                if (yearLevel.includes('2') || yearLevel.includes('3')) {
+                    // ปี 2: เพิ่มบทเรียนปี 2 + สอบเลื่อนชั้นปี 2 (รวมเป็น 4 ส่วน)
+                    targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ประจำปี 2', isSet: true, yearMatch: 'ปี 2' });
+                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 2', isSet: false, keyword: 'เลื่อนชั้นปีที่ 2' });
                 }
         
-                const progressPercent = Math.min(100, Math.round((passedUnitsCount / totalUnitsCount) * 100));
-                const isFullyCompleted = passedUnitsCount === totalUnitsCount && totalUnitsCount > 0;
+                if (yearLevel.includes('3')) {
+                    // ปี 3: ตรวจสอบจำนวนชุดข้อสอบของสาขา (5 ชุด vs 6 ชุด)
+                    const branchQuestions = masterQuestions.filter(q => !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === student.branch);
+                    const availableSetNames = Array.from(new Set(branchQuestions.map(q => q.setGroup || '')));
+                    const hasSet6 = availableSetNames.some(s => s.includes('6') || s.includes('ชุดที่ 6'));
+        
+                    if (hasSet6) {
+                        targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ที่ 6 (ปี 3)', isSet: true, yearMatch: 'ปี 3' });
+                    }
+                    // เพิ่มการสอบประมวลความรู้
+                    targetExamList.push({ name: 'การสอบประมวลความรู้ (Comprehensive Exam)', isSet: false, keyword: 'ประมวล' });
+                }
+        
+                const totalPartsCount = targetExamList.length;
+                let passedPartsCount = 0;
+        
+                // 4. คำนวณส่วนที่สอบผ่านเกณฑ์ (>= 80%)
+                targetExamList.forEach(item => {
+                    if (item.isSet) {
+                        // สำหรับกลุ่มบทเรียน: คำนวณผ่านเมื่อทำผ่านบทเรียนในกลุ่มนั้นๆ
+                        const matchedAttempts = studentHistory.filter(r => {
+                            const name = ((r.examSet || '') + ' ' + (r.category || '')).toLowerCase();
+                            return !name.includes('เลื่อนชั้น') && !name.includes('ประมวล') && !name.includes('comprehensive');
+                        });
+                        if (matchedAttempts.some(a => a.percentage >= 80)) {
+                            passedPartsCount++;
+                        }
+                    } else {
+                        // สำหรับการสอบเลื่อนชั้น/ประมวลความรู้
+                        const matchedAttempts = studentHistory.filter(r => {
+                            const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
+                            return name.includes(item.keyword.toLowerCase());
+                        });
+                        if (matchedAttempts.some(a => a.percentage >= 80)) {
+                            passedPartsCount++;
+                        }
+                    }
+                });
+        
+                const progressPercent = Math.min(100, Math.round((passedPartsCount / totalPartsCount) * 100));
+                const isFullyCompleted = passedPartsCount === totalPartsCount && totalPartsCount > 0;
         
                 const badgeColor = isFullyCompleted 
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                    : (passedUnitsCount > 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
+                    : (passedPartsCount > 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
         
                 const badgeText = isFullyCompleted 
-                    ? '✓ ผ่านเกณฑ์ครบทุกส่วน' 
-                    : (passedUnitsCount > 0 ? `⚠️ ผ่าน ${passedUnitsCount}/${totalUnitsCount} ส่วน` : '🔴 ยังไม่ได้เข้าสอบ');
+                    ? '✓ ครบตามเกณฑ์ชั้นปี' 
+                    : (passedPartsCount > 0 ? `⚠️ ผ่าน ${passedPartsCount}/${totalPartsCount} ส่วน` : '🔴 ยังไม่ได้เข้าสอบ');
         
                 cardsHtml += `
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 hover:border-indigo-300 transition flex flex-col justify-between">
@@ -2922,21 +2925,15 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 </div>
                                 <div class="flex justify-between">
                                     <span>ชั้นปีการศึกษา:</span>
-                                    <span class="font-semibold text-indigo-700">${student.yearLevel || 'ไม่ระบุ'}</span>
-                                </div>
-                                <div class="flex justify-between items-center pt-1">
-                                    <span class="text-[11px] font-bold text-slate-600">${isYear3 ? 'ประมวลความรู้' : 'สอบเลื่อนชั้น'}:</span>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isTermExamPassed ? 'bg-emerald-100 text-emerald-800' : (termAttempts.length > 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-500')}">
-                                        ${isTermExamPassed ? '✓ ผ่านเกณฑ์' : (termAttempts.length > 0 ? '✕ ไม่ผ่าน' : 'ยังไม่ได้สอบ')}
-                                    </span>
+                                    <span class="font-semibold text-indigo-700">${yearLevel}</span>
                                 </div>
                             </div>
         
                             <!-- แถบวัดความก้าวหน้า Progress Bar -->
                             <div class="mt-3 space-y-1">
                                 <div class="flex justify-between text-xs font-bold">
-                                    <span class="text-slate-500">ความก้าวหน้ารวม:</span>
-                                    <span class="text-indigo-900">${passedUnitsCount}/${totalUnitsCount} ส่วน (${progressPercent}%)</span>
+                                    <span class="text-slate-500">ความก้าวหน้าสะสม (${yearLevel}):</span>
+                                    <span class="text-indigo-900">${passedPartsCount}/${totalPartsCount} ส่วน (${progressPercent}%)</span>
                                 </div>
                                 <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                                     <div class="${progressPercent >= 100 ? 'bg-emerald-500' : 'bg-indigo-600'} h-2.5 rounded-full transition-all duration-300" style="width: ${progressPercent}%"></div>
@@ -2955,7 +2952,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 `;
             });
         
-            container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามคำค้นหา "${searchVal}"</div>`;
+            container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขที่กรอง</div>`;
         }
 
         // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (แสดงประวัติการสอบเลื่อนชั้นย้อนหลังตามชั้นปีจนถึงปี 3)
