@@ -468,62 +468,67 @@
                 </div>
             </div>
 
-            <!-- ---------------- แท็บที่ 3: ติดตามการสอบรายบุคคล (บัตรโปรไฟล์ + สมุดพก + ติดตามสอบซ่อม) ---------------- -->
+            <!-- ---------------- แท็บที่ 3: ติดตามการสอบรายบุคคล (คงไว้เฉพาะช่องค้นหา + บัตรโปรไฟล์) ---------------- -->
             <div id="tab-admin-student-tracker" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-6 p-6">
-                <!-- Header & Filters -->
+                <!-- Header & Search Box -->
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
                         <h3 class="font-bold text-slate-800 text-base flex items-center">
                             <i class="fa-solid fa-user-check text-indigo-600 mr-2"></i> รายงานติดตามสถานะการเรียนและสอบรายบุคคล
                         </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">ตรวจสอบภาพรวมความก้าวหน้า ออกใบทรานสคริปต์ และติดตามกลุ่มต้องสอบซ่อม</p>
+                        <p class="text-xs text-slate-500 mt-0.5">ค้นหารายชื่อเพื่อตรวจสอบภาพรวมความก้าวหน้าและออกใบทรานสคริปต์สมุดพก</p>
                     </div>
             
-                    <!-- ตัวกรองข้อมูล -->
-                    <div class="flex flex-wrap items-center gap-2 text-xs">
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
-                            <input type="text" id="tracker-search-input" oninput="renderStudentTrackerUI()" placeholder="ค้นหา รหัส/ชื่อ-นามสกุล..." class="pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
-                        </div>
-                        <select id="tracker-branch-filter" onchange="renderStudentTrackerUI()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
-                            <option value="ทั้งหมด">ทุกสาขา</option>
-                        </select>
-                        <select id="tracker-status-filter" onchange="renderStudentTrackerUI()" class="px-3 py-1.5 border border-slate-300 rounded-lg font-semibold text-slate-700 outline-none">
-                            <option value="ทั้งหมด">ทุกสถานะความก้าวหน้า</option>
-                            <option value="กลุ่มติดซ่อม">⚠️ กลุ่มต้องสอบซ่อม / ยังไม่สอบ</option>
-                            <option value="ผ่านเกณฑ์ครบ">✓ ผ่านเกณฑ์ครบทุกหน่วย</option>
-                        </select>
+                    <!-- คงไว้เฉพาะช่องค้นหา Search Box -->
+                    <div class="relative w-full md:w-72">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" id="tracker-search-input" oninput="renderStudentTrackerUI()" placeholder="ค้นหา รหัส SAP-ID หรือ ชื่อ-นามสกุล..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 transition">
                     </div>
                 </div>
             
-                <!-- 1. แถบสรุปสถานะด่วน (Alert Stats Summary) -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                        <div>
-                            <span class="text-xs text-slate-500 font-semibold">นักศึกษาทั้งหมด</span>
-                            <div class="text-xl font-bold text-slate-800" id="tracker-stat-total">0 คน</div>
-                        </div>
-                        <span class="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl"><i class="fa-solid fa-users text-lg"></i></span>
-                    </div>
-                    <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                        <div>
-                            <span class="text-xs text-emerald-700 font-semibold">ผ่านเกณฑ์ครบสมบูรณ์</span>
-                            <div class="text-xl font-bold text-emerald-800" id="tracker-stat-completed">0 คน</div>
-                        </div>
-                        <span class="p-2.5 bg-emerald-200 text-emerald-800 rounded-xl"><i class="fa-solid fa-circle-check text-lg"></i></span>
-                    </div>
-                    <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between">
-                        <div>
-                            <span class="text-xs text-rose-700 font-semibold">ต้องสอบซ่อม / ยังไม่สอบ</span>
-                            <div class="text-xl font-bold text-rose-800" id="tracker-stat-pending">0 คน</div>
-                        </div>
-                        <span class="p-2.5 bg-rose-200 text-rose-800 rounded-xl"><i class="fa-solid fa-triangle-exclamation text-lg"></i></span>
-                    </div>
-                </div>
-            
-                <!-- 2. คอนเทนเนอร์แสดงบัตรโปรไฟล์ความก้าวหน้า (Student Progress Cards Grid) -->
+                <!-- คอนเทนเนอร์แสดงบัตรโปรไฟล์ความก้าวหน้า (Student Progress Cards Grid) -->
                 <div id="tracker-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Dynamic Student Progress Cards -->
+                </div>
+            </div>
+            
+            <!-- 📌 MODAL: ป๊อบอัปแสดงสมุดพกโต้ตอบและออกรายงาน PDF รายบุคคล (Interactive Transcript) -->
+            <div id="modal-student-transcript" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+                <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-3xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+                    <!-- Modal Header -->
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center">
+                                <i class="fa-solid fa-id-card text-lg"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-base" id="transcript-student-name">สมุดพกรายงานผลการเรียน</h3>
+                                <p class="text-xs text-slate-500" id="transcript-student-sub">SAP-ID: - | สาขา: -</p>
+                            </div>
+                        </div>
+                        <button onclick="closeStudentTranscriptModal()" class="text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+            
+                    <!-- Printable Transcript Content Area -->
+                    <div id="transcript-print-area" class="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-4 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                        <!-- Dynamic Transcript Details -->
+                    </div>
+            
+                    <!-- Modal Actions -->
+                    <div class="flex justify-between items-center pt-2 border-t text-xs">
+                        <span class="text-slate-400 italic">* ข้อมูลอัปเดตล่าสุดจากระบบบันทึกผลสอบ</span>
+                        <div class="flex space-x-2">
+                            <button type="button" onclick="printStudentTranscript()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-print"></i>
+                                <span>พิมพ์ใบทรานสคริปต์ (PDF)</span>
+                            </button>
+                            <button type="button" onclick="closeStudentTranscriptModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
+                                ปิดหน้าต่าง
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -2808,51 +2813,39 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบ (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ✅ 1. ฟังก์ชันหลักสำหรับเรนเดอร์ บัตรความก้าวหน้าและการติดตามสอบซ่อม (Student Tracker Hybrid UI)
+        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้ารายบุคคล (ดึงข้อมูลนักศึกษาขึ้นแน่นอน + ค้นหาผ่านช่อง Search)
         function renderStudentTrackerUI() {
             const container = document.getElementById('tracker-cards-container');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
-            const statusFilter = document.getElementById('tracker-status-filter')?.value || 'ทั้งหมด';
             if (!container) return;
         
-            // จัดการ Filter สาขา
-            const filterSelect = document.getElementById('tracker-branch-filter');
-            if (filterSelect) {
-                if (loggedInUser && hasRole(loggedInUser, 'admin')) {
-                    filterSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
-                    filterSelect.disabled = true;
-                } else if (filterSelect.options.length <= 1) {
-                    filterSelect.disabled = false;
-                    const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
-                    filterSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขา (${allBranches.length})</option>` + 
-                        allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
-                }
+            // ดึงเฉพาะรายชื่อนักเรียน (กรองผู้ใช้อาจารย์/ผู้บริหารออก)
+            const students = userDatabase.filter(u => {
+                if (!u) return false;
+                // เช็กสิทธิ์ว่าเป็นนักศึกษา หรือบทบาท student
+                const isStudentRole = hasRole(u, 'student');
+                const isNotStaff = !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
+                return isStudentRole && isNotStaff;
+            });
+        
+            if (students.length === 0) {
+                container.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบข้อมูลผู้เรียนในระบบ</div>`;
+                return;
             }
         
-            const activeBranchFilter = (loggedInUser && hasRole(loggedInUser, 'admin')) 
-                ? loggedInUser.branch 
-                : (document.getElementById('tracker-branch-filter')?.value || 'ทั้งหมด');
-        
-            // กรองเฉพาะผู้ใช้ที่เป็นนักเรียน
-            const students = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager'));
-        
-            let totalStudentCount = 0;
-            let completedStudentCount = 0;
-            let pendingStudentCount = 0;
             let cardsHtml = '';
         
             students.forEach(student => {
-                if (activeBranchFilter !== 'ทั้งหมด' && student.branch !== activeBranchFilter) return;
+                const fullname = student.fullname || `${student.prefix || ''}${student.fname || ''} ${student.lname || ''}`.trim() || 'ไม่ระบุชื่อ';
+                const sapId = student.username || '-';
         
-                const matchSearch = student.username.toLowerCase().includes(searchVal) || 
-                                    student.fullname.toLowerCase().includes(searchVal);
+                // กรองการค้นหาจาก SAP-ID หรือ ชื่อ-นามสกุล
+                const matchSearch = sapId.toLowerCase().includes(searchVal) || fullname.toLowerCase().includes(searchVal);
                 if (!matchSearch) return;
         
-                totalStudentCount++;
-        
-                // ดึงคลังข้อสอบบทเรียนปกติที่ตรงกับสาขาของนักเรียน
+                // ดึงชุดข้อสอบทั้งหมดที่เป็นบทเรียนปกติของสาขานักศึกษาคนนี้
                 const branchQuestions = masterQuestions.filter(q => {
-                    const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === student.branch;
+                    const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === student.branch;
                     const nameCheck = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
                     return matchBranch && !nameCheck.includes('กลางภาค') && !nameCheck.includes('ปลายภาค');
                 });
@@ -2860,34 +2853,21 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const availableUnits = Array.from(new Set(branchQuestions.map(q => q.category || 'หน่วยการเรียนรู้ทั่วไป')));
                 const totalUnitsCount = availableUnits.length || 1;
         
-                // ดึงประวัติผลการสอบของนักเรียนคนนี้
-                const studentHistory = examResultsHistory.filter(r => r.sapId === student.username);
+                // ดึงประวัติผลการสอบของนักศึกษาคนนี้
+                const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
         
-                // คำนวณจำนวนหน่วยการเรียนรู้ที่สอบผ่านเกณฑ์ (>= 80%)
+                // คำนวณจำนวนหน่วยที่สอบผ่านเกณฑ์ (>= 80%)
                 let passedUnitsCount = 0;
-                let failedUnitsCount = 0;
-        
                 availableUnits.forEach(uCat => {
                     const uAttempts = studentHistory.filter(r => r.category === uCat);
                     if (uAttempts.length > 0) {
-                        const bestScore = Math.max(...uAttempts.map(a => a.percentage));
+                        const bestScore = Math.max(...uAttempts.map(a => a.percentage || 0));
                         if (bestScore >= 80) passedUnitsCount++;
-                        else failedUnitsCount++;
-                    } else {
-                        failedUnitsCount++;
                     }
                 });
         
                 const progressPercent = Math.min(100, Math.round((passedUnitsCount / totalUnitsCount) * 100));
                 const isFullyCompleted = passedUnitsCount === totalUnitsCount && totalUnitsCount > 0;
-                const hasRemedialNeed = failedUnitsCount > 0;
-        
-                if (isFullyCompleted) completedStudentCount++;
-                if (hasRemedialNeed) pendingStudentCount++;
-        
-                // กรองการแสดงผลตาม Filter สถานะ
-                if (statusFilter === 'กลุ่มติดซ่อม' && !hasRemedialNeed) return;
-                if (statusFilter === 'ผ่านเกณฑ์ครบ' && !isFullyCompleted) return;
         
                 const badgeColor = isFullyCompleted 
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
@@ -2895,7 +2875,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
                 const badgeText = isFullyCompleted 
                     ? '✓ ผ่านเกณฑ์ครบทุกหน่วย' 
-                    : (passedUnitsCount > 0 ? `⚠️ ผ่าน ${passedUnitsCount}/${totalUnitsCount} หน่วย (มีติดซ่อม)` : '🔴 ยังไม่ได้เข้าสอบ');
+                    : (passedUnitsCount > 0 ? `⚠️ ผ่าน ${passedUnitsCount}/${totalUnitsCount} หน่วย` : '🔴 ยังไม่ได้เข้าสอบ');
         
                 cardsHtml += `
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 hover:border-indigo-300 transition flex flex-col justify-between">
@@ -2903,8 +2883,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             <!-- Header การ์ด -->
                             <div class="flex justify-between items-start border-b border-slate-100 pb-2.5">
                                 <div>
-                                    <h4 class="font-bold text-slate-800 text-sm">${student.fullname}</h4>
-                                    <p class="text-[11px] font-mono text-indigo-600 font-bold">SAP-ID: ${student.username}</p>
+                                    <h4 class="font-bold text-slate-800 text-sm">${fullname}</h4>
+                                    <p class="text-[11px] font-mono text-indigo-600 font-bold">SAP-ID: ${sapId}</p>
                                 </div>
                                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeColor}">
                                     ${badgeText}
@@ -2915,7 +2895,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             <div class="mt-2 text-xs text-slate-500 space-y-1">
                                 <div class="flex justify-between">
                                     <span>สาขาวิชา:</span>
-                                    <span class="font-semibold text-slate-700">${student.branch}</span>
+                                    <span class="font-semibold text-slate-700">${student.branch || 'ไม่ระบุ'}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span>ชั้นปีการศึกษา:</span>
@@ -2935,9 +2915,9 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             </div>
                         </div>
         
-                        <!-- ปุ่มแอ็กชันเปิดดูสมุดพก -->
-                        <div class="pt-3 border-t border-slate-100 flex justify-end">
-                            <button onclick="openStudentTranscriptModal('${student.username}')" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs border border-indigo-200 transition flex items-center justify-center space-x-1.5">
+                        <!-- ปุ่มเปิดดูสมุดพก -->
+                        <div class="pt-3 border-t border-slate-100">
+                            <button onclick="openStudentTranscriptModal('${sapId}')" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs border border-indigo-200 transition flex items-center justify-center space-x-1.5 shadow-sm">
                                 <i class="fa-solid fa-book-bookmark"></i>
                                 <span>ดูสมุดพกประวัติผลการเรียน</span>
                             </button>
@@ -2946,12 +2926,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 `;
             });
         
-            // อัปเดตสถิติการ์ดสรุปยอด
-            document.getElementById('tracker-stat-total').textContent = `${totalStudentCount} คน`;
-            document.getElementById('tracker-stat-completed').textContent = `${completedStudentCount} คน`;
-            document.getElementById('tracker-stat-pending').textContent = `${pendingStudentCount} คน`;
-        
-            container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบข้อมูลผู้เรียนตรงตามเงื่อนไขการค้นหา</div>`;
+            container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามคำค้นหา "${searchVal}"</div>`;
         }
 
         // ✅ 2. ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (Interactive Transcript Modal)
