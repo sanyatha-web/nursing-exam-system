@@ -35,66 +35,77 @@
 
     <!-- Header / Navbar -->
     <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex justify-between items-center">
+            <!-- Logo & Title -->
             <div class="flex items-center space-x-3">
                 <div class="bg-white/10 p-2 rounded-lg">
                     <i class="fa-solid fa-graduation-cap text-2xl text-amber-300"></i>
                 </div>
                 <div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight leading-tight">ระบบแบบทดสอบออนไลน์</h1>
-                    <p class="text-xs text-indigo-200 hidden sm:block">Online Examination System with Analytics</p>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight leading-tight">ระบบแบบทดสอบออนไลน์</h1>
+                    <p class="text-[10px] text-indigo-200 hidden sm:block">Online Examination System</p>
                 </div>
             </div>
             
-           <div class="flex items-center space-x-2">
-                <!-- ปุ่มเมนูตั้งค่าสำหรับอาจารย์ (ไอคอนฟันเฟือง + Dropdown) -->
-                <div id="btn-admin-nav" class="relative hidden">
-                    <button onclick="toggleAdminDropdown(event)" class="inline-flex items-center space-x-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-2 rounded-lg text-sm transition duration-150 shadow">
-                        <i class="fa-solid fa-gear text-base"></i>
-                        <span class="hidden sm:inline">จัดการระบบ</span>
-                        <i class="fa-solid fa-chevron-down text-xs ml-1"></i>
+            <!-- Header Main Navigation Menu (สำหรับบุคลากร/อาจารย์) -->
+            <div id="btn-admin-nav" class="hidden flex items-center space-x-1 sm:space-x-2">
+                <!-- 1. ปุ่มบ้าน (รายงานผลสัมฤทธิ์สาขา) -->
+                <button id="nav-btn-home" onclick="switchAdminTab('manager-dashboard')" title="รายงานผลสัมฤทธิ์สาขา"
+                    class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 hover:bg-white/10 text-indigo-100">
+                    <i class="fa-solid fa-house text-sm text-amber-300"></i>
+                    <span class="hidden md:inline">หน้าแรก</span>
+                </button>
+    
+                <!-- 2. ปุ่มการตั้งค่าการสอบ -->
+                <button id="nav-btn-exam-settings" onclick="switchAdminTab('overview')" title="การตั้งค่าการสอบ"
+                    class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 hover:bg-white/10 text-indigo-100">
+                    <i class="fa-solid fa-sliders text-sm text-indigo-200"></i>
+                    <span class="hidden sm:inline">การตั้งค่าการสอบ</span>
+                </button>
+    
+                <!-- 3. ปุ่มติดตามการสอบรายบุคคล -->
+                <button id="nav-btn-student-tracker" onclick="switchAdminTab('student-tracker')" title="ติดตามการสอบรายบุคคล"
+                    class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 hover:bg-white/10 text-indigo-100">
+                    <i class="fa-solid fa-user-check text-sm text-indigo-200"></i>
+                    <span class="hidden sm:inline">ติดตามการสอบรายบุคคล</span>
+                </button>
+    
+                <!-- 4. ปุ่มตรวจข้อสอบข้อเขียน -->
+                <button id="nav-btn-essay-grading" onclick="switchAdminTab('essay-grading')" title="ตรวจข้อสอบข้อเขียน"
+                    class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 hover:bg-white/10 text-indigo-100">
+                    <i class="fa-solid fa-pen-to-square text-sm text-indigo-200"></i>
+                    <span class="hidden md:inline">ตรวจข้อสอบข้อเขียน</span>
+                </button>
+    
+                <!-- 5. ปุ่มฟันเฟือง Dropdown (แหล่งข้อมูล + ออกจากระบบ) -->
+                <div class="relative">
+                    <button onclick="toggleAdminDropdown(event)" title="ตั้งค่าระบบ / ออกจากระบบ"
+                        class="p-2 bg-indigo-800 hover:bg-indigo-900 text-amber-300 rounded-xl text-sm transition border border-indigo-600 shadow-sm flex items-center justify-center">
+                        <i class="fa-solid fa-gear"></i>
                     </button>
-
-                    <!-- แถบเมนูย่อย 4 รายการ -->
-                    <div id="admin-dropdown-menu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-100 py-2 z-50 text-slate-800">
-                        <a href="javascript:void(0)" id="menu-item-overview" onclick="switchAdminTab('overview')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
-                            <i class="fa-solid fa-table-columns w-5 text-indigo-500"></i>
-                            <span>ภาพรวมการตั้งค่าทุกสาขา</span>
-                        </a>
-                        <a href="javascript:void(0)" id="menu-item-manager" onclick="switchAdminTab('manager-dashboard')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
-                            <i class="fa-solid fa-chart-pie w-5 text-indigo-500"></i>
-                            <span>รายงานผลสัมฤทธิ์สาขา</span>
-                        </a>
-                        <a href="javascript:void(0)" id="menu-item-exam-settings" onclick="switchAdminTab('exam-settings')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
-                            <i class="fa-solid fa-sliders w-5 text-indigo-500"></i>
-                            <span>ตั้งค่าการสอบรายสาขา</span>
-                        </a>
-                        <a href="javascript:void(0)" id="menu-item-student-tracker" onclick="switchAdminTab('student-tracker')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
-                            <i class="fa-solid fa-user-check w-5 text-indigo-500"></i>
-                            <span>ติดตามการสอบรายบุคคล</span>
-                        </a>
-                        <a href="javascript:void(0)" id="menu-item-data-sources" onclick="switchAdminTab('data-sources')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
+    
+                    <!-- Dropdown Menu -->
+                    <div id="admin-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 text-slate-800">
+                        <a href="javascript:void(0)" id="menu-item-data-sources" onclick="switchAdminTab('data-sources')" 
+                            class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
                             <i class="fa-solid fa-database w-5 text-indigo-500"></i>
                             <span>แหล่งข้อมูลนำเข้า/ออก</span>
                         </a>
-                        <a href="javascript:void(0)" id="menu-item-essay-grading" onclick="switchAdminTab('essay-grading')" class="flex items-center px-4 py-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition">
-                            <i class="fa-solid fa-pen-to-square w-5 text-indigo-500"></i>
-                            <span>ตรวจสอบข้อสอบข้อเขียน</span>
-                        </a>
                         <div class="border-t border-slate-100 my-1"></div>
-                        <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
+                        <a href="javascript:void(0)" onclick="handleLogout()" 
+                            class="flex items-center px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
                             <i class="fa-solid fa-right-from-bracket w-5"></i>
                             <span>ออกจากระบบ</span>
                         </a>
                     </div>
                 </div>
-                
-                <!-- ปุ่มออกจากระบบบน Header สำหรับผู้สอบ -->
-                <button id="btn-header-logout" onclick="handleLogout()" class="hidden inline-flex items-center space-x-1 bg-indigo-800 hover:bg-indigo-900 text-indigo-100 px-3 py-2 rounded-lg text-sm transition border border-indigo-600">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span class="hidden sm:inline">ออกจากระบบ</span>
-                </button>
             </div>
+            
+            <!-- ปุ่มออกจากระบบบน Header สำหรับนักศึกษา -->
+            <button id="btn-header-logout" onclick="handleLogout()" class="hidden inline-flex items-center space-x-1.5 bg-indigo-800 hover:bg-indigo-900 text-indigo-100 px-3 py-2 rounded-xl text-xs font-bold transition border border-indigo-600">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span class="hidden sm:inline">ออกจากระบบ</span>
+            </button>
         </div>
     </header>
 
@@ -375,12 +386,20 @@
                         </h3>
                         <p class="text-xs text-slate-500 mt-0.5">ตรวจสอบสถานะและชุดข้อสอบที่กำลังเปิดให้บริการของแต่ละสาขาวิชา</p>
                     </div>
-
-                    <!-- Filter เลือกสาขา -->
-                    <div class="flex items-center space-x-2">
-                        <label class="text-xs font-semibold text-slate-600 whitespace-nowrap"><i class="fa-solid fa-filter text-slate-400 mr-1"></i> กรองสาขา:</label>
-                        <select id="overview-branch-filter" onchange="renderOverviewTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"> <!-- Dynamic Options -->
-                        </select>
+            
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Filter เลือกสาขา -->
+                        <div class="flex items-center space-x-2">
+                            <label class="text-xs font-semibold text-slate-600 whitespace-nowrap"><i class="fa-solid fa-filter text-slate-400 mr-1"></i> กรองสาขา:</label>
+                            <select id="overview-branch-filter" onchange="renderOverviewTable()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                            </select>
+                        </div>
+            
+                        <!-- 🟢 ปุ่มวาร์ปไปตั้งค่าการสอบรายสาขา -->
+                        <button type="button" onclick="switchAdminTab('exam-settings')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow transition flex items-center space-x-1">
+                            <i class="fa-solid fa-sliders"></i>
+                            <span>ตั้งค่าการสอบรายสาขา</span>
+                        </button>
                     </div>
                 </div>
 
@@ -2471,49 +2490,48 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         }
 
-        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (แก้ไขให้เปิด Manager Dashboard ได้สมบูรณ์)
+        // ✅ ฟังก์ชันสลับแท็บเมนู ควบคุมการซ่อน/แสดงปุ่มบน Header ตามสิทธิ์บทบาท
         function switchAdminTab(tabName) {
             if (!loggedInUser) return;
-
-            // 1. ควบคุมสิทธิ์การเข้าถึงแต่ละเมนู
+        
             const isSuperAdmin = hasRole(loggedInUser, 'superadmin');
             const isAdmin = hasRole(loggedInUser, 'admin');
             const isManager = hasRole(loggedInUser, 'manager');
             const isPreceptor = hasRole(loggedInUser, 'preceptor');
-
+        
+            // 1. ตรวจสอบสิทธิ์เข้าถึงแท็บ
             if (tabName === 'data-sources' && !isSuperAdmin) {
                 showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
                 return;
             }
-
-            if (tabName === 'overview' && !isSuperAdmin) {
-                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้สำหรับ Superadmin เท่านั้น');
-                return;
-            }
-
-            if (tabName === 'exam-settings' && !isAdmin && !isSuperAdmin) {
-                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้สำหรับ อาจารย์ประจำสาขา (Admin) เท่านั้น');
-                return;
-            }
-
+        
             sessionStorage.setItem('admin_last_tab', tabName);
-
-            // 2. ซ่อน/แสดง เมนูดร็อปดาวน์ตามสิทธิ์
-            const mOverview = document.getElementById('menu-item-overview');
-            const mManager = document.getElementById('menu-item-manager');
-            const mExam = document.getElementById('menu-item-exam-settings');
-            const mTracker = document.getElementById('menu-item-student-tracker');
-            const mData = document.getElementById('menu-item-data-sources');
-            const mEssay = document.getElementById('menu-item-essay-grading');
-
-            if (mOverview) mOverview.classList.toggle('hidden', !isSuperAdmin);
-            if (mManager) mManager.classList.toggle('hidden', !isManager && !isSuperAdmin);
-            if (mExam) mExam.classList.toggle('hidden', !isAdmin && !isSuperAdmin);
-            if (mTracker) mTracker.classList.toggle('hidden', !isAdmin && !isManager && !isSuperAdmin);
-            if (mData) mData.classList.toggle('hidden', !isSuperAdmin);
-            if (mEssay) mEssay.classList.toggle('hidden', !isPreceptor && !isAdmin && !isSuperAdmin);
-
-            // 3. ซ่อนแท็บทั้งหมดก่อนเปิดแท็บที่เลือก
+        
+            // 2. ซ่อน/แสดง ปุ่มหลักบน Header ตามบทบาท
+            const btnHome = document.getElementById('nav-btn-home');
+            const btnExam = document.getElementById('nav-btn-exam-settings');
+            const btnTracker = document.getElementById('nav-btn-student-tracker');
+            const btnEssay = document.getElementById('nav-btn-essay-grading');
+            const menuData = document.getElementById('menu-item-data-sources');
+        
+            if (btnHome) btnHome.classList.toggle('hidden', !isManager && !isSuperAdmin);
+            if (btnExam) btnExam.classList.toggle('hidden', !isAdmin && !isSuperAdmin);
+            if (btnTracker) btnTracker.classList.toggle('hidden', !isAdmin && !isManager && !isSuperAdmin);
+            if (btnEssay) btnEssay.classList.toggle('hidden', !isPreceptor && !isAdmin && !isSuperAdmin);
+            if (menuData) menuData.classList.toggle('hidden', !isSuperAdmin);
+        
+            // 3. ไฮไลต์ปุ่มที่กำลังใช้งานบน Header
+            const allNavBtns = [btnHome, btnExam, btnTracker, btnEssay];
+            allNavBtns.forEach(btn => {
+                if (btn) btn.classList.remove('bg-white/20', 'text-white', 'shadow-inner');
+            });
+        
+            if (tabName === 'manager-dashboard' && btnHome) btnHome.classList.add('bg-white/20', 'text-white');
+            if ((tabName === 'overview' || tabName === 'exam-settings') && btnExam) btnExam.classList.add('bg-white/20', 'text-white');
+            if (tabName === 'student-tracker' && btnTracker) btnTracker.classList.add('bg-white/20', 'text-white');
+            if (tabName === 'essay-grading' && btnEssay) btnEssay.classList.add('bg-white/20', 'text-white');
+        
+            // 4. ซ่อนทุกแท็บเนื้อหาก่อนเปิดแท็บที่เลือก
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
@@ -2521,7 +2539,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const tabEssay = document.getElementById('tab-admin-essay-grading');
             const tabManager = document.getElementById('tab-admin-manager-dashboard');
             const branchWrapper = document.getElementById('branch-selector-wrapper');
-
+        
             if (tabOverview) tabOverview.classList.add('hidden');
             if (tabExam) tabExam.classList.add('hidden');
             if (tabTracker) tabTracker.classList.add('hidden');
@@ -2529,9 +2547,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (tabEssay) tabEssay.classList.add('hidden');
             if (tabManager) tabManager.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
-
-            // 4. เปิดแท็บตามที่เลือก
-            // 🟢 ตรวจสอบส่วนท้ายสุดของ switchAdminTab(tabName)
+        
+            // 5. สลับเปิดเนื้อหาแท็บตามที่เลือก
             if (tabName === 'manager-dashboard') {
                 if (tabManager) tabManager.classList.remove('hidden');
                 if (typeof fetchAndSyncResults === 'function') {
@@ -2557,7 +2574,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 if (tabEssay) tabEssay.classList.remove('hidden');
                 const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 renderEssayGradingCards(pendingList);
-            } else if (tabName === 'overview') {
+            } else {
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 renderOverviewTable();
             }
