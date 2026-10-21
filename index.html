@@ -3349,13 +3349,13 @@ function toggleModalUserSelection(username, isChecked) {
         // Cache เก็บข้อมูลชั่วคราวสำหรับ Modal ป้องกันปัญหา Stringify Error
         let managerModalCache = {};
 
-        // ฟังก์ชันเรนเดอร์ Manager Dashboard
+        // 1. ฟังก์ชันหลักสำหรับเรนเดอร์ Manager Dashboard
         function renderManagerDashboard() {
             const branchSelect = document.getElementById('manager-branch-filter');
             const yearSelect = document.getElementById('manager-year-filter');
             if (!branchSelect) return;
-
-            // 1. จัดการ Filter สาขา
+        
+            // 1.1 จัดการ Filter สาขา
             const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
             
             if (loggedInUser && hasRole(loggedInUser, 'manager') && !hasRole(loggedInUser, 'superadmin')) {
@@ -3367,11 +3367,11 @@ function toggleModalUserSelection(username, isChecked) {
                         allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                 }
             }
-
+        
             const selectedBranch = branchSelect.value || (loggedInUser ? loggedInUser.branch : 'ทั้งหมด');
             const selectedYear = yearSelect ? yearSelect.value : 'ทั้งหมด';
-
-            // 2. กรองผู้ใช้เฉพาะที่เป็นนักศึกษา (role === 'student') และปี 1-3 เท่านั้น
+        
+            // 1.2 กรองผู้ใช้เฉพาะที่เป็นนักศึกษา (role === 'student') และปี 1-3 เท่านั้น
             const branchStudents = userDatabase.filter(u => {
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin');
                 const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
@@ -3379,23 +3379,23 @@ function toggleModalUserSelection(username, isChecked) {
                 const validYears = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
                 const isYear1To3 = validYears.includes(u.yearLevel);
                 const matchYear = selectedYear === 'ทั้งหมด' ? isYear1To3 : u.yearLevel === selectedYear;
-
+        
                 return isStudent && matchBranch && matchYear;
             });
-
+        
             const studentIds = branchStudents.map(s => s.username);
-
-            // 3. กรองผลสอบ
+        
+            // 1.3 กรองผลสอบ
             const branchResults = examResultsHistory.filter(r => {
                 const matchBranch = selectedBranch === 'ทั้งหมด' || r.branch === selectedBranch;
                 const matchStudent = studentIds.includes(r.sapId);
                 return matchBranch && matchStudent;
             });
-
-            // 4. แยกประเภทข้อสอบ
+        
+            // 1.4 แยกประเภทข้อสอบ
             const normalResults = [];
             const termExamResults = [];
-
+        
             branchResults.forEach(r => {
                 const nameCheck = ((r.examSet || '') + ' ' + (r.category || '')).toLowerCase();
                 if (nameCheck.includes('กลางภาค') || nameCheck.includes('ปลายภาค') || nameCheck.includes('midterm') || nameCheck.includes('final')) {
@@ -3404,33 +3404,33 @@ function toggleModalUserSelection(username, isChecked) {
                     normalResults.push(r);
                 }
             });
-
-            // 5. คำนวณข้อมูลการ์ดสรุปยอด (KPIs)
+        
+            // 1.5 คำนวณข้อมูลการ์ดสรุปยอด (KPIs)
             document.getElementById('kpi-total-students').textContent = `${branchStudents.length} คน`;
             document.getElementById('kpi-students-subtext').textContent = selectedYear === 'ทั้งหมด' ? 'นักศึกษาปี 1-3 รวมกัน' : selectedYear;
-
+        
             const availableNormalQuestions = masterQuestions.filter(q => {
                 const matchBranch = selectedBranch === 'ทั้งหมด' || q.branch === selectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง';
                 const nameCheck = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
                 return matchBranch && !nameCheck.includes('กลางภาค') && !nameCheck.includes('ปลายภาค');
             });
-
+        
             const setNames = Array.from(new Set(availableNormalQuestions.map(q => q.setGroup || 'ชุดการเรียนรู้ทั่วไป')));
             const unitNames = Array.from(new Set(availableNormalQuestions.map(q => q.category || 'หน่วยการเรียนรู้ทั่วไป')));
-
+        
             document.getElementById('kpi-total-sets').textContent = `${setNames.length} ชุด`;
             document.getElementById('kpi-sets-subtext').textContent = `รวม ${unitNames.length} หน่วยการเรียนรู้`;
-
+        
             let totalPercentageSum = 0;
             normalResults.forEach(r => totalPercentageSum += (r.percentage || 0));
             const overallProgress = normalResults.length > 0 ? (totalPercentageSum / normalResults.length).toFixed(1) : "0.0";
             document.getElementById('kpi-overall-progress').textContent = `${overallProgress}%`;
-
-            // 6. เรนเดอร์ Accordion บทเรียนปกติ
+        
+            // 1.6 เรนเดอร์ Accordion บทเรียนปกติ
             renderNormalUnitsAccordion(branchStudents, normalResults, availableNormalQuestions);
-
-            // 7. เรนเดอร์การ์ดกลางภาค/ปลายภาค และนับยอดผู้ต้องสอบซ่อม
-            const remedialCount = renderTermExamsTracker(branchStudents, termExamResults);
+        
+            // 1.7 เรนเดอร์การ์ดกลางภาค/ปลายภาค และคำนวณนับยอดผู้ต้องสอบซ่อมแบบไม่ซ้ำคน (Unique Count)
+            const remedialCount = renderTermExamsTracker(branchStudents, termExamResults, normalResults, availableNormalQuestions);
             document.getElementById('kpi-remedial-count').textContent = `${remedialCount} คน`;
         }
 
@@ -3556,52 +3556,53 @@ function toggleModalUserSelection(username, isChecked) {
             container.innerHTML = html;
         }
 
-        // ฟังก์ชันเรนเดอร์การ์ดกลางภาค/ปลายภาค
-        function renderTermExamsTracker(studentsList, termResults) {
+        // 2. ฟังก์ชันเรนเดอร์การ์ดวัดผลและคำนวณจำนวนผู้ต้องสอบซ่อม (แบบนับหัวคนจริง ไม่นับซ้ำ)
+        function renderTermExamsTracker(studentsList, termResults, normalResults, availableQuestions) {
             const container = document.getElementById('manager-term-exams-container');
             if (!container) return 0;
-
+        
             const termExamNames = Array.from(new Set(termResults.map(r => r.category || r.examSet)));
             if (!termExamNames.includes('ข้อสอบวัดผลกลางภาค') && termResults.length === 0) {
                 termExamNames.push('ข้อสอบวัดผลกลางภาค', 'ข้อสอบวัดผลปลายภาค');
             }
-
+        
             let html = '';
-            let totalRemedialCount = 0;
-
+            // ใช้ Set เพื่อเก็บบันทึก SAP-ID ของนักศึกษาที่มีประวัติสอบตกหรือยังไม่ได้สอบ (ตัดคนซ้ำให้อัตโนมัติ)
+            const remedialStudentIds = new Set();
+        
             termExamNames.forEach((examTitle, examIdx) => {
                 const examHistory = termResults.filter(r => (r.category || r.examSet) === examTitle);
                 const years = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
                 let yearBreakdownHtml = '';
-
+        
                 years.forEach((yearName, yIdx) => {
                     const yearStudents = studentsList.filter(s => s.yearLevel === yearName);
                     if (yearStudents.length === 0) return;
-
+        
                     const passedList = [];
                     const failedList = [];
-
+        
                     yearStudents.forEach(st => {
                         const stAttempts = examHistory.filter(r => r.sapId === st.username);
                         const attemptCount = stAttempts.length;
-
+        
                         if (attemptCount === 0) {
                             failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
+                            remedialStudentIds.add(st.username); // บันทึก SAP-ID คนที่ยังไม่ได้สอบ
                         } else {
                             const bestResult = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
                             if (bestResult.percentage >= 80) {
                                 passedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'สอบผ่านเกณฑ์' });
                             } else {
                                 failedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'ไม่ผ่าน (ต้องสอบซ่อม)' });
+                                remedialStudentIds.add(st.username); // บันทึก SAP-ID คนที่สอบไม่ผ่าน
                             }
                         }
                     });
-
-                    totalRemedialCount += failedList.length;
-
+        
                     const cacheKey = `term_${examIdx}_${yIdx}`;
                     managerModalCache[cacheKey] = { title: `${examTitle} (${yearName})`, subtitle: examTitle, passedList, failedList };
-
+        
                     yearBreakdownHtml += `
                         <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
                             <div class="font-bold text-slate-800">${yearName} <span class="text-slate-400 font-normal">(${yearStudents.length} คน)</span></div>
@@ -3616,7 +3617,7 @@ function toggleModalUserSelection(username, isChecked) {
                         </div>
                     `;
                 });
-
+        
                 html += `
                     <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
                         <div class="flex justify-between items-center border-b pb-2">
@@ -3631,9 +3632,11 @@ function toggleModalUserSelection(username, isChecked) {
                     </div>
                 `;
             });
-
+        
             container.innerHTML = html;
-            return totalRemedialCount;
+            
+            // คืนค่าจำนวน "คนจริงๆ" ที่ต้องสอบซ่อม/ยังไม่ได้สอบ โดยไม่มีการนับคนซ้ำ
+            return remedialStudentIds.size;
         }
 
         // ฟังก์ชันเปิด Modal จาก Cache
