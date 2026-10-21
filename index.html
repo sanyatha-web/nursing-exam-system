@@ -3709,7 +3709,7 @@ function toggleModalUserSelection(username, isChecked) {
                         </div>
                         <div class="text-right">
                             <div class="font-bold ${isPassedTab ? 'text-emerald-600' : 'text-rose-600'}">
-                                ${item.attemptCount > 0 ? `${item.score}/${item.total \vert{}\vert{} 15} (${item.percentage.toFixed(1)}%)` : 'ยังไม่ได้สอบ'}
+                                ${item.attemptCount > 0 ? `${item.score}/${item.total || 15} (${item.percentage.toFixed(1)}%)` : 'ยังไม่ได้สอบ'}
                             </div>
                             <div class="text-[10px] text-slate-400">สอบไปแล้ว: <strong class="text-indigo-600">${item.attemptCount} ครั้ง</strong></div>
                         </div>
