@@ -1772,7 +1772,8 @@ async function fetchAndSyncUsers() {
                 const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
                 const correctVal = parseInt(cols[ansIdx]) - 1;
                 const typeVal = typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : 'choice';
-                const isTextType = typeVal.includes('text');
+                const cleanedType = typeVal ? typeVal.trim().toLowerCase() : 'choice';
+                const isTextType = cleanedType === 'text' || cleanedType === 'media_text';
                 const isValidChoice = options.every(o => o !== undefined && o !== '') && !isNaN(correctVal);
                 
                 if (question && (isTextType || isValidChoice)) {
@@ -1781,7 +1782,7 @@ async function fetchAndSyncUsers() {
                         yearLevel: yearVal,
                         setGroup: setVal,
                         category: category, 
-                        type: typeVal, 
+                        type: cleanedType, // 🟢 บันทึก type ที่ทำความสะอาดแล้ว
                         skill: skillVal,
                         question: question,
                         media: media,
@@ -3265,11 +3266,13 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 // กรองข้อสอบเฉพาะ [ สาขา + ชุดการเรียนรู้ + หน่วยการเรียนรู้นี้ ]
                 const unitPool = pool.filter(q => q.category === cat);
                 
-                // 🟢 ดึงประเภทของข้อสอบ (Type) ที่มีอยู่จริงในหน่วยนี้แบบ Dynamic
+                // 🟢 ดึงประเภทข้อสอบที่มีอยู่จริงในหน่วยการเรียนรู้นี้ (รองรับ choice, text, media_choice, media_text)
                 const unitTypes = Array.from(new Set(
-                    unitPool
-                        .map(q => q.type ? q.type.trim().toLowerCase() : 'choice') // ค่าเริ่มต้นกรณีไม่ได้ระบุคือ choice
-                        .filter(Boolean)
+                    unitPool.map(q => {
+                        if (!q.type) return 'choice';
+                        const t = q.type.trim().toLowerCase();
+                        return t || 'choice';
+                    })
                 ));
                 
                 // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
