@@ -3233,7 +3233,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const isMasterOn = document.getElementById('setting-exam-global-enable')?.checked !== false;
             
             if (!container) return;
-            // 🟢 1. เพิ่มจุดนี้: ถ้าคลังข้อสอบยังโหลดไม่เสร็จ ให้แสดง Loading แทนการแจ้งเตือนว่าไม่พบข้อมูล
+
+            // 🟢 1. ถ้าคลังข้อสอบยังโหลดไม่เสร็จ ให้แสดง Loading แทนการแจ้งเตือนว่าไม่พบข้อมูล
             if (!masterQuestions || masterQuestions.length === 0) {
                 container.innerHTML = `
                     <div class="p-8 text-center text-xs text-indigo-600 font-bold bg-indigo-50/50 rounded-2xl border border-indigo-100 animate-pulse flex flex-col items-center justify-center space-y-2">
@@ -3273,18 +3274,16 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                 const allowedCount = (uConf.allowedUsers || []).length;
                 
-                // 🟢 ดึงข้อมูลข้อสอบในหน่วยนี้ โดยลบช่องว่างส่วนเกินออก
+                // ดึงข้อมูลข้อสอบในหน่วยนี้ โดยลบช่องว่างส่วนเกินออก
                 const unitPool = pool.filter(q => 
                     (q.category && q.category.trim() === cat.trim()) || 
                     (q.unit && q.unit.trim() === cat.trim())
                 );
                 
-                // 🟢 ดึงประเภทข้อสอบที่มีอยู่จริงในคลังของหน่วยนี้
+                // ดึงประเภทข้อสอบที่มีอยู่จริงในคลังของหน่วยนี้
                 const unitTypes = Array.from(new Set(unitPool.map(q => {
                     return q.type ? q.type.toString().trim().toLowerCase() : 'choice';
                 }).filter(Boolean)));
-                
-                if (unitTypes.length === 0) unitTypes.push('choice');
 
                 // คำนวณผลรวมข้อสอบที่จัดสรรไว้
                 let currentAllocatedSum = 0;
@@ -3366,39 +3365,41 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             </div>
                             
                             <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-2">
-                                ${unitTypes.length === 0 ? `
-                                    <div class="p-3 text-center text-[11px] text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
-                                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบการระบุประเภทข้อสอบในคลังสำหรับหน่วยนี้
-                                    </div>
-                                ` : `
-                                    <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-2 rounded-lg border border-indigo-100">
-                                        <span class="text-indigo-900 font-semibold"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> สัดส่วนข้อสอบที่จัดสรร:</span>
-                                        <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} /${uConf.questionCount} ข้อ</span>
-                                    </div>
-                            
-                                    <!-- ช่องกรอกสัดส่วนล็อกลำดับตาม Layout 2x2 -->
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        ${[
-                                            { key: 'choice', label: 'ปรนัย (choice)' },
-                                            { key: 'text', label: 'อัตนัย/ข้อเขียน (text)' },
-                                            { key: 'media_choice', label: 'ปรนัยมีสื่อประกอบ (media_choice)' },
-                                            { key: 'media_text', label: 'อัตนัยมีสื่อประกอบ (media_text)' }
-                                        ].map(item => {
-                                            const cleanKey = item.key;
+                                <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                                    <span class="text-indigo-900 font-semibold"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> สัดส่วนข้อสอบที่จัดสรร:</span>
+                                    <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} /${uConf.questionCount} ข้อ</span>
+                                </div>
+                        
+                                <!-- ช่องกรอกสัดส่วน: ล็อกลำดับ 2x2 + รองรับประเภทใหม่ให้อัตโนมัติ -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    ${(() => {
+                                        const defaultOrder = ['choice', 'text', 'media_choice', 'media_text'];
+                                        const typeLabels = {
+                                            'choice': 'ปรนัย (choice)',
+                                            'text': 'อัตนัย/ข้อเขียน (text)',
+                                            'media_choice': 'ปรนัยมีสื่อประกอบ (media_choice)',
+                                            'media_text': 'อัตนัยมีสื่อประกอบ (media_text)'
+                                        };
+
+                                        const detectedTypes = unitTypes.map(t => t.trim().toLowerCase());
+                                        const finalTypes = Array.from(new Set([...defaultOrder, ...detectedTypes]));
+
+                                        return finalTypes.map(cleanKey => {
                                             const countVal = (uConf.skillCounts && uConf.skillCounts[cleanKey] !== undefined) 
                                                 ? uConf.skillCounts[cleanKey] 
                                                 : 0;
-                                        
-                                            // นับจำนวนข้อสอบที่มีจริงในคลังตามประเภทนี้
+
                                             const totalAvailable = unitPool.filter(q => {
                                                 const rawType = q.type ? q.type.toString().trim().toLowerCase() : 'choice';
                                                 return rawType === cleanKey;
                                             }).length;
-                                    
+
+                                            const labelText = typeLabels[cleanKey] || `${cleanKey.toUpperCase()} (${cleanKey})`;
+
                                             return `
                                                 <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
                                                     <div class="flex flex-col pr-2 min-w-0">
-                                                        <span class="font-bold text-slate-800 text-xs truncate" title="${item.label}">• ${item.label}</span>
+                                                        <span class="font-bold text-slate-800 text-xs truncate" title="${labelText}">• ${labelText}</span>
                                                         <span class="text-[10px] text-slate-500">ในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
                                                     </div>
                                                     <div class="flex items-center space-x-1 flex-shrink-0">
@@ -3409,9 +3410,9 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                                     </div>
                                                 </div>
                                             `;
-                                        }).join('')}
-                                    </div>
-                                `}
+                                        }).join('');
+                                    })()}
+                                </div>
                             </div>
                         </div>
                     </div>
