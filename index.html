@@ -1706,7 +1706,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        function parseCSVToQuestions(csvText, isOverwrite = false) {
+        function parseCSVToQuestions(csvText, isOverwrite = true) {
             if (!csvText || csvText.trim() === '') return false;
             if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
         
@@ -1744,10 +1744,12 @@ async function fetchAndSyncUsers() {
             const skillIdx = headerCols.findIndex(h => h.includes('ทักษะ') || h.includes('skill'));
             const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์') || h.includes('question'));
             const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ') || h.includes('รูป') || h.includes('media'));
-            const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('choice1') || h.includes('option1'));
-            const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2') || h.includes('choice2') || h.includes('option2'));
-            const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3') || h.includes('choice3') || h.includes('option3'));
-            const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4') || h.includes('choice4') || h.includes('option4'));
+            
+            // 🟢 ปรับการหาตัวเลือกให้รองรับหลายรูปแบบ (1, ก, A, choice1, option1)
+            const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('ตัวเลือก ก') || h.includes('choice1') || h.includes('option1'));
+            const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2') || h.includes('ตัวเลือก ข') || h.includes('choice2') || h.includes('option2'));
+            const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3') || h.includes('ตัวเลือก ค') || h.includes('choice3') || h.includes('option3'));
+            const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4') || h.includes('ตัวเลือก ง') || h.includes('choice4') || h.includes('option4'));
             const ansIdx = headerCols.findIndex(h => h.includes('เฉลย') || h.includes('answer') || h.includes('correct'));
         
             if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
@@ -1766,23 +1768,26 @@ async function fetchAndSyncUsers() {
                 const setVal = setIdx !== -1 && cols[setIdx] ? cols[setIdx].trim() : 'ชุดการเรียนรู้ทั่วไป';
                 const categoryVal = catIdx !== -1 && cols[catIdx] ? cols[catIdx].trim() : 'หน่วยการเรียนรู้ทั่วไป';
                 const skillVal = skillIdx !== -1 && cols[skillIdx] ? cols[skillIdx].trim() : '';
-                const question = cols[qIdx];
+                const question = cols[qIdx] ? cols[qIdx].trim() : '';
                 const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx].trim() : '';
                 const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
                 const correctVal = parseInt(cols[ansIdx]) - 1;
                 const typeVal = typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : 'choice';
                 const cleanedType = typeVal ? typeVal.trim().toLowerCase() : 'choice';
                 const isTextType = cleanedType === 'text' || cleanedType === 'media_text';
-                const isValidChoice = options.every(o => o !== undefined && o !== '') && !isNaN(correctVal);
                 
-                if (question && (isTextType || isValidChoice)) {
+                // 🟢 กรองเฉพาะโจทย์ที่มีข้อมูล และป้องกันการบันทึกข้อสอบซ้ำ
+                const isDuplicate = imported.some(item => item.question === question && item.category === categoryVal);
+                const isValidChoice = options.some(o => o !== undefined && o !== '') && !isNaN(correctVal);
+
+                if (question && !isDuplicate && (isTextType || isValidChoice)) {
                     imported.push({ 
                         branch: branchVal,
                         yearLevel: yearVal,
                         setGroup: setVal,
                         category: categoryVal, 
-                        unit: categoryVal,      // 🟢 เพิ่มคีย์ unit เพื่อให้ดึงง่ายตรงกันทุกจุด
-                        unitName: categoryVal,  // 🟢 เพิ่มคีย์ unitName สำรองไว้
+                        unit: categoryVal,      
+                        unitName: categoryVal,  
                         type: cleanedType,
                         skill: skillVal,
                         question: question,
@@ -1794,12 +1799,8 @@ async function fetchAndSyncUsers() {
             }
         
             if (imported.length > 0) {
-                if (isOverwrite) {
-                    masterQuestions = imported;
-                } else {
-                    masterQuestions = masterQuestions.concat(imported);
-                }
-        
+                // 🟢 บังคับให้เขียนทับข้อมูลคลังเก่าเสมอ เพื่อไม่ให้จำนวนข้อทวีคูณ
+                masterQuestions = imported;
                 localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
                 updateAdminSettingsUI();
                 return true;
