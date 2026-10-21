@@ -1036,32 +1036,39 @@ let settings = {
         
             // 3. ตรวจสอบ Session และเปิดหน้าจอทันทีโดยไม่ต้องรอเน็ต
             const savedUserJson = sessionStorage.getItem('exam_session_user');
-            if (savedUserJson) {
-                try {
-                    loggedInUser = JSON.parse(savedUserJson);
-            
-                    if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
-                        document.getElementById('btn-admin-nav')?.classList.remove('hidden');
-                        document.getElementById('btn-header-logout')?.classList.add('hidden');
-                        showAdminDashboard();
-            
-                        const savedTab = sessionStorage.getItem('admin_last_tab') || 'overview';
-                        switchAdminTab(savedTab);
-                    } else {
-                        document.getElementById('btn-admin-nav')?.classList.add('hidden');
-                        document.getElementById('btn-header-logout')?.classList.remove('hidden');
-                        showStudentDashboard();
+            // 🟢 ค้นหาท่อนนี้ใน DOMContentLoaded แล้วอัปเดตให้เป็นโค้ดนี้:
+                if (savedUserJson) {
+                    try {
+                        loggedInUser = JSON.parse(savedUserJson);
+                
+                        if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
+                            document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+                            document.getElementById('btn-header-logout')?.classList.add('hidden');
+                            showAdminDashboard();
+                
+                            // กำหนด Default Tab ตามสิทธิ์หากยังไม่มีการสลับแท็บ
+                            let defaultTab = 'overview';
+                            if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'manager')) {
+                                defaultTab = 'manager-dashboard';
+                            } else if (hasRole(loggedInUser, 'admin')) {
+                                defaultTab = 'exam-settings';
+                            } else if (hasRole(loggedInUser, 'preceptor')) {
+                                defaultTab = 'essay-grading';
+                            }
+                
+                            const savedTab = sessionStorage.getItem('admin_last_tab') || defaultTab;
+                            switchAdminTab(savedTab);
+                        } else {
+                            document.getElementById('btn-admin-nav')?.classList.add('hidden');
+                            document.getElementById('btn-header-logout')?.classList.remove('hidden');
+                            showStudentDashboard();
+                        }
+                    } catch (e) {
+                        console.error("Failed to restore session:", e);
+                        hideAllSections();
+                        document.getElementById('section-login')?.classList.remove('hidden');
                     }
-                } catch (e) {
-                    console.error("Failed to restore session:", e);
-                    hideAllSections();
-                    document.getElementById('section-login')?.classList.remove('hidden');
                 }
-            } else {
-                // หากไม่มีเซสชันค้าง ให้แสดงหน้า Login ทันที
-                hideAllSections();
-                document.getElementById('section-login')?.classList.remove('hidden');
-            }
         
             // 4. แอบซิงค์ข้อมูลผู้ใช้งานและข้อสอบเบื้องหลังพร้อมกัน (Silent Background Sync)
             setTimeout(() => {
@@ -1072,7 +1079,7 @@ let settings = {
             }, 50);
         });
 
-        // 1. LOGIN & ROLE-BASED ROUTING SYSTEM (แก้ไขให้เช็กจาก userDatabase ล่าสุด)
+        // ✅ ฟังก์ชัน handleLogin กำหนดหน้าแรก (Default Tab) ตามบทบาทผู้ใช้
         async function handleLogin(e) {
             e.preventDefault();
             const userVal = document.getElementById('login-username').value.trim();
@@ -1092,31 +1099,33 @@ let settings = {
                 loggedInUser = foundUser;
                 sessionStorage.setItem('exam_session_user', JSON.stringify(foundUser));
         
-                // 🟢 เปลี่ยนมาใช้ hasRole ในการตรวจสอบสิทธิ์
                 const isSuperAdmin = hasRole(loggedInUser, 'superadmin');
                 const isAdmin = hasRole(loggedInUser, 'admin');
                 const isManager = hasRole(loggedInUser, 'manager');
                 const isPreceptor = hasRole(loggedInUser, 'preceptor');
         
-                // ถ้าเป็น อาจารย์ผู้ดูแลระบบ, ผู้บริหาร หรือ พี่เลี้ยง ให้เข้าหน้า Admin Dashboard
+                // ถ้าเป็นบุคลากร/อาจารย์ ให้เข้าหน้า Admin Dashboard
                 if (isSuperAdmin || isAdmin || isManager || isPreceptor) {
-                    document.getElementById('btn-admin-nav').classList.remove('hidden');
-                    document.getElementById('btn-header-logout').classList.add('hidden');
+                    document.getElementById('btn-admin-nav')?.classList.remove('hidden');
+                    document.getElementById('btn-header-logout')?.classList.add('hidden');
                     
-                    // เลือกเปิดแท็บแรกตามสิทธิ์ที่มีให้อัตโนมัติ
+                    // 🟢 กำหนดหน้าแรก (Default Home Tab) แยกตามบทบาทที่ระบุ
                     let defaultTab = 'overview';
-                    if (isSuperAdmin) defaultTab = 'overview';
-                    else if (isManager) defaultTab = 'manager-dashboard';
-                    else if (isAdmin) defaultTab = 'exam-settings';
-                    else if (isPreceptor) defaultTab = 'essay-grading';
+                    if (isSuperAdmin || isManager) {
+                        defaultTab = 'manager-dashboard'; // Superadmin และ Manager ➔ หน้ารายงานผลสัมฤทธิ์สาขา
+                    } else if (isAdmin) {
+                        defaultTab = 'exam-settings';     // Admin ➔ หน้าภาพรวมตั้งค่าการสอบ
+                    } else if (isPreceptor) {
+                        defaultTab = 'essay-grading';     // Preceptor ➔ หน้าตรวจข้อเขียน
+                    }
         
                     sessionStorage.setItem('admin_last_tab', defaultTab);
                     showAdminDashboard();
                     switchAdminTab(defaultTab);
                 } else {
-                    // ถ้าเป็นนักศึกษา (Student) อย่างเดียว ให้ไปหน้า Student Dashboard
-                    document.getElementById('btn-admin-nav').classList.add('hidden');
-                    document.getElementById('btn-header-logout').classList.remove('hidden');
+                    // นักศึกษา ➔ เข้าหน้า Student Dashboard
+                    document.getElementById('btn-admin-nav')?.classList.add('hidden');
+                    document.getElementById('btn-header-logout')?.classList.remove('hidden');
                     showStudentDashboard();
                 }
             } else {
