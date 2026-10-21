@@ -308,9 +308,9 @@
                     <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                         <div>
                             <h4 class="font-bold text-slate-800 text-base flex items-center">
-                                <i class="fa-solid fa-clipboard-check text-rose-600 mr-2"></i> สรุปผลสอบกลางภาค / ปลายภาค และการติดตามสอบซ่อม
+                                <i class="fa-solid fa-clipboard-check text-rose-600 mr-2"></i> สรุปผลสอบเลื่อนชั้น (ปี 1-2) / สอบประมวลความรู้ (ปี 3)
                             </h4>
-                            <p class="text-xs text-slate-500 mt-0.5">ติดตามสถานะการผ่านเกณฑ์และการสอบซ่อมของนักศึกษาจำแนกตามชั้นปี</p>
+                            <p class="text-xs text-slate-500 mt-0.5">ติดตามสถานะการผ่านเกณฑ์การสอบเลื่อนชั้นปีและการสอบประมวลความรู้จำแนกตามชั้นปี</p>
                         </div>
                         <span class="text-xs font-semibold bg-rose-50 text-rose-700 px-3 py-1 rounded-full border border-rose-100">* แยกจากคะแนนบทเรียน</span>
                     </div>
@@ -2757,28 +2757,18 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบ (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ฟังก์ชันสร้างตารางติดตามการสอบรายบุคคล (เกณฑ์ผ่าน 80% เรียงลำดับล่าสุดลงไป)
+        // ✅ ฟังก์ชันตารางติดตามการสอบรายบุคคล (แยกบทเรียนตามชั้นปี + สาขา)
         function renderStudentTrackerTable() {
             const tableBody = document.getElementById('tracker-table-body');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
             const branchFilter = document.getElementById('tracker-branch-filter')?.value || 'ทั้งหมด';
             const statusFilter = document.getElementById('tracker-status-filter')?.value || 'ทั้งหมด';
-
+        
             if (!tableBody) return;
-
-            // 1. อัปเดตตัวเลือกใน Dropdown สาขาวิชา
+        
             const filterSelect = document.getElementById('tracker-branch-filter');
-            if (filterSelect && filterSelect.options.length <= 1) {
-                const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
-                filterSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขา (${allBranches.length})</option>` + 
-                    allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
-            }
-
-            // 2. ดึงนักศึกษาทั้งหมดจาก userDatabase (ไม่รวม Admin)
-            const students = userDatabase.filter(u => u.role === 'student');
-
             if (filterSelect) {
-                if (loggedInUser && loggedInUser.role === 'admin') {
+                if (loggedInUser && hasRole(loggedInUser, 'admin')) {
                     filterSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
                     filterSelect.disabled = true;
                 } else if (filterSelect.options.length <= 1) {
@@ -2788,35 +2778,31 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                 }
             }
-
+        
+            const students = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager'));
+        
             if (students.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลผู้สอบในระบบ</td></tr>`;
                 return;
             }
-
+        
             let rowsHtml = '';
-
-            // 3. วนลูปประมวลผลนักศึกษาทุกคน
-            const activeBranchFilter = (loggedInUser && loggedInUser.role === 'admin') 
+            const activeBranchFilter = (loggedInUser && hasRole(loggedInUser, 'admin')) 
                 ? loggedInUser.branch 
                 : (document.getElementById('tracker-branch-filter')?.value || 'ทั้งหมด');
-            
+        
             students.forEach(student => {
-                // กรองข้ามคนที่ไม่ใช่สาขาตนเอง
                 if (activeBranchFilter !== 'ทั้งหมด' && student.branch !== activeBranchFilter) return;
-
-                // ค้นหารายชื่อ หรือ SAP-ID
+        
                 const matchSearch = student.username.toLowerCase().includes(searchVal) || 
                                     student.fullname.toLowerCase().includes(searchVal);
                 if (!matchSearch) return;
-
-                // ดึงประวัติการสอบทั้งหมดของนักศึกษาคนนี้
+        
                 const studentHistory = examResultsHistory.filter(r => r.sapId === student.username);
-
+        
                 if (studentHistory.length === 0) {
-                    // กรณีนักศึกษายังไม่เคยสอบเลยสักวิชา
                     if (statusFilter === 'ผ่าน' || statusFilter === 'ไม่ผ่าน') return;
-
+        
                     rowsHtml += `
                         <tr class="hover:bg-slate-50 transition border-b border-slate-100 text-xs">
                             <td class="p-3 text-slate-400 italic font-mono">-</td>
@@ -2835,33 +2821,24 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         </tr>
                     `;
                 } else {
-                    // จัดกลุ่มประวัติการสอบแยกตามหน่วยการเรียนรู้ (Category)
                     const categoriesMap = {};
-
                     studentHistory.forEach(record => {
                         const catKey = record.category || 'หน่วยการเรียนรู้ทั่วไป';
-                        if (!categoriesMap[catKey]) {
-                            categoriesMap[catKey] = [];
-                        }
+                        if (!categoriesMap[catKey]) categoriesMap[catKey] = [];
                         categoriesMap[catKey].push(record);
                     });
-
-                    // แสดงรายการการสอบแยกตามหน่วยการเรียนรู้ (รายการล่าสุดจะอยู่ด้านบนสุด)
+        
                     Object.keys(categoriesMap).forEach(catKey => {
-                        const attempts = categoriesMap[catKey]; // อาร์เรย์ประวัติการสอบของหน่วยนี้ (เรียงล่าสุด->เก่าสุด)
-                        const latestAttempt = attempts[0];      // การสอบครั้งล่าสุด
-                        const attemptCount = attempts.length;  // จำนวนครั้งที่สอบทั้งหมด
-
-                        // คำนวณคะแนนสูงสุดที่ทำได้
+                        const attempts = categoriesMap[catKey];
+                        const latestAttempt = attempts[0];
+                        const attemptCount = attempts.length;
                         const maxScoreObj = attempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, attempts[0]);
-
-                        // คำนวณสถานะ ผ่าน/ไม่ผ่าน (เกณฑ์ 80%)
+        
                         const isPassed = latestAttempt.percentage >= 80;
                         const statusLabel = isPassed ? 'ผ่าน' : 'ไม่ผ่าน';
-
-                        // กรองตามสถานะ
+        
                         if (statusFilter !== 'ทั้งหมด' && statusFilter !== statusLabel) return;
-
+        
                         rowsHtml += `
                             <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100 text-xs">
                                 <td class="p-3 font-mono text-slate-500 whitespace-nowrap">${latestAttempt.timestamp}</td>
@@ -2885,6 +2862,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${
                                         isPassed 
                                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
                                         : 'bg-rose-100 text-rose-800 border border-rose-200'
                                     }">
                                         ${isPassed ? '✓ ผ่าน (≥80%)' : '✕ ไม่ผ่าน (<80%)'}
@@ -2895,7 +2873,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     });
                 }
             });
-
+        
             tableBody.innerHTML = rowsHtml || `<tr><td colspan="9" class="p-4 text-center text-slate-400">ไม่พบข้อมูลผลการสอบตามเงื่อนไขที่กรอง</td></tr>`;
         }
 
@@ -3556,31 +3534,40 @@ function toggleModalUserSelection(username, isChecked) {
             container.innerHTML = html;
         }
 
-        // 2. ฟังก์ชันเรนเดอร์การ์ดวัดผลและคำนวณจำนวนผู้ต้องสอบซ่อม (แบบนับหัวคนจริง ไม่นับซ้ำ)
-        function renderTermExamsTracker(studentsList, termResults, normalResults, availableQuestions) {
+        // ✅ ฟังก์ชันเรนเดอร์การ์ดสอบเลื่อนชั้น (ปี 1-2) และสอบประมวลความรู้ (ปี 3)
+        function renderTermExamsTracker(studentsList, termResults) {
             const container = document.getElementById('manager-term-exams-container');
             if (!container) return 0;
         
-            const termExamNames = Array.from(new Set(termResults.map(r => r.category || r.examSet)));
-            if (!termExamNames.includes('ข้อสอบวัดผลกลางภาค') && termResults.length === 0) {
-                termExamNames.push('ข้อสอบวัดผลกลางภาค', 'ข้อสอบวัดผลปลายภาค');
-            }
-        
             let html = '';
-            // ใช้ Set เพื่อเก็บบันทึก SAP-ID ของนักศึกษาที่มีประวัติสอบตกหรือยังไม่ได้สอบ (ตัดคนซ้ำให้อัตโนมัติ)
             const remedialStudentIds = new Set();
         
-            termExamNames.forEach((examTitle, examIdx) => {
-                const examHistory = termResults.filter(r => (r.category || r.examSet) === examTitle);
-                const years = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
+            // กำหนดโครงสร้างประเภทการสอบตามชั้นปี
+            const examConfigs = [
+                { title: 'การสอบเลื่อนชั้นปีที่ 1', targetYears: ['ชั้นปีที่ 1'] },
+                { title: 'การสอบเลื่อนชั้นปีที่ 2', targetYears: ['ชั้นปีที่ 2'] },
+                { title: 'การสอบประมวลความรู้ (Comprehensive Exam)', targetYears: ['ชั้นปีที่ 3'] }
+            ];
+        
+            examConfigs.forEach((config, examIdx) => {
                 let yearBreakdownHtml = '';
         
-                years.forEach((yearName, yIdx) => {
+                config.targetYears.forEach((yearName, yIdx) => {
                     const yearStudents = studentsList.filter(s => s.yearLevel === yearName);
                     if (yearStudents.length === 0) return;
         
                     const passedList = [];
                     const failedList = [];
+        
+                    // กรองผลสอบเฉพาะประเภทการสอบนี้ (ดักจับคำว่า เลื่อนชั้น หรือ ประมวลความรู้ / Comprehensive)
+                    const examHistory = termResults.filter(r => {
+                        const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
+                        if (config.targetYears.includes('ชั้นปีที่ 3')) {
+                            return name.includes('ประมวล') || name.includes('comprehensive') || name.includes('ปลายภาค');
+                        } else {
+                            return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค');
+                        }
+                    });
         
                     yearStudents.forEach(st => {
                         const stAttempts = examHistory.filter(r => r.sapId === st.username);
@@ -3588,20 +3575,20 @@ function toggleModalUserSelection(username, isChecked) {
         
                         if (attemptCount === 0) {
                             failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
-                            remedialStudentIds.add(st.username); // บันทึก SAP-ID คนที่ยังไม่ได้สอบ
+                            remedialStudentIds.add(st.username);
                         } else {
                             const bestResult = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
                             if (bestResult.percentage >= 80) {
                                 passedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'สอบผ่านเกณฑ์' });
                             } else {
                                 failedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'ไม่ผ่าน (ต้องสอบซ่อม)' });
-                                remedialStudentIds.add(st.username); // บันทึก SAP-ID คนที่สอบไม่ผ่าน
+                                remedialStudentIds.add(st.username);
                             }
                         }
                     });
         
                     const cacheKey = `term_${examIdx}_${yIdx}`;
-                    managerModalCache[cacheKey] = { title: `${examTitle} (${yearName})`, subtitle: examTitle, passedList, failedList };
+                    managerModalCache[cacheKey] = { title: `${config.title} (${yearName})`, subtitle: config.title, passedList, failedList };
         
                     yearBreakdownHtml += `
                         <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
@@ -3618,24 +3605,24 @@ function toggleModalUserSelection(username, isChecked) {
                     `;
                 });
         
-                html += `
-                    <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
-                        <div class="flex justify-between items-center border-b pb-2">
-                            <h5 class="font-bold text-slate-800 text-sm flex items-center">
-                                <i class="fa-solid fa-file-signature text-rose-600 mr-2"></i> ${examTitle}
-                            </h5>
-                            <span class="text-[11px] font-bold text-slate-500">เกณฑ์ผ่าน 80%</span>
+                if (yearBreakdownHtml) {
+                    html += `
+                        <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
+                            <div class="flex justify-between items-center border-b pb-2">
+                                <h5 class="font-bold text-slate-800 text-sm flex items-center">
+                                    <i class="fa-solid fa-graduation-cap text-indigo-600 mr-2"></i> ${config.title}
+                                </h5>
+                                <span class="text-[11px] font-bold text-slate-500">เกณฑ์ผ่าน 80%</span>
+                            </div>
+                            <div class="space-y-2">
+                                ${yearBreakdownHtml}
+                            </div>
                         </div>
-                        <div class="space-y-2">
-                            ${yearBreakdownHtml || '<p class="text-xs text-slate-400 italic">ไม่พบข้อมูลนักศึกษารายชั้นปี</p>'}
-                        </div>
-                    </div>
-                `;
+                    `;
+                }
             });
         
-            container.innerHTML = html;
-            
-            // คืนค่าจำนวน "คนจริงๆ" ที่ต้องสอบซ่อม/ยังไม่ได้สอบ โดยไม่มีการนับคนซ้ำ
+            container.innerHTML = html || '<p class="text-xs text-slate-400 italic text-center py-4">ไม่พบข้อมูลการสอบตามชั้นปี</p>';
             return remedialStudentIds.size;
         }
 
