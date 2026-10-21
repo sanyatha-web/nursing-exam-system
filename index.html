@@ -3376,30 +3376,29 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                         <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} /${uConf.questionCount} ข้อ</span>
                                     </div>
                             
-                                    <!-- ช่องกรอกสัดส่วนแสดงประเภทข้อสอบอัตโนมัติ (Dynamic Types) -->
+                                    <!-- ช่องกรอกสัดส่วนล็อกลำดับตาม Layout 2x2 -->
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        ${unitTypes.map(typeName => {
-                                            const cleanKey = typeName.trim().toLowerCase();
+                                        ${[
+                                            { key: 'choice', label: 'ปรนัย (choice)' },
+                                            { key: 'text', label: 'อัตนัย/ข้อเขียน (text)' },
+                                            { key: 'media_choice', label: 'ปรนัยมีสื่อประกอบ (media_choice)' },
+                                            { key: 'media_text', label: 'อัตนัยมีสื่อประกอบ (media_text)' }
+                                        ].map(item => {
+                                            const cleanKey = item.key;
                                             const countVal = (uConf.skillCounts && uConf.skillCounts[cleanKey] !== undefined) 
                                                 ? uConf.skillCounts[cleanKey] 
                                                 : 0;
                                         
-                                            // 🟢 นับจำนวนข้อสอบจริงในคลังของประเภทนี้
+                                            // นับจำนวนข้อสอบที่มีจริงในคลังตามประเภทนี้
                                             const totalAvailable = unitPool.filter(q => {
                                                 const rawType = q.type ? q.type.toString().trim().toLowerCase() : 'choice';
                                                 return rawType === cleanKey;
                                             }).length;
-                                        
-                                            let displayTypeName = cleanKey;
-                                            if (cleanKey === 'choice') displayTypeName = 'ปรนัย (choice)';
-                                            else if (cleanKey === 'text') displayTypeName = 'อัตนัย/ข้อเขียน (text)';
-                                            else if (cleanKey === 'media_choice') displayTypeName = 'ปรนัยมีสื่อประกอบ (media_choice)';
-                                            else if (cleanKey === 'media_text') displayTypeName = 'อัตนัยมีสื่อประกอบ (media_text)';
-                            
+                                    
                                             return `
                                                 <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
                                                     <div class="flex flex-col pr-2 min-w-0">
-                                                        <span class="font-bold text-slate-800 text-xs truncate" title="${typeName}">• ${displayTypeName}</span>
+                                                        <span class="font-bold text-slate-800 text-xs truncate" title="${item.label}">• ${item.label}</span>
                                                         <span class="text-[10px] text-slate-500">ในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
                                                     </div>
                                                     <div class="flex items-center space-x-1 flex-shrink-0">
