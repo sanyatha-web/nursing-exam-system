@@ -2034,11 +2034,13 @@ async function fetchAndSyncUsers() {
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 
                 const unitSkillCounts = {};
-                document.querySelectorAll(`.unit-skill-input-${idx}`).forEach(input => {
-                    const skillName = input.getAttribute('data-skill');
-                    const count = parseInt(input.value) || 0;
-                    if (skillName) unitSkillCounts[skillName] = count;
-                });
+                    document.querySelectorAll(`.unit-type-input-${idx}`).forEach(input => {
+                        const skillName = input.getAttribute('data-type');
+                        const count = parseInt(input.value) || 0;
+                        if (skillName) {
+                            unitSkillCounts[skillName.trim().toLowerCase()] = count;
+                        }
+                    });
         
                 unitSettings[uKey] = {
                     ...(unitSettings[uKey] || {}),
@@ -3266,13 +3268,11 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 // กรองข้อสอบเฉพาะ [ สาขา + ชุดการเรียนรู้ + หน่วยการเรียนรู้นี้ ]
                 const unitPool = pool.filter(q => q.category === cat);
                 
-                // 🟢 ดึงประเภทข้อสอบที่มีอยู่จริงในหน่วยการเรียนรู้นี้ (รองรับ choice, text, media_choice, media_text)
+                // 🟢 ดึงเฉพาะค่า q.type ที่ถูกทำความสะอาดแล้ว และกรองค่าซ้ำ
                 const unitTypes = Array.from(new Set(
-                    unitPool.map(q => {
-                        if (!q.type) return 'choice';
-                        const t = q.type.trim().toLowerCase();
-                        return t || 'choice';
-                    })
+                    unitPool
+                        .map(q => q.type ? q.type.toString().trim().toLowerCase() : 'choice')
+                        .filter(Boolean)
                 ));
                 
                 // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
@@ -3367,15 +3367,26 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     <!-- ช่องกรอกสัดส่วนแสดงประเภทข้อสอบอัตโนมัติ (Dynamic Types) -->
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                         ${unitTypes.map(typeName => {
-                                            const countVal = uConf.skillCounts && uConf.skillCounts[typeName] !== undefined ? uConf.skillCounts[typeName] : 0;
-                                            const totalAvailable = unitPool.filter(q => (q.type ? q.type.trim().toLowerCase() : 'choice') === typeName).length;
-                                            
-                                            // แปลงชื่อประเภทให้อ่านง่ายขึ้น
-                                            let displayTypeName = typeName;
-                                            if (typeName === 'choice') displayTypeName = 'ปรนัย (Choice)';
-                                            else if (typeName === 'text') displayTypeName = 'อัตนัย/ข้อเขียน (Text)';
-                                            else if (typeName === 'media_choice') displayTypeName = 'ปรนัยมีสื่อ (Media Choice)';
-                                            else if (typeName === 'media_text') displayTypeName = 'อัตนัยมีสื่อ (Media Text)';
+                                            // ทำความสะอาดประเภทคีย์เพื่อป้องกันเคสจับคู่ไม่เจอ
+                                            const cleanKey = typeName.trim().toLowerCase();
+                                        
+                                            const countVal = (uConf.skillCounts && uConf.skillCounts[cleanKey] !== undefined) 
+                                                ? uConf.skillCounts[cleanKey] 
+                                                : 0;
+                                        
+                                            // นับจำนวนข้อสอบที่มีอยู่จริงในคลังตามประเภทนั้นๆ
+                                            const totalAvailable = unitPool.filter(q => {
+                                                const qType = q.type ? q.type.toString().trim().toLowerCase() : 'choice';
+                                                return qType === cleanKey;
+                                            }).length;
+                                        
+                                            // แปลงชื่อแสดงผลให้ตรงกับใน Google Sheets
+                                            let displayTypeName = cleanKey;
+                                            if (cleanKey === 'choice') displayTypeName = 'ปรนัย (choice)';
+                                            else if (cleanKey === 'text') displayTypeName = 'อัตนัย/ข้อเขียน (text)';
+                                            else if (cleanKey === 'media_choice') displayTypeName = 'ปรนัยมีสื่อประกอบ (media_choice)';
+                                            else if (cleanKey === 'media_text') displayTypeName = 'อัตนัยมีสื่อประกอบ (media_text)';
+                                            else displayTypeName = `${cleanKey}`; // กรณีมีประเภทอื่นๆ ในชีท
                             
                                             return `
                                                 <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
@@ -3384,9 +3395,9 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                                         <span class="text-[10px] text-slate-500">ในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
                                                     </div>
                                                     <div class="flex items-center space-x-1 flex-shrink-0">
-                                                        <input type="number" data-unit-index="${idx}" data-skill="${typeName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
+                                                        <input type="number" data-unit-index="${idx}" data-type="${typeName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
                                                             oninput="validateUnitSkillInputs(${idx}, this)"
-                                                            class="unit-skill-input-${idx} w-14 px-2 py-1 text-center bg-white border border-slate-300 rounded-lg text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                                            class="unit-type-input-${idx} w-14 px-2 py-1 text-center bg-white border border-slate-300 rounded-lg text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                                         <span class="text-slate-500 font-semibold text-xs">ข้อ</span>
                                                     </div>
                                                 </div>
