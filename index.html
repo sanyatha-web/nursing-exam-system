@@ -1740,7 +1740,8 @@ async function fetchAndSyncUsers() {
                 h.includes('ชุดข้อสอบ') || h.includes('ชุดการเรียนรู้') || h.includes('ชุด') || h.includes('set')
             );
             const catIdx = headerCols.findIndex(h => h.includes('หน่วยการเรียนรู้') || h.includes('หมวดหมู่') || h.includes('หน่วย') || h.includes('หมวด'));
-            const skillIdx = headerCols.findIndex(h => h.includes('ทักษะ') || h.includes('ประเภท') || h.includes('skill'));
+            const typeIdx = headerCols.findIndex(h => h.includes('ประเภท') || h.includes('type') || h.includes('ชนิด'));
+            const skillIdx = headerCols.findIndex(h => h.includes('ทักษะ') || h.includes('skill'));
             const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์') || h.includes('question'));
             const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ') || h.includes('รูป') || h.includes('media'));
             const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('choice1') || h.includes('option1'));
@@ -1770,6 +1771,7 @@ async function fetchAndSyncUsers() {
                 const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx] : '';
                 const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
                 const correctVal = parseInt(cols[ansIdx]) - 1;
+                const typeVal = typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : 'choice';
 
                 if (question && options.every(o => o !== undefined && o !== '') && !isNaN(correctVal)) {
                     imported.push({ 
@@ -1777,6 +1779,7 @@ async function fetchAndSyncUsers() {
                         yearLevel: yearVal,
                         setGroup: setVal,
                         category: category, 
+                        type: typeVal, // 🟢 บันทึกประเภทของข้อสอบลงวัตถุ
                         skill: skillVal,
                         question: question,
                         media: media,
@@ -1805,12 +1808,12 @@ async function fetchAndSyncUsers() {
         // Logic การสุ่มข้อสอบอัจฉริยะ (Dynamic Matrix Randomization)
         // ==========================================
 
-        // 1. ดึงรายการทักษะที่มีอยู่จริงในคลังข้อสอบ
+        // 1. ดึงรายการประเภทข้อสอบที่มีอยู่จริงในคลัง
         function getAvailableSkills(questionPool) {
-            const skills = questionPool
-                .map(q => q.skill ? q.skill.trim().toLowerCase() : '')
-                .filter(skill => skill !== '');
-            return [...new Set(skills)];
+            const types = questionPool
+                .map(q => q.type ? q.type.trim().toLowerCase() : 'choice')
+                .filter(Boolean);
+            return [...new Set(types)];
         }
 
         // 2. ฟังก์ชันสลับตำแหน่งข้อสอบ (Fisher-Yates Shuffle)
@@ -1900,14 +1903,15 @@ async function fetchAndSyncUsers() {
             let selectedIds = new Set();
             const availableSkills = getAvailableSkills(rawQuestions);
 
-            availableSkills.forEach(skillName => {
-                let skillPool = rawQuestions.filter(q => 
-                    q.skill && q.skill.trim().toLowerCase() === skillName
+            // ในฟังก์ชัน generateExamPaper สลับมาใช้ type ดึงข้อสอบ
+            availableSkills.forEach(typeName => {
+                let typePool = rawQuestions.filter(q => 
+                    (q.type ? q.type.trim().toLowerCase() : 'choice') === typeName
                 );
-                skillPool = shuffleArray(skillPool);
-                const targetCount = config.skillCounts ? (config.skillCounts[skillName] || 0) : 0;
-                const sampled = skillPool.slice(0, targetCount);
-
+                typePool = shuffleArray(typePool);
+                const targetCount = config.skillCounts ? (config.skillCounts[typeName] || 0) : 0;
+                const sampled = typePool.slice(0, targetCount);
+            
                 sampled.forEach(q => {
                     finalExam.push(q);
                     selectedIds.add(q.id || q.question);
@@ -3259,17 +3263,17 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 // กรองข้อสอบเฉพาะ [ สาขา + ชุดการเรียนรู้ + หน่วยการเรียนรู้นี้ ]
                 const unitPool = pool.filter(q => q.category === cat);
                 
-                // 🟢 ดึงเฉพาะคอลัมน์ทักษะจริงเท่านั้น (ไม่เอาชื่อหน่วยมาแทนเด็ดขาด)
-                const unitSkills = Array.from(new Set(
+                // 🟢 ดึงประเภทของข้อสอบ (Type) ที่มีอยู่จริงในหน่วยนี้แบบ Dynamic
+                const unitTypes = Array.from(new Set(
                     unitPool
-                        .map(q => q.skill ? q.skill.trim() : '')
-                        .filter(skill => skill !== '')
+                        .map(q => q.type ? q.type.trim().toLowerCase() : 'choice') // ค่าเริ่มต้นกรณีไม่ได้ระบุคือ choice
+                        .filter(Boolean)
                 ));
-
+                
                 // คำนวณผลรวมข้อสอบที่ถูกจัดสรรไว้แล้ว
                 let currentAllocatedSum = 0;
-                unitSkills.forEach(skillName => {
-                    currentAllocatedSum += (uConf.skillCounts && uConf.skillCounts[skillName]) ? parseInt(uConf.skillCounts[skillName]) : 0;
+                unitTypes.forEach(typeName => {
+                    currentAllocatedSum += (uConf.skillCounts && uConf.skillCounts[typeName]) ? parseInt(uConf.skillCounts[typeName]) : 0;
                 });
 
                 return `
@@ -3337,37 +3341,45 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         <!-- ส่วนที่ 3: ตั้งค่าการสุ่มคละทักษะรายหน่วย -->
                         <div class="pt-2 border-t border-slate-200 text-xs bg-white p-3 rounded-lg border border-slate-100 space-y-2">
                             <div class="flex items-center justify-between">
-                                <span class="font-bold text-slate-700"><i class="fa-solid fa-layer-group text-indigo-500 mr-1.5"></i> สุ่มคละตามประเภท/ทักษะ:</span>
+                                <span class="font-bold text-slate-700"><i class="fa-solid fa-layer-group text-indigo-500 mr-1.5"></i> สุ่มคละตามประเภทข้อสอบ (Exam Type):</span>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="unit-distribute-${idx}" onchange="toggleUnitSkillInputs(${idx})" ${uConf.distributeBySkills ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} class="sr-only peer">
                                     <div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
                                 </label>
                             </div>
-
+                            
                             <div id="unit-skill-container-${idx}" class="${uConf.distributeBySkills ? '' : 'hidden'} pt-2 border-t border-slate-100 space-y-2">
-                                ${unitSkills.length === 0 ? `
+                                ${unitTypes.length === 0 ? `
                                     <div class="p-3 text-center text-[11px] text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
-                                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบการระบุ "ทักษะ" ในคลังข้อสอบสำหรับหน่วยการเรียนรู้นี้
+                                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบการระบุประเภทข้อสอบในคลังสำหรับหน่วยนี้
                                     </div>
                                 ` : `
                                     <div class="flex justify-between items-center text-[11px] bg-indigo-50 p-2 rounded-lg border border-indigo-100">
                                         <span class="text-indigo-900 font-semibold"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> สัดส่วนข้อสอบที่จัดสรร:</span>
                                         <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} /${uConf.questionCount} ข้อ</span>
                                     </div>
-
-                                    <!-- ช่องกรอกสัดส่วนแสดงเฉพาะทักษะจริง -->
+                            
+                                    <!-- ช่องกรอกสัดส่วนแสดงประเภทข้อสอบอัตโนมัติ (Dynamic Types) -->
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        ${unitSkills.map(skillName => {
-                                            const countVal = uConf.skillCounts && uConf.skillCounts[skillName] !== undefined ? uConf.skillCounts[skillName] : 0;
-                                            const totalAvailable = unitPool.filter(q => q.skill && q.skill.trim() === skillName).length;
+                                        ${unitTypes.map(typeName => {
+                                            const countVal = uConf.skillCounts && uConf.skillCounts[typeName] !== undefined ? uConf.skillCounts[typeName] : 0;
+                                            const totalAvailable = unitPool.filter(q => (q.type ? q.type.trim().toLowerCase() : 'choice') === typeName).length;
+                                            
+                                            // แปลงชื่อประเภทให้อ่านง่ายขึ้น
+                                            let displayTypeName = typeName;
+                                            if (typeName === 'choice') displayTypeName = 'ปรนัย (Choice)';
+                                            else if (typeName === 'text') displayTypeName = 'อัตนัย/ข้อเขียน (Text)';
+                                            else if (typeName === 'media_choice') displayTypeName = 'ปรนัยมีสื่อ (Media Choice)';
+                                            else if (typeName === 'media_text') displayTypeName = 'อัตนัยมีสื่อ (Media Text)';
+                            
                                             return `
                                                 <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-indigo-200 transition">
                                                     <div class="flex flex-col pr-2 min-w-0">
-                                                        <span class="font-bold text-slate-800 text-xs truncate" title="${skillName}">• ${skillName}</span>
-                                                        <span class="text-[10px] text-slate-500">ข้อสอบในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
+                                                        <span class="font-bold text-slate-800 text-xs truncate" title="${typeName}">• ${displayTypeName}</span>
+                                                        <span class="text-[10px] text-slate-500">ในคลังมีทั้งหมด <strong class="text-indigo-600">${totalAvailable}</strong> ข้อ</span>
                                                     </div>
                                                     <div class="flex items-center space-x-1 flex-shrink-0">
-                                                        <input type="number" data-unit-index="${idx}" data-skill="${skillName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
+                                                        <input type="number" data-unit-index="${idx}" data-skill="${typeName}" value="${countVal}" min="0" max="${totalAvailable}" ${!isMasterOn ? 'disabled' : ''}
                                                             oninput="validateUnitSkillInputs(${idx}, this)"
                                                             class="unit-skill-input-${idx} w-14 px-2 py-1 text-center bg-white border border-slate-300 rounded-lg text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                                         <span class="text-slate-500 font-semibold text-xs">ข้อ</span>
