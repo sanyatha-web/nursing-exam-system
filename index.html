@@ -220,7 +220,7 @@
                         <h3 class="font-bold text-slate-800 text-base flex items-center">
                             <i class="fa-solid fa-chart-pie text-indigo-600 mr-2"></i> รายงานผลสัมฤทธิ์และสถิติการเรียนรู้ระดับสาขา
                         </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">ภาพรวมคะแนน ประสิทธิภาพรายบทเรียน และระบบติดตามการสอบซ่อม</p>
+                        <p class="text-xs text-slate-500 mt-0.5">ภาพรวมสถิติ ผลการเรียนรู้รายหน่วย และการติดตามการสอบซ่อม</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         <!-- Filter สาขา -->
@@ -243,46 +243,67 @@
                     </div>
                 </div>
 
-                <!-- 1. การ์ดสรุปยอด (KPI Summary Cards) -->
+                <!-- 1. การ์ดสรุปยอดปรับปรุงใหม่ 4 ใบ (KPI Summary Cards) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- การ์ด 1: จำนวนนักเรียนทั้งหมด -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
                         <div class="flex justify-between items-center text-slate-500 text-xs">
-                            <span>อัตราการผ่านเกณฑ์ (≥80%)</span>
-                            <span class="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><i class="fa-solid fa-circle-check"></i></span>
+                            <span>จำนวนนักเรียนทั้งหมด</span>
+                            <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><i class="fa-solid fa-users"></i></span>
                         </div>
-                        <div class="text-2xl font-extrabold text-emerald-600" id="kpi-pass-rate">0.0%</div>
-                        <p class="text-[11px] text-slate-400" id="kpi-pass-count">ผ่าน 0 จาก 0 คน</p>
+                        <div class="text-2xl font-extrabold text-slate-800" id="kpi-total-students">0 คน</div>
+                        <p class="text-[11px] text-slate-400" id="kpi-students-subtext">จำแนกตามสาขา/ชั้นปีที่เลือก</p>
                     </div>
 
+                    <!-- การ์ด 2: จำนวนชุดการเรียนรู้ -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
                         <div class="flex justify-between items-center text-slate-500 text-xs">
-                            <span>คะแนนเฉลี่ยภาพรวมบทเรียน</span>
-                            <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><i class="fa-solid fa-chart-line"></i></span>
+                            <span>จำนวนชุดการเรียนรู้</span>
+                            <span class="p-2 bg-amber-100 text-amber-600 rounded-xl"><i class="fa-solid fa-layer-group"></i></span>
                         </div>
-                        <div class="text-2xl font-extrabold text-indigo-600" id="kpi-avg-score">0.0%</div>
-                        <p class="text-[11px] text-slate-400">คำนวณจากหน่วยเรียนปกติ</p>
+                        <div class="text-2xl font-extrabold text-amber-600" id="kpi-total-sets">0 ชุด</div>
+                        <p class="text-[11px] text-slate-400" id="kpi-sets-subtext">รวม 0 หน่วยการเรียนรู้</p>
                     </div>
 
+                    <!-- การ์ด 3: %ความก้าวหน้าของทุกชุดการเรียนรู้ -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
                         <div class="flex justify-between items-center text-slate-500 text-xs">
-                            <span>จำนวนผู้เข้าทำแบบทดสอบ</span>
-                            <span class="p-2 bg-amber-100 text-amber-600 rounded-xl"><i class="fa-solid fa-users"></i></span>
+                            <span>%ความก้าวหน้าภาพรวม</span>
+                            <span class="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><i class="fa-solid fa-chart-line"></i></span>
                         </div>
-                        <div class="text-2xl font-extrabold text-slate-800" id="kpi-active-students">0 คน</div>
-                        <p class="text-[11px] text-slate-400" id="kpi-total-students-info">จากผู้เรียนทั้งหมด 0 คน</p>
+                        <div class="text-2xl font-extrabold text-emerald-600" id="kpi-overall-progress">0.0%</div>
+                        <p class="text-[11px] text-slate-400">คะแนนเฉลี่ยการสอบบทเรียนปกติ</p>
                     </div>
 
+                    <!-- การ์ด 4: จำนวนผู้ต้องสอบซ่อมหรือไม่ได้สอบ -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
                         <div class="flex justify-between items-center text-slate-500 text-xs">
-                            <span>ยอดผู้ต้องเข้าสอบซ่อม</span>
+                            <span>ผู้ต้องสอบซ่อม / ยังไม่สอบ</span>
                             <span class="p-2 bg-rose-100 text-rose-600 rounded-xl"><i class="fa-solid fa-user-clock"></i></span>
                         </div>
                         <div class="text-2xl font-extrabold text-rose-600" id="kpi-remedial-count">0 คน</div>
-                        <p class="text-[11px] text-slate-400">ยังไม่ผ่านเกณฑ์ หรือยังไม่ได้สอบ</p>
+                        <p class="text-[11px] text-slate-400">คะแนนไม่ผ่านเกณฑ์หรือยังไม่เข้าสอบ</p>
                     </div>
                 </div>
 
-                <!-- 📌 2. สรุปผลการสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม (ไม่นำไปรวมกับ Progress บทเรียน) -->
+                <!-- 📌 2. ย้ายตารางสรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ ขึ้นมาไว้อันดับที่ 2 -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-base flex items-center">
+                                <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> สรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ
+                            </h4>
+                            <p class="text-xs text-slate-500 mt-0.5">คะแนนเฉลี่ยและการผ่านเกณฑ์ประจำบทเรียนรายหน่วย</p>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-400">* เกณฑ์การผ่าน 80%</span>
+                    </div>
+
+                    <div id="manager-sets-accordion-container" class="space-y-3">
+                        <!-- Dynamic Sets & Units Progress Bars -->
+                    </div>
+                </div>
+
+                <!-- 📌 3. สรุปผลสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม ย้ายมาไว้อันดับที่ 3 -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                         <div>
@@ -296,23 +317,6 @@
 
                     <div id="manager-term-exams-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- Dynamic Term Exams Cards -->
-                    </div>
-                </div>
-
-                <!-- 📌 3. รายงานผลสัมฤทธิ์เฉพาะชุดการเรียนรู้ปกติ (Accordion Progress Bars) -->
-                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-base flex items-center">
-                                <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> สรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ
-                            </h4>
-                            <p class="text-xs text-slate-500 mt-0.5">คะแนนเฉลี่ยการทำแบบทดสอบประจำบทเรียนรายหน่วย</p>
-                        </div>
-                        <span class="text-xs font-semibold text-slate-400">* เกณฑ์การผ่าน 80%</span>
-                    </div>
-
-                    <div id="manager-sets-accordion-container" class="space-y-3">
-                        <!-- Dynamic Sets & Units Progress Bars -->
                     </div>
                 </div>
             </div>
@@ -3333,22 +3337,25 @@ function toggleModalUserSelection(username, isChecked) {
             container.innerHTML = html;
         }
 
-        // Global State สำหรับ Modal รายละเอียดใน Manager Dashboard
+        // Global Store เก็บข้อมูล Modal ป้องกันปัญหา JSON Stringify Error
         let currentManagerModalData = {
             title: '',
             subtitle: '',
             passedList: [],
             failedList: [],
-            activeTab: 'failed' // Default เปิดแท็บติดตามคนติดสอบซ่อมก่อน
+            activeTab: 'failed'
         };
 
-        // ฟังก์ชันคำนวณและเรนเดอร์หน้า Manager Dashboard
+        // Cache เก็บข้อมูลชั่วคราวสำหรับ Modal
+        let managerModalCache = {};
+
+        // ฟังก์ชันเรนเดอร์ Manager Dashboard
         function renderManagerDashboard() {
             const branchSelect = document.getElementById('manager-branch-filter');
             const yearSelect = document.getElementById('manager-year-filter');
             if (!branchSelect) return;
 
-            // 1. ตัวเลือกสาขา
+            // 1. จัดการ Filter สาขา
             const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
             
             if (loggedInUser && hasRole(loggedInUser, 'manager') && !hasRole(loggedInUser, 'superadmin')) {
@@ -3369,7 +3376,6 @@ function toggleModalUserSelection(username, isChecked) {
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin');
                 const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
                 
-                // กรองเฉพาะ ชั้นปีที่ 1, 2, 3
                 const validYears = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
                 const isYear1To3 = validYears.includes(u.yearLevel);
                 const matchYear = selectedYear === 'ทั้งหมด' ? isYear1To3 : u.yearLevel === selectedYear;
@@ -3378,22 +3384,20 @@ function toggleModalUserSelection(username, isChecked) {
             });
 
             const studentIds = branchStudents.map(s => s.username);
-            const studentMap = {};
-            branchStudents.forEach(s => studentMap[s.username] = s);
 
-            // 3. กรองผลการสอบ
+            // 3. กรองผลสอบ
             const branchResults = examResultsHistory.filter(r => {
                 const matchBranch = selectedBranch === 'ทั้งหมด' || r.branch === selectedBranch;
                 const matchStudent = studentIds.includes(r.sapId);
                 return matchBranch && matchStudent;
             });
 
-            // 4. แยกการคำนวณ: ข้อสอบปกติ VS ข้อสอบกลางภาค/ปลายภาค
+            // 4. แยกประเภทข้อสอบ
             const normalResults = [];
             const termExamResults = [];
 
             branchResults.forEach(r => {
-                const nameCheck = (r.examSet + ' ' + r.category).toLowerCase();
+                const nameCheck = ((r.examSet || '') + ' ' + (r.category || '')).toLowerCase();
                 if (nameCheck.includes('กลางภาค') || nameCheck.includes('ปลายภาค') || nameCheck.includes('midterm') || nameCheck.includes('final')) {
                     termExamResults.push(r);
                 } else {
@@ -3401,30 +3405,326 @@ function toggleModalUserSelection(username, isChecked) {
                 }
             });
 
-            // คำนวณ KPI ภาพรวม (ใช้เฉพาะคะแนนหน่วยเรียนปกติ)
-            const activeStudentsCount = new Set(normalResults.map(r => r.sapId)).size;
-            let normalPassCount = 0;
-            let normalScoreSum = 0;
+            // 📌 5. คำนวณข้อมูลการ์ดสรุปยอด (KPIs)
+            // การ์ด 1: จำนวนนักเรียนทั้งหมด
+            document.getElementById('kpi-total-students').textContent = `${branchStudents.length} คน`;
+            document.getElementById('kpi-students-subtext').textContent = selectedYear === 'ทั้งหมด' ? 'นักศึกษาปี 1-3 รวมกัน' : selectedYear;
 
-            normalResults.forEach(r => {
-                normalScoreSum += r.percentage;
-                if (r.percentage >= 80) normalPassCount++;
+            // ดึงข้อสอบปกติเพื่อคำนวณจำนวนชุดและหน่วย
+            const availableNormalQuestions = masterQuestions.filter(q => {
+                const matchBranch = selectedBranch === 'ทั้งหมด' || q.branch === selectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง';
+                const nameCheck = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
+                return matchBranch && !nameCheck.includes('กลางภาค') && !nameCheck.includes('ปลายภาค');
             });
 
-            const avgScore = normalResults.length > 0 ? (normalScoreSum / normalResults.length).toFixed(1) : "0.0";
-            const passRate = normalResults.length > 0 ? ((normalPassCount / normalResults.length) * 100).toFixed(1) : "0.0";
+            const setNames = Array.from(new Set(availableNormalQuestions.map(q => q.setGroup || 'ชุดการเรียนรู้ทั่วไป')));
+            const unitNames = Array.from(new Set(availableNormalQuestions.map(q => q.category || 'หน่วยการเรียนรู้ทั่วไป')));
 
-            document.getElementById('kpi-pass-rate').textContent = `${passRate}%`;
-            document.getElementById('kpi-pass-count').textContent = `ผ่าน ${normalPassCount} จาก ${normalResults.length} การสอบ`;
-            document.getElementById('kpi-avg-score').textContent = `${avgScore}%`;
-            document.getElementById('kpi-active-students').textContent = `${activeStudentsCount} คน`;
-            document.getElementById('kpi-total-students-info').textContent = `จากนักศึกษาทั้งหมด ${branchStudents.length} คน`;
+            // การ์ด 2: จำนวนชุดการเรียนรู้
+            document.getElementById('kpi-total-sets').textContent = `${setNames.length} ชุด`;
+            document.getElementById('kpi-sets-subtext').textContent = `รวม ${unitNames.length} หน่วยการเรียนรู้`;
 
-            // 📌 5. เรนเดอร์การ์ดสรุปข้อสอบกลางภาค / ปลายภาค และการติดตามสอบซ่อม
-            renderTermExamsTracker(branchStudents, termExamResults);
+            // การ์ด 3: %ความก้าวหน้าภาพรวม
+            let totalPercentageSum = 0;
+            normalResults.forEach(r => totalPercentageSum += (r.percentage || 0));
+            const overallProgress = normalResults.length > 0 ? (totalPercentageSum / normalResults.length).toFixed(1) : "0.0";
+            document.getElementById('kpi-overall-progress').textContent = `${overallProgress}%`;
 
-            // 📌 6. จัดกลุ่ม Accordion สำหรับหน่วยเรียนปกติ
-            renderNormalUnitsAccordion(branchStudents, normalResults);
+            // 📌 6. เรนเดอร์ Accordion แสดงชุดและหน่วยการเรียนรู้ (ดึงจาก MasterQuestions ป้องกันหน่วยหาย)
+            renderNormalUnitsAccordion(branchStudents, normalResults, availableNormalQuestions);
+
+            // 📌 7. เรนเดอร์การ์ดกลางภาค/ปลายภาค และนับผู้ต้องสอบซ่อม/ยังไม่สอบใส่การ์ดที่ 4
+            const remedialCount = renderTermExamsTracker(branchStudents, termExamResults);
+            document.getElementById('kpi-remedial-count').textContent = `${remedialCount} คน`;
+        }
+
+        // ฟังก์ชันเรนเดอร์ Accordion แสดงครบทุกหน่วยแม้ยังไม่มีคนสอบ
+        function renderNormalUnitsAccordion(studentsList, normalResults, availableQuestions) {
+            const container = document.getElementById('manager-sets-accordion-container');
+            if (!container) return;
+
+            // สร้างโครงสร้างจาก MasterQuestions เพื่อให้หน่วยขึ้นครบถ้วน
+            const setsStructure = {};
+
+            availableQuestions.forEach(q => {
+                const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
+
+                if (!setsStructure[setName]) setsStructure[setName] = {};
+                if (!setsStructure[setName][catName]) setsStructure[setName][catName] = [];
+            });
+
+            // เติมผลสอบลงในหน่วยต่างๆ
+            normalResults.forEach(r => {
+                const setName = r.examSet || 'ชุดการเรียนรู้ทั่วไป';
+                const catName = r.category || 'หน่วยการเรียนรู้ทั่วไป';
+
+                if (!setsStructure[setName]) setsStructure[setName] = {};
+                if (!setsStructure[setName][catName]) setsStructure[setName][catName] = [];
+
+                setsStructure[setName][catName].push(r);
+            });
+
+            const setNames = Object.keys(setsStructure);
+            if (setNames.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">ไม่พบข้อมูลชุดการเรียนรู้ในสาขานี้</p>`;
+                return;
+            }
+
+            let html = '';
+            setNames.forEach((setName, setIdx) => {
+                const unitsMap = setsStructure[setName];
+                const unitNames = Object.keys(unitsMap);
+
+                let setTotalScores = [];
+                unitNames.forEach(u => unitsMap[u].forEach(r => setTotalScores.push(r.percentage)));
+                const setAvg = setTotalScores.length > 0 ? (setTotalScores.reduce((a, b) => a + b, 0) / setTotalScores.length).toFixed(1) : "0.0";
+                const setBarColor = setAvg >= 80 ? 'bg-emerald-500' : (setAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+
+                html += `
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                        <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold text-slate-800 text-sm">${setName}</h5>
+                                    <p class="text-[11px] text-slate-400">${unitNames.length} หน่วยการเรียนรู้ย่อย</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 min-w-[180px]">
+                                <div class="w-full space-y-1">
+                                    <div class="flex justify-between text-[11px] font-bold">
+                                        <span class="text-slate-500">เฉลี่ยชุด:</span>
+                                        <span class="text-indigo-900">${setAvg}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                        <div class="${setBarColor} h-2 rounded-full" style="width: ${Math.min(setAvg, 100)}%"></div>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+
+                        <div id="set-body-${setIdx}" class="hidden divide-y divide-slate-100 bg-white border-t border-slate-200">
+                `;
+
+                unitNames.forEach((catName, unitIdx) => {
+                    const history = unitsMap[catName];
+                    const uAvg = history.length > 0 ? (history.reduce((a, b) => a + b.percentage, 0) / history.length).toFixed(1) : "0.0";
+
+                    const passedList = [];
+                    const failedList = [];
+
+                    studentsList.forEach(st => {
+                        const stAttempts = history.filter(r => r.sapId === st.username);
+                        if (stAttempts.length === 0) {
+                            failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
+                        } else {
+                            const best = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
+                            if (best.percentage >= 80) {
+                                passedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'สอบผ่าน' });
+                            } else {
+                                failedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'ไม่ผ่าน' });
+                            }
+                        }
+                    });
+
+                    // บันทึกลง Cache สำหรับเรียกเปิด Modal
+                    const cacheKey = `unit_${setIdx}_${unitIdx}`;
+                    managerModalCache[cacheKey] = { title: catName, subtitle: setName, passedList, failedList };
+
+                    const uBarColor = uAvg >= 80 ? 'bg-emerald-500' : (uAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+
+                    html += `
+                        <div class="p-4 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-slate-800 text-xs"><i class="fa-solid fa-book-bookmark text-indigo-600 mr-1.5"></i>${catName}</span>
+                                <div class="flex items-center space-x-2 text-xs">
+                                    <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">ผ่าน ${passedList.length}</span>
+                                    <span class="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded">ไม่ผ่าน ${failedList.length}</span>
+                                    <button onclick="openManagerDetailModalFromCache('${cacheKey}')" 
+                                        class="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white rounded font-bold text-[11px] shadow">
+                                        🔍 รายชื่อ
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div class="${uBarColor} h-2 rounded-full" style="width: ${Math.min(uAvg, 100)}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ฟังก์ชันเรนเดอร์การ์ดกลางภาค/ปลายภาค (ใช้ Cache ป้องกันปุ่มกดไม่ขึ้น)
+        function renderTermExamsTracker(studentsList, termResults) {
+            const container = document.getElementById('manager-term-exams-container');
+            if (!container) return 0;
+
+            const termExamNames = Array.from(new Set(termResults.map(r => r.category || r.examSet)));
+            if (!termExamNames.includes('ข้อสอบวัดผลกลางภาค') && termResults.length === 0) {
+                termExamNames.push('ข้อสอบวัดผลกลางภาค', 'ข้อสอบวัดผลปลายภาค');
+            }
+
+            let html = '';
+            let totalRemedialCount = 0;
+
+            termExamNames.forEach((examTitle, examIdx) => {
+                const examHistory = termResults.filter(r => (r.category || r.examSet) === examTitle);
+                const years = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
+                let yearBreakdownHtml = '';
+
+                years.forEach((yearName, yIdx) => {
+                    const yearStudents = studentsList.filter(s => s.yearLevel === yearName);
+                    if (yearStudents.length === 0) return;
+
+                    const passedList = [];
+                    const failedList = [];
+
+                    yearStudents.forEach(st => {
+                        const stAttempts = examHistory.filter(r => r.sapId === st.username);
+                        const attemptCount = stAttempts.length;
+
+                        if (attemptCount === 0) {
+                            failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
+                        } else {
+                            const bestResult = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
+                            if (bestResult.percentage >= 80) {
+                                passedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'สอบผ่านเกณฑ์' });
+                            } else {
+                                failedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'ไม่ผ่าน (ต้องสอบซ่อม)' });
+                            }
+                        }
+                    });
+
+                    totalRemedialCount += failedList.length;
+
+                    // บันทึกลง Cache
+                    const cacheKey = `term_${examIdx}_${yIdx}`;
+                    managerModalCache[cacheKey] = { title: `${examTitle} (${yearName})`, subtitle: examTitle, passedList, failedList };
+
+                    yearBreakdownHtml += `
+                        <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                            <div class="font-bold text-slate-800">${yearName} <span class="text-slate-400 font-normal">(${yearStudents.length} คน)</span></div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg">ผ่าน ${passedList.length}</span>
+                                <span class="font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-lg">ตก/ซ่อม ${failedList.length}</span>
+                                <button onclick="openManagerDetailModalFromCache('${cacheKey}')" 
+                                    class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] shadow transition">
+                                    <i class="fa-solid fa-list-check"></i> รายชื่อ
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                    <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <h5 class="font-bold text-slate-800 text-sm flex items-center">
+                                <i class="fa-solid fa-file-signature text-rose-600 mr-2"></i> ${examTitle}
+                            </h5>
+                            <span class="text-[11px] font-bold text-slate-500">เกณฑ์ผ่าน 80%</span>
+                        </div>
+                        <div class="space-y-2">
+                            ${yearBreakdownHtml || '<p class="text-xs text-slate-400 italic">ไม่พบข้อมูลนักศึกษารายชั้นปี</p>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            return totalRemedialCount;
+        }
+
+        // ฟังก์ชันเปิด Modal ผ่าน Cache (แก้ปัญหากดไม่ติด)
+        function openManagerDetailModalFromCache(cacheKey) {
+            const data = managerModalCache[cacheKey];
+            if (!data) return;
+
+            currentManagerModalData = {
+                title: data.title,
+                subtitle: data.subtitle,
+                passedList: data.passedList || [],
+                failedList: data.failedList || [],
+                activeTab: 'failed'
+            };
+
+            document.getElementById('manager-modal-title').textContent = data.title;
+            document.getElementById('manager-modal-subtitle').textContent = data.subtitle;
+            document.getElementById('manager-modal-search').value = '';
+
+            switchManagerModalTab('failed');
+            document.getElementById('modal-manager-detail').classList.remove('hidden');
+        }
+
+        function closeManagerDetailModal() {
+            document.getElementById('modal-manager-detail').classList.add('hidden');
+        }
+
+        function switchManagerModalTab(tabType) {
+            currentManagerModalData.activeTab = tabType;
+            const btnPassed = document.getElementById('modal-tab-btn-passed');
+            const btnFailed = document.getElementById('modal-tab-btn-failed');
+
+            if (tabType === 'passed') {
+                btnPassed.className = "px-3 py-1.5 rounded-md transition bg-white text-emerald-700 shadow-sm font-bold";
+                btnFailed.className = "px-3 py-1.5 rounded-md transition text-slate-600 font-bold";
+            } else {
+                btnFailed.className = "px-3 py-1.5 rounded-md transition bg-white text-rose-700 shadow-sm font-bold";
+                btnPassed.className = "px-3 py-1.5 rounded-md transition text-slate-600 font-bold";
+            }
+
+            renderManagerModalList();
+        }
+
+        function renderManagerModalList() {
+            const container = document.getElementById('manager-modal-list-container');
+            const searchVal = (document.getElementById('manager-modal-search')?.value || '').toLowerCase().trim();
+            if (!container) return;
+
+            const isPassedTab = currentManagerModalData.activeTab === 'passed';
+            const rawList = isPassedTab ? currentManagerModalData.passedList : currentManagerModalData.failedList;
+
+            document.getElementById('modal-count-passed').textContent = currentManagerModalData.passedList.length;
+            document.getElementById('modal-count-failed').textContent = currentManagerModalData.failedList.length;
+
+            const filtered = rawList.filter(item => {
+                const st = item.student || {};
+                const nameMatch = (st.fullname || '').toLowerCase().includes(searchVal);
+                const idMatch = (st.username || '').toLowerCase().includes(searchVal);
+                return nameMatch || idMatch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบข้อมูลรายชื่อนักศึกษาตามที่ค้นหา</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => {
+                const st = item.student || {};
+                return `
+                    <div class="p-2.5 flex justify-between items-center text-xs hover:bg-slate-50 transition">
+                        <div>
+                            <div class="font-bold text-slate-800">${st.fullname || 'ไม่ระบุชื่อ'}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">SAP-ID: ${st.username || '-'} • ${st.yearLevel || '-'}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold ${isPassedTab ? 'text-emerald-600' : 'text-rose-600'}">
+                                ${item.attemptCount > 0 ? `${item.score}/${item.total \vert{}\vert{} 15} (${item.percentage.toFixed(1)}%)` : 'ยังไม่ได้สอบ'}
+                            </div>
+                            <div class="text-[10px] text-slate-400">สอบไปแล้ว: <strong class="text-indigo-600">${item.attemptCount} ครั้ง</strong></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // ฟังก์ชันเรนเดอร์การ์ดกลางภาค/ปลายภาค และนับยอดต้องสอบซ่อม
