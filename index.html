@@ -1041,20 +1041,20 @@ let settings = {
         }
         
         // Initialize Application
+        // Initialize Application
         window.addEventListener('DOMContentLoaded', () => {
-            // 1. โหลดการตั้งค่าและดึงข้อมูลเดิมจากเครื่องขึ้นมาแสดงผลทันที (ไม่ใช้ await)
+            // 1. โหลดการตั้งค่าเดิมขึ้นมา
             loadSettings();
-        
-            const savedQuestions = localStorage.getItem('online_exam_questions');
-            if (savedQuestions) {
-                try { masterQuestions = JSON.parse(savedQuestions); } catch(e) {}
-            }
-        
+
+            // 🟢 ล้างข้อมูลคลังข้อสอบค้างเก่าในเบราว์เซอร์ เพื่อป้องกันตัวเลขนับทวีคูณเพี้ยน
+            localStorage.removeItem('online_exam_questions');
+            masterQuestions = [];
+
             const savedUsers = localStorage.getItem('online_exam_users');
             if (savedUsers) {
                 try { userDatabase = JSON.parse(savedUsers); } catch(e) {}
             }
-        
+
             // 2. วาด UI ทันที
             updateAdminSettingsUI();
             renderBranchButtons();
@@ -1745,15 +1745,14 @@ async function fetchAndSyncUsers() {
             const qIdx = headerCols.findIndex(h => h.includes('คำถาม') || h.includes('โจทย์') || h.includes('question'));
             const mediaIdx = headerCols.findIndex(h => h.includes('สื่อประกอบ') || h.includes('สื่อ') || h.includes('รูป') || h.includes('media'));
             
-            // 🟢 เพิ่มการรองรับชื่อคอลัมน์ตัวเลือกหลายรูปแบบ (1-4, ก-ง, Choice, Option)
             const opt1Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 1') || h.includes('ตัวเลือก1') || h.includes('ตัวเลือก ก') || h.includes('choice1') || h.includes('option1'));
             const opt2Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 2') || h.includes('ตัวเลือก2') || h.includes('ตัวเลือก ข') || h.includes('choice2') || h.includes('option2'));
             const opt3Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 3') || h.includes('ตัวเลือก3') || h.includes('ตัวเลือก ค') || h.includes('choice3') || h.includes('option3'));
             const opt4Idx = headerCols.findIndex(h => h.includes('ตัวเลือก 4') || h.includes('ตัวเลือก4') || h.includes('ตัวเลือก ง') || h.includes('choice4') || h.includes('option4'));
             const ansIdx = headerCols.findIndex(h => h.includes('เฉลย') || h.includes('answer') || h.includes('correct'));
         
-            if (qIdx === -1 || opt1Idx === -1 || opt2Idx === -1 || opt3Idx === -1 || opt4Idx === -1 || ansIdx === -1) {
-                console.error("❌ ไม่พบหัวคอลัมน์ที่จำเป็นใน Sheet Questions โปรดตรวจสอบลิงก์ CSV");
+            if (qIdx === -1) {
+                console.error("❌ ไม่พบหัวคอลัมน์คำถามใน Sheet Questions");
                 return false;
             }
         
@@ -1761,7 +1760,7 @@ async function fetchAndSyncUsers() {
         
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
-                if (cols.length < 6) continue;
+                if (cols.length < 2) continue;
         
                 const branchVal = branchIdx !== -1 && cols[branchIdx] ? cols[branchIdx].trim() : 'ข้อสอบกลาง';
                 const yearVal = yearIdx !== -1 && cols[yearIdx] ? cols[yearIdx].trim() : 'ทุกชั้นปี';
@@ -1770,17 +1769,21 @@ async function fetchAndSyncUsers() {
                 const skillVal = skillIdx !== -1 && cols[skillIdx] ? cols[skillIdx].trim() : '';
                 const question = cols[qIdx] ? cols[qIdx].trim() : '';
                 const media = mediaIdx !== -1 && cols[mediaIdx] ? cols[mediaIdx].trim() : '';
-                const options = [cols[opt1Idx], cols[opt2Idx], cols[opt3Idx], cols[opt4Idx]];
-                const correctVal = parseInt(cols[ansIdx]) - 1;
+                const options = [
+                    opt1Idx !== -1 ? cols[opt1Idx] : '',
+                    opt2Idx !== -1 ? cols[opt2Idx] : '',
+                    opt3Idx !== -1 ? cols[opt3Idx] : '',
+                    opt4Idx !== -1 ? cols[opt4Idx] : ''
+                ];
+                const correctVal = ansIdx !== -1 ? parseInt(cols[ansIdx]) - 1 : -1;
                 const typeVal = typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : 'choice';
                 const cleanedType = typeVal ? typeVal.trim().toLowerCase() : 'choice';
                 const isTextType = cleanedType === 'text' || cleanedType === 'media_text';
                 
-                // 🟢 เช็กป้องกันโจทย์ซ้ำในชุดเดียวกัน
+                // 🟢 กรองข้อสอบ: ถ้ามีโจทย์คำถาม และยังไม่มีโจทย์นี้อยู่ในรายการ
                 const isDuplicate = imported.some(item => item.question === question && item.category === categoryVal);
-                const isValidChoice = options.some(o => o !== undefined && o !== '') && !isNaN(correctVal);
-
-                if (question && !isDuplicate && (isTextType || isValidChoice)) {
+                
+                if (question && !isDuplicate) {
                     imported.push({ 
                         branch: branchVal,
                         yearLevel: yearVal,
@@ -1799,10 +1802,12 @@ async function fetchAndSyncUsers() {
             }
         
             if (imported.length > 0) {
-                // 🟢 บังคับเขียนทับข้อมูลคลังเดิมเสมอ เพื่อให้อัปเดตตรงตาม Google Sheets ล่าสุด
+                // 🟢 เขียนทับ masterQuestions ใหม่ทั้งหมดโดยตรง
                 masterQuestions = imported;
                 localStorage.setItem('online_exam_questions', JSON.stringify(masterQuestions));
-                updateAdminSettingsUI();
+                
+                if (typeof updateAdminSettingsUI === 'function') updateAdminSettingsUI();
+                if (typeof renderOverviewTable === 'function') renderOverviewTable();
                 return true;
             }
         
