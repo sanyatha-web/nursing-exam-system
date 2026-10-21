@@ -214,19 +214,29 @@
 
             <!-- ---------------- แท็บ: รายงานผลสัมฤทธิ์สาขา (MANAGER DASHBOARD) ---------------- -->
             <div id="tab-admin-manager-dashboard" class="hidden space-y-6">
-                <!-- Header & Branch Selector -->
+                <!-- Header, Branch & Year Filters -->
                 <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h3 class="font-bold text-slate-800 text-base flex items-center">
                             <i class="fa-solid fa-chart-pie text-indigo-600 mr-2"></i> รายงานผลสัมฤทธิ์และสถิติการเรียนรู้ระดับสาขา
                         </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">ภาพรวมคะแนน ประสิทธิภาพรายหน่วยการเรียนรู้ และการวิเคราะห์ทักษะ</p>
+                        <p class="text-xs text-slate-500 mt-0.5">ภาพรวมคะแนน ประสิทธิภาพรายหน่วยการเรียนรู้ และติดตามการเข้าสอบรายบุคคล</p>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-xs font-semibold text-slate-600 whitespace-nowrap"><i class="fa-solid fa-building-user text-slate-400 mr-1"></i> สาขา:</label>
-                        <select id="manager-branch-filter" onchange="renderManagerDashboard()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-                            <!-- Dynamic Branches -->
-                        </select>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Filter สาขา -->
+                        <div class="flex items-center space-x-1.5">
+                            <label class="text-xs font-semibold text-slate-600 whitespace-nowrap"><i class="fa-solid fa-building-user text-slate-400"></i> สาขา:</label>
+                            <select id="manager-branch-filter" onchange="renderManagerDashboard()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <!-- Dynamic Branches -->
+                            </select>
+                        </div>
+                        <!-- 📌 Filter ชั้นปี (เพิ่มใหม่) -->
+                        <div class="flex items-center space-x-1.5">
+                            <label class="text-xs font-semibold text-slate-600 whitespace-nowrap"><i class="fa-solid fa-graduation-cap text-slate-400"></i> ชั้นปี:</label>
+                            <select id="manager-year-filter" onchange="renderManagerDashboard()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="ทั้งหมด">ทุกชั้นปี</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -247,7 +257,7 @@
                             <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><i class="fa-solid fa-chart-line"></i></span>
                         </div>
                         <div class="text-2xl font-extrabold text-indigo-600" id="kpi-avg-score">0.0%</div>
-                        <p class="text-[11px] text-slate-400">คำนวณจากการสอบทุกครั้งในสาขา</p>
+                        <p class="text-[11px] text-slate-400">คำนวณจากการสอบทุกครั้งในกลุ่มนี้</p>
                     </div>
 
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
@@ -256,7 +266,7 @@
                             <span class="p-2 bg-amber-100 text-amber-600 rounded-xl"><i class="fa-solid fa-users"></i></span>
                         </div>
                         <div class="text-2xl font-extrabold text-slate-800" id="kpi-active-students">0 คน</div>
-                        <p class="text-[11px] text-slate-400" id="kpi-total-students-info">จากผู้เรียนในสาขาทั้งหมด 0 คน</p>
+                        <p class="text-[11px] text-slate-400" id="kpi-total-students-info">จากผู้เรียนทั้งหมด 0 คน</p>
                     </div>
 
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
@@ -269,60 +279,42 @@
                     </div>
                 </div>
 
-                <!-- 2. Section Analysis: Progress Bars & Summary -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-                        <h4 class="font-bold text-slate-800 text-sm flex items-center justify-between">
-                            <span><i class="fa-solid fa-bars-progress text-indigo-600 mr-2"></i> % คะแนนเฉลี่ยแยกตามหน่วยการเรียนรู้</span>
-                            <span class="text-xs font-normal text-slate-400">* เกณฑ์ผ่าน 80%</span>
-                        </h4>
-                        <div id="unit-performance-bars" class="space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-1">
-                            <!-- Dynamic Progress Bars -->
+                <!-- 📌 2. รายงานผลสัมฤทธิ์แบบ Accordion Progress Bars + รายชื่อผู้เข้าสอบ/ยังไม่สอบ (วางถัดจากการ์ด KPI) -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-base flex items-center">
+                                <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> สรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้
+                            </h4>
+                            <p class="text-xs text-slate-500 mt-0.5">คลิกที่ชุดการเรียนรู้เพื่อดูหน่วยย่อย หรือคลิกที่หน่วยเพื่อดูรายชื่อผู้เข้าสอบ/ยังไม่เข้าสอบ</p>
                         </div>
+                        <span class="text-xs font-semibold text-slate-400">* เกณฑ์การผ่าน 80%</span>
                     </div>
 
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-                        <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                            <i class="fa-solid fa-bullseye text-indigo-600 mr-2"></i> สรุปจุดแข็ง & จุดที่ควรพัฒนา
-                        </h4>
-                        <div class="space-y-3">
-                            <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100 space-y-1">
-                                <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center">
-                                    <i class="fa-solid fa-trophy mr-1.5 text-emerald-600"></i> หน่วยที่ผลสัมฤทธิ์สูงสุด
-                                </span>
-                                <p class="font-bold text-xs text-emerald-950" id="top-performing-unit">-</p>
-                            </div>
-                            <div class="p-3 bg-rose-50 rounded-xl border border-rose-100 space-y-1">
-                                <span class="text-[11px] font-bold text-rose-800 uppercase tracking-wider flex items-center">
-                                    <i class="fa-solid fa-triangle-exclamation mr-1.5 text-rose-600"></i> หน่วยที่ต้องเร่งฟื้นฟู
-                                </span>
-                                <p class="font-bold text-xs text-rose-950" id="lowest-performing-unit">-</p>
-                            </div>
-                        </div>
+                    <!-- คอนเทนเนอร์แสดง Accordion สถิติ (เรนเดอร์ผ่าน JS) -->
+                    <div id="manager-sets-accordion-container" class="space-y-3">
+                        <!-- Dynamic Sets & Units Progress Bars -->
                     </div>
                 </div>
 
-                <!-- 3. Detailed Unit Table -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-5">
+                <!-- 3. สรุปจุดแข็ง & จุดที่ควรพัฒนา -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
                     <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                        <i class="fa-solid fa-table-list text-indigo-600 mr-2"></i> ตารางสรุปผลสัมฤทธิ์การเรียนรู้รายหน่วย
+                        <i class="fa-solid fa-bullseye text-indigo-600 mr-2"></i> วิเคราะห์จุดแข็ง & จุดที่ควรพัฒนาของกลุ่มนี้
                     </h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-max text-left text-xs text-slate-700 border-collapse">
-                            <thead>
-                                <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                                    <th class="p-3 font-bold">หน่วยการเรียนรู้</th>
-                                    <th class="p-3 font-bold text-center">จำนวนผู้สอบ</th>
-                                    <th class="p-3 font-bold text-center">จำนวนครั้งที่สอบรวม</th>
-                                    <th class="p-3 font-bold text-center">คะแนนเฉลี่ย (%)</th>
-                                    <th class="p-3 font-bold text-center">คะแนนสูงสุด (%)</th>
-                                    <th class="p-3 font-bold text-center">อัตราการผ่านเกณฑ์</th>
-                                </tr>
-                            </thead>
-                            <tbody id="manager-unit-table-body" class="divide-y divide-slate-100">
-                                <!-- Dynamic Rows -->
-                            </tbody>
-                        </table>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-3.5 bg-emerald-50 rounded-xl border border-emerald-100 space-y-1">
+                            <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center">
+                                <i class="fa-solid fa-trophy mr-1.5 text-emerald-600"></i> หน่วยที่ผลสัมฤทธิ์สูงสุด
+                            </span>
+                            <p class="font-bold text-xs text-emerald-950" id="top-performing-unit">-</p>
+                        </div>
+                        <div class="p-3.5 bg-rose-50 rounded-xl border border-rose-100 space-y-1">
+                            <span class="text-[11px] font-bold text-rose-800 uppercase tracking-wider flex items-center">
+                                <i class="fa-solid fa-triangle-exclamation mr-1.5 text-rose-600"></i> หน่วยที่ต้องเร่งฟื้นฟู
+                            </span>
+                            <p class="font-bold text-xs text-rose-950" id="lowest-performing-unit">-</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3298,12 +3290,13 @@ function toggleModalUserSelection(username, isChecked) {
             container.innerHTML = html;
         }
 
-        // ฟังก์ชันคำนวณและเรนเดอร์หน้า Manager Dashboard
+        // ฟังก์ชันคำนวณและเรนเดอร์หน้า Manager Dashboard (รองรับ Filter ชั้นปี + Accordion + ดูรายชื่อผู้สอบ/ยังไม่สอบ)
         function renderManagerDashboard() {
             const branchSelect = document.getElementById('manager-branch-filter');
+            const yearSelect = document.getElementById('manager-year-filter');
             if (!branchSelect) return;
 
-            // 1. จัดการ Filter สาขา
+            // 1. จัดการตัวเลือกใน Filter สาขา
             const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
             
             if (loggedInUser && hasRole(loggedInUser, 'manager') && !hasRole(loggedInUser, 'superadmin')) {
@@ -3318,12 +3311,37 @@ function toggleModalUserSelection(username, isChecked) {
 
             const selectedBranch = branchSelect.value || (loggedInUser ? loggedInUser.branch : 'ทั้งหมด');
 
-            // 2. กรองข้อมูลผู้ใช้และประวัติการสอบ
-            const branchStudents = userDatabase.filter(u => u.role === 'student' && (selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch));
-            const studentIds = branchStudents.map(s => s.username);
-            const branchResults = examResultsHistory.filter(r => selectedBranch === 'ทั้งหมด' || r.branch === selectedBranch || studentIds.includes(r.sapId));
+            // 2. กรองและอัปเดตตัวเลือกใน Filter ชั้นปี ตามสาขาที่เลือก
+            const branchStudentsAll = userDatabase.filter(u => u.role === 'student' && (selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch));
+            const availableYears = Array.from(new Set(branchStudentsAll.map(s => s.yearLevel).filter(Boolean)));
 
-            // 3. คำนวณตัวเลขการ์ดสรุปยอด (KPIs)
+            if (yearSelect) {
+                const currentYearVal = yearSelect.value || "ทั้งหมด";
+                yearSelect.innerHTML = `<option value="ทั้งหมด">ทุกชั้นปี (${branchStudentsAll.length} คน)</option>` + 
+                    availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
+                if (availableYears.includes(currentYearVal) || currentYearVal === "ทั้งหมด") {
+                    yearSelect.value = currentYearVal;
+                }
+            }
+
+            const selectedYear = yearSelect ? yearSelect.value : 'ทั้งหมด';
+
+            // 3. กรองผู้เรียนและประวัติการสอบตาม สาขา + ชั้นปี
+            const branchStudents = branchStudentsAll.filter(s => selectedYear === 'ทั้งหมด' || s.yearLevel === selectedYear);
+            const studentMap = {};
+            branchStudents.forEach(s => studentMap[s.username] = s);
+
+            const studentIds = branchStudents.map(s => s.username);
+            
+            // กรองประวัติการสอบ
+            const branchResults = examResultsHistory.filter(r => {
+                const matchBranch = selectedBranch === 'ทั้งหมด' || r.branch === selectedBranch;
+                const matchStudent = studentIds.includes(r.sapId);
+                const matchYear = selectedYear === 'ทั้งหมด' || r.yearLevel === selectedYear;
+                return matchBranch && matchStudent && matchYear;
+            });
+
+            // 4. คำนวณตัวเลขการ์ดสรุปยอด (KPIs)
             const totalStudentsCount = branchStudents.length;
             const activeStudentIds = new Set(branchResults.map(r => r.sapId));
             const activeStudentsCount = activeStudentIds.size;
@@ -3340,103 +3358,246 @@ function toggleModalUserSelection(username, isChecked) {
             const avgScore = totalAttemptsCount > 0 ? (totalPercentageSum / totalAttemptsCount).toFixed(1) : "0.0";
             const passRate = totalAttemptsCount > 0 ? ((passedAttemptsCount / totalAttemptsCount) * 100).toFixed(1) : "0.0";
 
-            // แสดงผลบน KPI Cards
             document.getElementById('kpi-pass-rate').textContent = `${passRate}%`;
             document.getElementById('kpi-pass-count').textContent = `ผ่าน ${passedAttemptsCount} จาก ${totalAttemptsCount} การสอบ`;
             document.getElementById('kpi-avg-score').textContent = `${avgScore}%`;
             document.getElementById('kpi-active-students').textContent = `${activeStudentsCount} คน`;
-            document.getElementById('kpi-total-students-info').textContent = `จากผู้เรียนในสาขาทั้งหมด ${totalStudentsCount} คน`;
+            document.getElementById('kpi-total-students-info').textContent = `จากผู้เรียนในกลุ่มนี้ ${totalStudentsCount} คน`;
             document.getElementById('kpi-total-attempts').textContent = `${totalAttemptsCount} ครั้ง`;
             document.getElementById('kpi-avg-attempts').textContent = `เฉลี่ย ${(activeStudentsCount > 0 ? totalAttemptsCount / activeStudentsCount : 0).toFixed(1)} ครั้ง/คน`;
 
-            // 4. จัดกลุ่มสถิติรายหน่วยการเรียนรู้
-            const unitStats = {};
+            // 5. จัดกลุ่มสถิติแยกตาม ชุดการเรียนรู้ (Set Group) -> หน่วยการเรียนรู้ (Category)
+            const setsStructure = {};
 
-            branchResults.forEach(r => {
-                const cat = r.category || 'หน่วยการเรียนรู้ทั่วไป';
-                if (!unitStats[cat]) {
-                    unitStats[cat] = {
+            // ดึงโครงสร้างทั้งหมดที่มีในคลังข้อสอบ
+            masterQuestions.filter(q => selectedBranch === 'ทั้งหมด' || q.branch === selectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง').forEach(q => {
+                const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
+
+                if (!setsStructure[setName]) setsStructure[setName] = {};
+                if (!setsStructure[setName][catName]) {
+                    setsStructure[setName][catName] = {
                         attempts: 0,
-                        students: new Set(),
-                        scoreSum: 0,
-                        maxScore: 0,
-                        passedCount: 0
+                        scores: [],
+                        completedStudents: {}, // sapId -> latestResult
                     };
                 }
-                unitStats[cat].attempts++;
-                unitStats[cat].students.add(r.sapId);
-                unitStats[cat].scoreSum += r.percentage;
-                if (r.percentage > unitStats[cat].maxScore) unitStats[cat].maxScore = r.percentage;
-                if (r.percentage >= 80) unitStats[cat].passedCount++;
             });
 
-            // 5. วาด Progress Bars และ ตารางรายหน่วย
-            const barsContainer = document.getElementById('unit-performance-bars');
-            const tableBody = document.getElementById('manager-unit-table-body');
+            // นำผลการสอบไปเติมลงในโครงสร้าง
+            branchResults.forEach(r => {
+                const setName = r.examSet || 'ชุดการเรียนรู้ทั่วไป';
+                const catName = r.category || 'หน่วยการเรียนรู้ทั่วไป';
 
-            let barsHtml = '';
-            let tableHtml = '';
+                if (!setsStructure[setName]) setsStructure[setName] = {};
+                if (!setsStructure[setName][catName]) {
+                    setsStructure[setName][catName] = {
+                        attempts: 0,
+                        scores: [],
+                        completedStudents: {},
+                    };
+                }
 
-            let topUnit = { name: '-', avg: -1 };
-            let lowestUnit = { name: '-', avg: 999 };
+                const unitObj = setsStructure[setName][catName];
+                unitObj.attempts++;
+                unitObj.scores.push(r.percentage);
 
-            const unitKeys = Object.keys(unitStats);
+                if (!unitObj.completedStudents[r.sapId] || r.percentage > unitObj.completedStudents[r.sapId].percentage) {
+                    unitObj.completedStudents[r.sapId] = r;
+                }
+            });
 
-            if (unitKeys.length === 0) {
-                barsContainer.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-4">ยังไม่มีข้อมูลผลการสอบในสาขานี้</p>`;
-                tableBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูลผลการสอบ</td></tr>`;
+            // 6. วาด Accordion สถิติ
+            const accordionContainer = document.getElementById('manager-sets-accordion-container');
+            if (!accordionContainer) return;
+
+            const setNames = Object.keys(setsStructure);
+
+            if (setNames.length === 0) {
+                accordionContainer.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">ไม่พบข้อมูลชุดการเรียนรู้ตามเงื่อนไขที่เลือก</p>`;
                 document.getElementById('top-performing-unit').textContent = '-';
                 document.getElementById('lowest-performing-unit').textContent = '-';
                 return;
             }
 
-            unitKeys.forEach(cat => {
-                const stat = unitStats[cat];
-                const unitAvg = (stat.scoreSum / stat.attempts).toFixed(1);
-                const unitPassRate = ((stat.passedCount / stat.attempts) * 100).toFixed(1);
+            let accordionHtml = '';
+            let topUnit = { name: '-', avg: -1 };
+            let lowestUnit = { name: '-', avg: 999 };
 
-                if (parseFloat(unitAvg) > topUnit.avg) {
-                    topUnit = { name: cat, avg: unitAvg };
-                }
-                if (parseFloat(unitAvg) < lowestUnit.avg) {
-                    lowestUnit = { name: cat, avg: unitAvg };
-                }
+            setNames.forEach((setName, setIdx) => {
+                const unitsMap = setsStructure[setName];
+                const unitNames = Object.keys(unitsMap);
 
-                const barColor = unitAvg >= 80 ? 'bg-emerald-500' : (unitAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+                let setTotalScores = [];
+                let setAttemptsCount = 0;
 
-                barsHtml += `
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-xs font-semibold">
-                            <span class="text-slate-700 truncate max-w-[200px]" title="${cat}">${cat}</span>
-                            <span class="text-indigo-900 font-bold">${unitAvg}% <span class="text-[10px] text-slate-400 font-normal">(ผ่าน ${unitPassRate}%)</span></span>
+                unitNames.forEach(catName => {
+                    const uData = unitsMap[catName];
+                    setTotalScores.push(...uData.scores);
+                    setAttemptsCount += uData.attempts;
+                });
+
+                const setAvg = setTotalScores.length > 0 ? (setTotalScores.reduce((a, b) => a + b, 0) / setTotalScores.length).toFixed(1) : "0.0";
+                const setBarColor = setAvg >= 80 ? 'bg-emerald-500' : (setAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+
+                accordionHtml += `
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                        <!-- แม่: ชุดการเรียนรู้ (Header Click to Toggle) -->
+                        <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100/80 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-folder-closed"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold text-slate-800 text-sm flex items-center">
+                                        ${setName}
+                                        <span class="ml-2 text-[11px] font-normal text-slate-500">(${unitNames.length} หน่วยการเรียนรู้)</span>
+                                    </h5>
+                                    <p class="text-[11px] text-slate-400">เข้าสอบรวม ${setAttemptsCount} ครั้ง</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center space-x-4 min-w-[200px]">
+                                <div class="w-full space-y-1">
+                                    <div class="flex justify-between text-[11px] font-bold">
+                                        <span class="text-slate-500">เฉลี่ยชุด:</span>
+                                        <span class="text-indigo-900">${setAvg}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                        <div class="${setBarColor} h-2 rounded-full" style="width: ${Math.min(setAvg, 100)}%"></div>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200" id="set-icon-${setIdx}"></i>
+                            </div>
                         </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                            <div class="${barColor} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(unitAvg, 100)}%"></div>
+
+                        <!-- ลูก: หน่วยการเรียนรู้ (Collapsible Content) -->
+                        <div id="set-body-${setIdx}" class="hidden divide-y divide-slate-100 bg-white border-t border-slate-200">
+                `;
+
+                unitNames.forEach((catName, unitIdx) => {
+                    const uData = unitsMap[catName];
+                    const uAvg = uData.scores.length > 0 ? (uData.scores.reduce((a, b) => a + b, 0) / uData.scores.length).toFixed(1) : "0.0";
+                    
+                    if (uData.scores.length > 0) {
+                        if (parseFloat(uAvg) > topUnit.avg) topUnit = { name: `${setName} > ${catName}`, avg: uAvg };
+                        if (parseFloat(uAvg) < lowestUnit.avg) lowestUnit = { name: `${setName} > ${catName}`, avg: uAvg };
+                    }
+
+                    const doneCount = Object.keys(uData.completedStudents).length;
+                    const notDoneCount = Math.max(0, totalStudentsCount - doneCount);
+                    const uBarColor = uAvg >= 80 ? 'bg-emerald-500' : (uAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+
+                    // หาผู้ที่ยังไม่ได้ทำ
+                    const notDoneStudents = branchStudents.filter(s => !uData.completedStudents[s.username]);
+
+                    accordionHtml += `
+                        <div class="p-4 space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-book-bookmark text-indigo-600 text-xs"></i>
+                                    <span class="font-bold text-slate-800 text-xs">${catName}</span>
+                                </div>
+                                <div class="flex items-center space-x-3 text-xs">
+                                    <span class="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-100">
+                                        <i class="fa-solid fa-circle-check mr-1"></i>ทำแล้ว ${doneCount} คน
+                                    </span>
+                                    <span class="font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-100">
+                                        <i class="fa-solid fa-circle-xmark mr-1"></i>ยังไม่ทำ ${notDoneCount} คน
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar รายหน่วย -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[11px] font-semibold text-slate-600">
+                                    <span>คะแนนเฉลี่ยหน่วย</span>
+                                    <span class="font-bold text-indigo-900">${uAvg}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div class="${uBarColor} h-2 rounded-full" style="width: ${Math.min(uAvg, 100)}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- ปุ่มดูรายชื่อผู้เข้าสอบ/ยังไม่สอบ -->
+                            <div class="pt-1 flex justify-end">
+                                <button onclick="toggleManagerAccordion('unit-users-${setIdx}-${unitIdx}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-[11px] flex items-center space-x-1">
+                                    <i class="fa-solid fa-users-viewfinder"></i>
+                                    <span>ตรวจสอบรายชื่อผู้เรียนในหน่วยนี้</span>
+                                    <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                </button>
+                            </div>
+
+                            <!-- กล่องแสดงรายชื่อผู้เรียนแบบละเอียดยุบไว้ -->
+                            <div id="unit-users-${setIdx}-${unitIdx}" class="hidden pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <!-- ฝั่งทำแล้ว -->
+                                <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 space-y-2">
+                                    <h6 class="font-bold text-emerald-900 text-xs flex items-center">
+                                        <i class="fa-solid fa-user-check text-emerald-600 mr-1.5"></i> ทำแล้ว (${doneCount} คน)
+                                    </h6>
+                                    <div class="max-h-36 overflow-y-auto custom-scrollbar divide-y divide-emerald-100 pr-1">
+                                        ${doneCount === 0 ? '<p class="text-[11px] text-slate-400 italic">ยังไม่มีผู้ทำแบบทดสอบ</p>' : 
+                                            Object.values(uData.completedStudents).map(res => {
+                                                const st = studentMap[res.sapId];
+                                                const isPass = res.percentage >= 80;
+                                                return `
+                                                    <div class="py-1.5 flex justify-between items-center text-[11px]">
+                                                        <div>
+                                                            <div class="font-bold text-slate-800">${res.fullname || (st ? st.fullname : res.sapId)}</div>
+                                                            <div class="text-[10px] text-slate-400 font-mono">${res.sapId} •${res.yearLevel || ''}</div>
+                                                        </div>
+                                                        <span class="font-bold ${isPass ? 'text-emerald-700' : 'text-rose-600'}">
+                                                            ${res.score}/${res.total} (${res.percentage.toFixed(0)}%)
+                                                        </span>
+                                                    </div>
+                                                `;
+                                            }).join('')
+                                        }
+                                    </div>
+                                </div>
+
+                                <!-- ฝั่งยังไม่ทำ -->
+                                <div class="bg-rose-50/50 p-3 rounded-xl border border-rose-100 space-y-2">
+                                    <h6 class="font-bold text-rose-900 text-xs flex items-center">
+                                        <i class="fa-solid fa-user-xmark text-rose-600 mr-1.5"></i> ยังไม่ทำ (${notDoneCount} คน)
+                                    </h6>
+                                    <div class="max-h-36 overflow-y-auto custom-scrollbar divide-y divide-rose-100 pr-1">
+                                        ${notDoneStudents.length === 0 ? '<p class="text-[11px] text-emerald-700 font-bold">🎉 ครบทุกคนแล้ว</p>' : 
+                                            notDoneStudents.map(st => `
+                                                <div class="py-1.5 flex justify-between items-center text-[11px]">
+                                                    <div>
+                                                        <div class="font-bold text-slate-800">${st.fullname}</div>
+                                                        <div class="text-[10px] text-slate-400 font-mono">${st.username} •${st.yearLevel}</div>
+                                                    </div>
+                                                    <span class="text-[10px] text-rose-500 font-bold">ยังไม่ทำ</span>
+                                                </div>
+                                            `).join('')
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                accordionHtml += `
                         </div>
                     </div>
                 `;
-
-                tableHtml += `
-                    <tr class="hover:bg-slate-50 transition border-b border-slate-100 text-xs">
-                        <td class="p-3 font-bold text-slate-800">${cat}</td>
-                        <td class="p-3 text-center font-bold text-indigo-600">${stat.students.size} คน</td>
-                        <td class="p-3 text-center text-slate-600">${stat.attempts} ครั้ง</td>
-                        <td class="p-3 text-center font-bold text-slate-800">${unitAvg}%</td>
-                        <td class="p-3 text-center font-bold text-emerald-600">${stat.maxScore.toFixed(1)}%</td>
-                        <td class="p-3 text-center whitespace-nowrap">
-                            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${unitPassRate >= 80 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-                                ${unitPassRate}% ผ่านเกณฑ์
-                            </span>
-                        </td>
-                    </tr>
-                `;
             });
 
-            barsContainer.innerHTML = barsHtml;
-            tableBody.innerHTML = tableHtml;
+            accordionContainer.innerHTML = accordionHtml;
 
-            document.getElementById('top-performing-unit').textContent = `${topUnit.name} (เฉลี่ย ${topUnit.avg}%)`;
-            document.getElementById('lowest-performing-unit').textContent = `${lowestUnit.name} (เฉลี่ย ${lowestUnit.avg}%)`;
+            document.getElementById('top-performing-unit').textContent = topUnit.avg !== -1 ? `${topUnit.name} (เฉลี่ย ${topUnit.avg}%)` : '-';
+            document.getElementById('lowest-performing-unit').textContent = lowestUnit.avg !== 999 ? `${lowestUnit.name} (เฉลี่ย ${lowestUnit.avg}%)` : '-';
+        }
+
+        // ฟังก์ชันช่วยยืด/หุบ Accordion
+        function toggleManagerAccordion(elementId) {
+            const elem = document.getElementById(elementId);
+            if (elem) {
+                elem.classList.toggle('hidden');
+            }
         }
 
         // ฟังก์ชันบันทึกคะแนนข้อเขียน
