@@ -2398,6 +2398,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         }
 
         // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (อัปเดตเปิดแท็บ tracker)
+        // 2. ฟังก์ชัน สลับแท็บหน้าจัดการของอาจารย์ (แก้ไขให้เปิด Manager Dashboard ได้สมบูรณ์)
         function switchAdminTab(tabName) {
             if (!loggedInUser) return;
 
@@ -2439,26 +2440,38 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (mData) mData.classList.toggle('hidden', !isSuperAdmin);
             if (mEssay) mEssay.classList.toggle('hidden', !isPreceptor && !isAdmin && !isSuperAdmin);
 
-            // 3. สลับแท็บหน้าจอ
+            // 3. ซ่อนแท็บทั้งหมดก่อนเปิดแท็บที่เลือก
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
             const tabData = document.getElementById('tab-admin-data-sources');
             const tabEssay = document.getElementById('tab-admin-essay-grading');
-            const branchWrapper = document.getElementById('branch-selector-wrapper');
             const tabManager = document.getElementById('tab-admin-manager-dashboard');
+            const branchWrapper = document.getElementById('branch-selector-wrapper');
 
             if (tabOverview) tabOverview.classList.add('hidden');
             if (tabExam) tabExam.classList.add('hidden');
             if (tabTracker) tabTracker.classList.add('hidden');
             if (tabData) tabData.classList.add('hidden');
             if (tabEssay) tabEssay.classList.add('hidden');
-            if (branchWrapper) branchWrapper.classList.add('hidden');
             if (tabManager) tabManager.classList.add('hidden');
+            if (branchWrapper) branchWrapper.classList.add('hidden');
 
-            if (tabName === 'student-tracker') {
+            // 4. เปิดแท็บตามที่เลือก
+            if (tabName === 'manager-dashboard') {
+                if (tabManager) tabManager.classList.remove('hidden');
+                if (typeof fetchAndSyncResults === 'function') {
+                    Promise.resolve(fetchAndSyncResults()).then(() => renderManagerDashboard());
+                } else {
+                    renderManagerDashboard();
+                }
+            } else if (tabName === 'student-tracker') {
                 if (tabTracker) tabTracker.classList.remove('hidden');
-                fetchAndSyncResults().then(() => renderStudentTrackerTable());
+                if (typeof fetchAndSyncResults === 'function') {
+                    Promise.resolve(fetchAndSyncResults()).then(() => renderStudentTrackerTable());
+                } else {
+                    renderStudentTrackerTable();
+                }
             } else if (tabName === 'exam-settings') {
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
@@ -2470,9 +2483,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 if (tabEssay) tabEssay.classList.remove('hidden');
                 const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 renderEssayGradingCards(pendingList);
-            } else if (tabName === 'manager-dashboard') {
-                if (tabManager) tabManager.classList.remove('hidden');
-                fetchAndSyncResults().then(() => renderManagerDashboard());
             } else {
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 renderOverviewTable();
