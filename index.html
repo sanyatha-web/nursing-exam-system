@@ -2563,7 +2563,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         }
 
-        // 🟢 ฟังก์ชันสลับแท็บเมนูสำหรับอาจารย์/ผู้บริหาร (แก้ไขปัญหาปุ่มกดแล้วเด้งไปหน้าแรกหมด)
+        // 🟢 ฟังก์ชันสลับแท็บเมนูสำหรับอาจารย์/ผู้บริหาร (แก้ไข Routing ปุ่ม Header)
         function switchAdminTab(tabName) {
             if (!loggedInUser) return;
 
@@ -2612,26 +2612,30 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (tabManager) tabManager.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
 
-            // 6. สลับเปิดแสดงเนื้อหาตาม tabName ที่ส่งมาจากปุ่มบน Header
+            // 6. สลับเปิดแสดงเนื้อหาตาม tabName ที่ตรงกับปุ่มบน Header
             if (tabName === 'manager-dashboard') {
-                if (btnHome) btnHome.classList.add('bg-white/20', 'text-white');
+                // ปุ่มที่ 1: หน้าแรก / สถิติผลสัมฤทธิ์
+                if (btnHome) btnHome.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 if (tabManager) tabManager.classList.remove('hidden');
                 renderManagerDashboard();
 
             } else if (tabName === 'overview') {
-                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white');
+                // ปุ่มที่ 2: การตั้งค่าการสอบ (แสดงตารางภาพรวมการตั้งค่า)
+                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 renderOverviewTable();
 
             } else if (tabName === 'exam-settings') {
-                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white');
+                // หน้าจัดการตั้งค่าการสอบรายสาขา (สลับมาจากปุ่มวาร์ป)
+                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 if (tabExam) tabExam.classList.remove('hidden');
                 if (branchWrapper) branchWrapper.classList.remove('hidden');
                 renderBranchButtons();
                 switchBranchSettings(currentSelectedBranch);
 
             } else if (tabName === 'student-tracker') {
-                if (btnTracker) btnTracker.classList.add('bg-white/20', 'text-white');
+                // ปุ่มที่ 3: ติดตามการสอบรายบุคคล
+                if (btnTracker) btnTracker.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 if (tabTracker) tabTracker.classList.remove('hidden');
                 if (typeof fetchAndSyncResults === 'function') {
                     Promise.resolve(fetchAndSyncResults()).then(() => renderStudentTrackerUI());
@@ -2640,19 +2644,21 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 }
 
             } else if (tabName === 'essay-grading') {
-                if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white');
+                // ปุ่มที่ 4: ตรวจข้อสอบข้อเขียน
+                if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 if (tabEssay) tabEssay.classList.remove('hidden');
                 const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 renderEssayGradingCards(pendingList);
 
             } else if (tabName === 'data-sources') {
+                // แหล่งข้อมูลนำเข้า/ออก (จาก Dropdown ฟันเฟือง)
                 if (tabData) tabData.classList.remove('hidden');
 
             } else {
-                // กรณีไม่ตรงกับเงื่อนไขใดเลย ให้แสดงหน้าภาพรวมการตั้งค่า (Overview)
-                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white');
-                if (tabOverview) tabOverview.classList.remove('hidden');
-                renderOverviewTable();
+                // Default Fallback
+                if (btnHome) btnHome.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                if (tabManager) tabManager.classList.remove('hidden');
+                renderManagerDashboard();
             }
         }
 
