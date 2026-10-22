@@ -1977,21 +1977,21 @@ async function fetchAndSyncUsers() {
                 const el = document.getElementById(id);
                 if (el) {
                     if (isCheck) el.checked = !!val;
-                    else el.value = val;
+                    else el.value = val || "";
                 }
             };
         
             safeSet('setting-users-csv-url', settings.usersCsvUrl || "");
-            safeSet('setting-exam-global-enable', settings.globalExamEnable !== false, true);
             safeSet('setting-sheet-csv-url', settings.sheetCsvUrl || "");
+            safeSet('setting-results-csv-url', settings.resultsCsvUrl || ""); // 🟢 เพิ่มสั่งนำค่า Results CSV กลับมาใส่ช่องกรอก
+            safeSet('setting-webapp-url', settings.webAppUrl || "");          // 🟢 เพิ่มสั่งนำค่า WebApp URL กลับมาใส่ช่องกรอก
+            safeSet('setting-exam-global-enable', settings.globalExamEnable !== false, true);
             safeSet('setting-anti-cheat-enable', settings.antiCheatEnable, true);
             safeSet('setting-max-tab-switches', settings.maxTabSwitches || 3);
             safeSet('setting-auto-submit-cheat', settings.autoSubmitOnCheat, true);
             safeSet('setting-question-count', settings.questionCount || 15);
             safeSet('setting-time-limit', settings.timeLimitMinutes !== undefined ? settings.timeLimitMinutes : 15);
             safeSet('setting-shuffle-options', (settings.shuffleOptions !== undefined ? settings.shuffleOptions : true).toString());
-            safeSet('setting-webapp-url', settings.webAppUrl || "");
-            safeSet('setting-results-csv-url', settings.resultsCsvUrl || "");
         
             toggleAntiCheatSettingsUI();
         }
@@ -2014,6 +2014,17 @@ async function fetchAndSyncUsers() {
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
             const globalElem = document.getElementById('setting-exam-global-enable');
         
+            // 🟢 ดึงค่าลิงก์จากหน้าจอเข้าตัวแปร settings
+            const usersUrlElem = document.getElementById('setting-users-csv-url');
+            const sheetUrlElem = document.getElementById('setting-sheet-csv-url');
+            const resultsUrlElem = document.getElementById('setting-results-csv-url');
+            const webAppUrlElem = document.getElementById('setting-webapp-url');
+
+            if (usersUrlElem) settings.usersCsvUrl = usersUrlElem.value.trim();
+            if (sheetUrlElem) settings.sheetCsvUrl = sheetUrlElem.value.trim();
+            if (resultsUrlElem) settings.resultsCsvUrl = resultsUrlElem.value.trim();
+            if (webAppUrlElem) settings.webAppUrl = webAppUrlElem.value.trim();
+
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
@@ -2024,13 +2035,13 @@ async function fetchAndSyncUsers() {
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 
                 const unitSkillCounts = {};
-                    document.querySelectorAll(`.unit-type-input-${idx}`).forEach(input => {
-                        const skillName = input.getAttribute('data-type');
-                        const count = parseInt(input.value) || 0;
-                        if (skillName) {
-                            unitSkillCounts[skillName.trim().toLowerCase()] = count;
-                        }
-                    });
+                document.querySelectorAll(`.unit-type-input-${idx}`).forEach(input => {
+                    const skillName = input.getAttribute('data-type');
+                    const count = parseInt(input.value) || 0;
+                    if (skillName) {
+                        unitSkillCounts[skillName.trim().toLowerCase()] = count;
+                    }
+                });
         
                 unitSettings[uKey] = {
                     ...(unitSettings[uKey] || {}),
@@ -2039,7 +2050,7 @@ async function fetchAndSyncUsers() {
                     timeLimitMinutes: parseInt(document.getElementById(`unit-time-${idx}`)?.value) || 15,
                     antiCheatEnable: document.getElementById(`unit-anticheat-${idx}`)?.checked || false,
                     preventScreenshot: document.getElementById(`unit-screenshot-${idx}`)?.checked || false,
-                    shuffleOptions: document.getElementById(`unit-shuffle-${idx}`)?.checked || false, // 🟢 แก้ไขตรงนี้อ่านจาก Checkbox
+                    shuffleOptions: document.getElementById(`unit-shuffle-${idx}`)?.checked || false,
                     distributeBySkills: document.getElementById(`unit-distribute-${idx}`)?.checked || false,
                     skillCounts: unitSkillCounts,
                     accessMode: document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all',
@@ -2054,11 +2065,12 @@ async function fetchAndSyncUsers() {
                 selectedSet: selectedSet
             };
         
+            // 🟢 บันทึก settings ทั้งหมดลง LocalStorage
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการตั้งค่ารายหน่วยการเรียนรู้ถูกบันทึกเรียบร้อยแล้ว');
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการเชื่อมต่อและคลังข้อสอบถูกบันทึกเรียบร้อยแล้ว');
         }                          
 
         function renderInitialSetupNotice() {
