@@ -2858,26 +2858,31 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
             const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
-
-            // 🟢 ล็อก Filter สาขาสำหรับทั้ง Admin และ Manager (ยกเว้น Superadmin)
-            const isRestrictedRole = (hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager')) && !hasRole(loggedInUser, 'superadmin');
-            
-            if (isRestrictedRole && loggedInUser.branch) {
-                branchSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
-                branchSelect.disabled = true;
-            } else {
-                branchSelect.disabled = false;
-                const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
-                if (branchSelect.options.length <= 1 || branchSelect.disabled) {
-                    branchSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขาวิชา (${allBranches.length})</option>` + 
-                        allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+        
+            // 🟢 1. ประกาศตัวแปร branchSelect ก่อนนำไปใช้งาน
+            const branchSelect = document.getElementById('tracker-branch-filter');
+        
+            if (branchSelect) {
+                // เช็กสิทธิ์ล็อก Filter สำหรับ Admin และ Manager
+                const isRestrictedRole = (hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager')) && !hasRole(loggedInUser, 'superadmin');
+        
+                if (isRestrictedRole && loggedInUser && loggedInUser.branch) {
+                    branchSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
+                    branchSelect.disabled = true;
+                } else {
+                    branchSelect.disabled = false;
+                    const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
+                    if (branchSelect.options.length <= 1 || branchSelect.disabled) {
+                        branchSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขาวิชา (${allBranches.length})</option>` + 
+                            allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+                    }
                 }
             }
         
-            // 📌 ประกาศตัวแปรตรงนี้ เพื่อให้ลูปดึงไปใช้ได้ทันทีโดยไม่ติด ReferenceError
+            // 🟢 2. ดึงค่าสาขาที่กำลังเลือก
             const selectedBranch = branchSelect ? branchSelect.value : 'ทั้งหมด';
-
-            // 🟢 2. เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown
+        
+            // 3. เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown
             const acadYearSelect = document.getElementById('tracker-academic-year-filter');
             if (acadYearSelect) {
                 const studentUsers = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor'));
@@ -2887,7 +2892,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
                 if (allAcademicYears.includes(currentVal)) acadYearSelect.value = currentVal;
             }
-
+        
             const selectedAcadYear = acadYearSelect ? acadYearSelect.value : 'ทั้งหมด';
 
             // 🟢 3. กรองรายชื่อนักศึกษา
