@@ -3872,10 +3872,7 @@ function toggleModalUserSelection(username, isChecked) {
                         allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                 }
             }
-        
-            const selectedBranch = branchSelect.value || (loggedInUser ? loggedInUser.branch : 'ทั้งหมด');
-            const selectedYear = yearSelect ? yearSelect.value : 'ทั้งหมด';
-        
+               
             // 1.2 กรองผู้ใช้เฉพาะที่เป็นนักศึกษา (role === 'student') และปี 1-3 เท่านั้น
             const branchStudents = userDatabase.filter(u => {
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin');
