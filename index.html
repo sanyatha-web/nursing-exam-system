@@ -4020,7 +4020,7 @@ function toggleModalUserSelection(username, isChecked) {
             const container = document.getElementById('manager-sets-accordion-container');
             if (!container) return;
         
-            const selectedYear = document.getElementById('manager-year-filter')?.value || 'ทั้งหมด';
+            const selectedYear = (document.getElementById('manager-year-filter')?.value || 'ทั้งหมด').trim();
         
             // 1. กรองข้อสอบเฉพาะชั้นปีที่เลือก
             const filteredQuestions = availableQuestions.filter(q => {
@@ -4109,8 +4109,16 @@ function toggleModalUserSelection(username, isChecked) {
                     const failedList = [];
                     const unattemptedList = [];
         
-                    studentsList.forEach(st => {
-                        // 🟢 จุดแก้ไขสำคัญ: ตัดช่องว่าง (.trim()) และแปลงตัวพิมพ์เล็ก (.toLowerCase()) ของ รหัสนักเรียน ทั้งฝั่ง User และ Results
+                    // 🟢 ปรับการกรองนักเรียนที่สอดคล้องกับชั้นปีของกลุ่มเมื่อเลือกมุมมอง 'ตามชั้นปี'
+                    const filteredStudentsList = studentsList.filter(st => {
+                        if (currentManagerViewMode === 'year' && groupName !== 'ทุกชั้นปี') {
+                            const stYear = (st.yearLevel || '').trim();
+                            return !stYear || stYear === groupName;
+                        }
+                        return true;
+                    });
+
+                    filteredStudentsList.forEach(st => {
                         const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
                         
                         const stAttempts = history.filter(r => {
