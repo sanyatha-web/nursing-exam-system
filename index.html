@@ -3814,14 +3814,13 @@ function toggleModalUserSelection(username, isChecked) {
 
         // 1. ฟังก์ชันหลักสำหรับเรนเดอร์ Manager Dashboard
         function renderManagerDashboard() {
-            // 🟢 ดึงข้อมูลจาก LocalStorage Cache มาแสดงก่อนทันทีขณะรอซิงค์ข้อมูลใหม่
+            // 1. อ่านข้อมูลจาก LocalStorage ก่อนเพื่อความรวดเร็ว
             if ((!examResultsHistory || examResultsHistory.length === 0) && localStorage.getItem('cached_exam_results_history')) {
                 try {
                     examResultsHistory = JSON.parse(localStorage.getItem('cached_exam_results_history'));
-                } catch(e) {
-                    console.error(e);
-                }
+                } catch(e) { console.error(e); }
             }
+            
             const branchSelect = document.getElementById('manager-branch-filter');
             const yearSelect = document.getElementById('manager-year-filter');
             const academicYearSelect = document.getElementById('manager-academic-year-filter'); // 🟢 เพิ่มเติม
@@ -3992,9 +3991,24 @@ function toggleModalUserSelection(username, isChecked) {
                 return !qYear || qYear === 'ทุกชั้นปี' || qYear === selectedYear;
             });
         
+            // 2. สร้าง Index สำหรับค้นหาผลสอบอย่างรวดเร็ว (O(1) Lookup)
+            const resultsIndex = new Map();
+            normalResults.forEach(r => {
+                const groupName = currentManagerViewMode === 'set' 
+                    ? (r.examSet || 'ชุดการเรียนรู้ทั่วไป').trim() 
+                    : (r.yearLevel || 'ทุกชั้นปี').trim();
+                const catName = (r.category || 'หน่วยการเรียนรู้ทั่วไป').trim();
+                const stId = (r.sapId || r.studentId || '').toString().trim().toLowerCase();
+        
+                const key = `${groupName}__${catName}__${stId}`;
+                if (!resultsIndex.has(key)) {
+                    resultsIndex.set(key, []);
+                }
+                resultsIndex.get(key).push(r);
+            });
+        
             const setsStructure = {};
         
-            // 2. จัดกลุ่มข้อมูลตามมุมมองที่เลือก (ตามชุดการเรียนรู้ VS ตามชั้นปี)
             filteredQuestions.forEach(q => {
                 const groupName = currentManagerViewMode === 'set' 
                     ? (q.setGroup || 'ชุดการเรียนรู้ทั่วไป').trim() 
@@ -4027,14 +4041,13 @@ function toggleModalUserSelection(username, isChecked) {
                 const unitsMap = setsStructure[groupName];
                 const unitNames = Object.keys(unitsMap);
         
-                // คำนวณคะแนนเฉลี่ยประจำกลุ่ม
                 let setTotalScores = [];
                 unitNames.forEach(u => unitsMap[u]?.forEach(r => setTotalScores.push(r.percentage)));
                 const setAvg = setTotalScores.length > 0 ? (setTotalScores.reduce((a, b) => a + b, 0) / setTotalScores.length).toFixed(1) : "0.0";
                 const setBarColor = setAvg >= 80 ? 'bg-emerald-500' : (setAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
         
                 const groupIcon = currentManagerViewMode === 'set' ? 'fa-folder-open' : 'fa-graduation-cap';
-
+        
                 html += `
                     <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                         <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -4072,34 +4085,33 @@ function toggleModalUserSelection(username, isChecked) {
                     const failedList = [];
                     const unattemptedList = [];
         
-                    // 🟢 [แก้ไขจุดนี้] ดึงชั้นปีจากคลังข้อสอบเพื่อกรองเฉพาะนักศึกษาในชั้นปีของชุดการเรียนรู้นั้นๆ
                     const sampleQ = availableQuestions.find(q => 
                         (currentManagerViewMode === 'set' ? (q.setGroup || '').trim() === groupName : (q.yearLevel || '').trim() === groupName) &&
                         (q.category || '').trim() === catName
                     );
                     const targetYearLevel = (sampleQ?.yearLevel || '').trim();
-
+        
                     const filteredStudentsList = studentsList.filter(st => {
-                        // หากมีชั้นปีระบุในชุดข้อสอบ และไม่ใช่ 'ทุกชั้นปี' ให้นับเฉพาะนักเรียนชั้นปีนั้น
                         if (targetYearLevel && targetYearLevel !== 'ทุกชั้นปี' && selectedYear === 'ทั้งหมด') {
                             const stYear = (st.yearLevel || '').trim();
                             return !stYear || stYear === 'ทุกชั้นปี' || stYear === targetYearLevel;
                         }
                         return true;
                     });
-
+        
+                    // ⚡ ดึงข้อมูลเร็วขึ้นโดยใช้ Map Key แทนการ .filter()
                     filteredStudentsList.forEach(st => {
                         const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
-                        
-                        const stAttempts = history.filter(r => {
-                            const rId = (r.sapId || r.studentId || '').toString().trim().toLowerCase();
-                            return rId === stId;
-                        });
-
+                        const lookupKey = `${groupName}__${catName}__${stId}`;
+                        const stAttempts = resultsIndex.get(lookupKey) || [];
+        
                         if (stAttempts.length === 0) {
                             unattemptedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
                         } else {
-                            const best = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
+                            let best = stAttempts[0];
+                            for (let i = 1; i < stAttempts.length; i++) {
+                                if (stAttempts[i].percentage > best.percentage) best = stAttempts[i];
+                            }
                             if (best.percentage >= 80) {
                                 passedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'สอบผ่าน' });
                             } else {
@@ -4154,12 +4166,21 @@ function toggleModalUserSelection(username, isChecked) {
             let html = '';
             const remedialStudentIds = new Set();
         
-            // กำหนดโครงสร้างประเภทการสอบตามชั้นปี
             const examConfigs = [
                 { title: 'การสอบเลื่อนชั้นปีที่ 1', targetYears: ['ชั้นปีที่ 1'] },
                 { title: 'การสอบเลื่อนชั้นปีที่ 2', targetYears: ['ชั้นปีที่ 2'] },
                 { title: 'การสอบประมวลความรู้ (Comprehensive Exam)', targetYears: ['ชั้นปีที่ 3'] }
             ];
+        
+            // ⚡ พรีประมวลผลผลสอบจับคู่ SAP-ID ใส่ Map ก่อนลูป
+            const termResultsByStudent = new Map();
+            termResults.forEach(r => {
+                const stId = (r.sapId || '').toString().trim().toLowerCase();
+                if (!termResultsByStudent.has(stId)) {
+                    termResultsByStudent.set(stId, []);
+                }
+                termResultsByStudent.get(stId).push(r);
+            });
         
             examConfigs.forEach((config, examIdx) => {
                 let yearBreakdownHtml = '';
@@ -4171,25 +4192,31 @@ function toggleModalUserSelection(username, isChecked) {
                     const passedList = [];
                     const failedList = [];
         
-                    // กรองผลสอบเฉพาะประเภทการสอบนี้ (ดักจับคำว่า เลื่อนชั้น หรือ ประมวลความรู้ / Comprehensive)
-                    const examHistory = termResults.filter(r => {
-                        const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
-                        if (config.targetYears.includes('ชั้นปีที่ 3')) {
-                            return name.includes('ประมวล') || name.includes('comprehensive') || name.includes('ปลายภาค');
-                        } else {
-                            return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค');
-                        }
-                    });
-        
                     yearStudents.forEach(st => {
-                        const stAttempts = examHistory.filter(r => r.sapId === st.username);
-                        const attemptCount = stAttempts.length;
+                        const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
+                        const allStAttempts = termResultsByStudent.get(stId) || [];
+        
+                        // กรองเฉพาะรายชื่อวิชาสอบที่เข้าเงื่อนไข
+                        const examHistory = allStAttempts.filter(r => {
+                            const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
+                            if (config.targetYears.includes('ชั้นปีที่ 3')) {
+                                return name.includes('ประมวล') || name.includes('comprehensive') || name.includes('ปลายภาค');
+                            } else {
+                                return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค');
+                            }
+                        });
+        
+                        const attemptCount = examHistory.length;
         
                         if (attemptCount === 0) {
                             failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
                             remedialStudentIds.add(st.username);
                         } else {
-                            const bestResult = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
+                            let bestResult = examHistory[0];
+                            for (let i = 1; i < examHistory.length; i++) {
+                                if (examHistory[i].percentage > bestResult.percentage) bestResult = examHistory[i];
+                            }
+        
                             if (bestResult.percentage >= 80) {
                                 passedList.push({ student: st, score: bestResult.score, total: bestResult.total, percentage: bestResult.percentage, attemptCount, statusText: 'สอบผ่านเกณฑ์' });
                             } else {
