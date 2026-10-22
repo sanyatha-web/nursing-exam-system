@@ -2586,10 +2586,15 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
             if (tabName === 'manager-dashboard') {
                 if (tabManager) tabManager.classList.remove('hidden');
+                
+                // 🟢 1. วาดหน้าจอทันทีจากข้อมูลแคชเดิมที่มีอยู่แล้ว เพื่อไม่ให้หน้าเว็บติดหมุนโหลด
+                renderManagerDashboard(); 
+    
+                // 🟢 2. แอบดึงข้อมูลล่าสุดจาก Google Sheets เบื้องหลัง พอเสร็จค่อยอัปเดตหน้าให้อีกครั้ง
                 if (typeof fetchAndSyncResults === 'function') {
-                    Promise.resolve(fetchAndSyncResults()).then(() => renderManagerDashboard());
-                } else {
-                    renderManagerDashboard();
+                    fetchAndSyncResults().then(() => {
+                        renderManagerDashboard();
+                    }).catch(err => console.warn("Background sync results failed:", err));
                 }
             } else if (tabName === 'student-tracker') {
                 if (tabTracker) tabTracker.classList.remove('hidden');
