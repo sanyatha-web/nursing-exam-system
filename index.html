@@ -4016,7 +4016,6 @@ function toggleModalUserSelection(username, isChecked) {
             renderManagerDashboard();
         }
 
-        // ฟังก์ชันเรนเดอร์ Accordion แสดงครบทุกหน่วย
         function renderNormalUnitsAccordion(studentsList, normalResults, availableQuestions) {
             const container = document.getElementById('manager-sets-accordion-container');
             if (!container) return;
@@ -4032,12 +4031,12 @@ function toggleModalUserSelection(username, isChecked) {
         
             const setsStructure = {};
         
-            // 🟢 2. จัดกลุ่มข้อมูลตามมุมมองที่เลือก (ตามชุดการเรียนรู้ VS ตามชั้นปี)
+            // 2. จัดกลุ่มข้อมูลตามมุมมองที่เลือก (ตามชุดการเรียนรู้ VS ตามชั้นปี)
             filteredQuestions.forEach(q => {
                 const groupName = currentManagerViewMode === 'set' 
-                    ? (q.setGroup || 'ชุดการเรียนรู้ทั่วไป') 
-                    : (q.yearLevel || 'ทุกชั้นปี');
-                const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
+                    ? (q.setGroup || 'ชุดการเรียนรู้ทั่วไป').trim() 
+                    : (q.yearLevel || 'ทุกชั้นปี').trim();
+                const catName = (q.category || 'หน่วยการเรียนรู้ทั่วไป').trim();
         
                 if (!setsStructure[groupName]) setsStructure[groupName] = {};
                 if (!setsStructure[groupName][catName]) setsStructure[groupName][catName] = [];
@@ -4045,9 +4044,9 @@ function toggleModalUserSelection(username, isChecked) {
         
             normalResults.forEach(r => {
                 const groupName = currentManagerViewMode === 'set' 
-                    ? (r.examSet || 'ชุดการเรียนรู้ทั่วไป') 
-                    : (r.yearLevel || 'ทุกชั้นปี');
-                const catName = r.category || 'หน่วยการเรียนรู้ทั่วไป';
+                    ? (r.examSet || 'ชุดการเรียนรู้ทั่วไป').trim() 
+                    : (r.yearLevel || 'ทุกชั้นปี').trim();
+                const catName = (r.category || 'หน่วยการเรียนรู้ทั่วไป').trim();
         
                 if (setsStructure[groupName] && setsStructure[groupName][catName]) {
                     setsStructure[groupName][catName].push(r);
@@ -4111,7 +4110,14 @@ function toggleModalUserSelection(username, isChecked) {
                     const unattemptedList = [];
         
                     studentsList.forEach(st => {
-                        const stAttempts = history.filter(r => r.sapId === st.username);
+                        // 🟢 แก้ไขจุดสำคัญ: ทำการลบช่องว่างส่วนเกิน (.trim()) และแปลงตัวพิมพ์เล็กเพื่อจับคู่ รหัสนักศึกษา (sapId / username) ให้แม่นยำ 100%
+                        const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
+                        
+                        const stAttempts = history.filter(r => {
+                            const rId = (r.sapId || r.studentId || '').toString().trim().toLowerCase();
+                            return rId === stId;
+                        });
+
                         if (stAttempts.length === 0) {
                             unattemptedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
                         } else {
