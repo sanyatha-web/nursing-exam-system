@@ -318,17 +318,7 @@
                     </div>
                 </div>
 
-                <!-- 📌 2. สรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ (ย้ายขึ้นมาไว้อันดับที่ 2) -->
-                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-base flex items-center">
-                                <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> สรุปผลสัมฤทธิ์และสถิติรายหน่วยการเรียนรู้
-                            </h4>
-                            <p class="text-xs text-slate-500 mt-0.5">คะแนนเฉลี่ยและการผ่านเกณฑ์ประจำบทเรียนรายหน่วย (* เกณฑ์การผ่าน 80%)</p>
-                        </div>
-                    
-                        <!-- 🟢 เพิ่มกลุ่มปุ่มสลับมุมมอง (View Switcher Toggle) -->
+                <!-- 🟢 เพิ่มกลุ่มปุ่มสลับมุมมอง (View Switcher Toggle) -->
                         <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200 self-start sm:self-auto">
                             <button type="button" id="btn-view-by-set" onclick="switchManagerDashboardView('set')" 
                                 class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm">
@@ -342,10 +332,11 @@
                             </button>
                         </div>
                     </div>
-                </div>
-                <!-- 🟢 เติมกล่องนี้เพื่อเป็นพื้นที่สำหรับวาด Accordion แสดงข้อมูล -->
-                <div id="manager-sets-accordion-container" class="space-y-4">
-                    <!-- โครง Skeleton หรือ เนื้อหาจาก JavaScript จะถูกนำมาวาดตรงนี้ -->
+
+                    <!-- 🟢 พื้นที่สำหรับวาด Accordion แสดงข้อมูล -->
+                    <div id="manager-sets-accordion-container" class="space-y-4 mt-4">
+                        <!-- โครง Skeleton หรือ เนื้อหาจาก JavaScript จะถูกนำมาวาดตรงนี้ -->
+                    </div>
                 </div>
 
                 <!-- 📌 3. สรุปผลสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม (ย้ายมาไว้อันดับที่ 3) -->
