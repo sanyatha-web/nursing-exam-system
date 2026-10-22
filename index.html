@@ -2563,49 +2563,39 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         }
 
-        // ✅ ฟังก์ชันสลับแท็บเมนู ควบคุมการซ่อน/แสดงปุ่มบน Header ตามสิทธิ์บทบาท
+        // 🟢 ฟังก์ชันสลับแท็บเมนูสำหรับอาจารย์/ผู้บริหาร (แก้ไขปัญหาปุ่มกดแล้วเด้งไปหน้าแรกหมด)
         function switchAdminTab(tabName) {
             if (!loggedInUser) return;
-        
+
             const isSuperAdmin = hasRole(loggedInUser, 'superadmin');
             const isAdmin = hasRole(loggedInUser, 'admin');
             const isManager = hasRole(loggedInUser, 'manager');
             const isPreceptor = hasRole(loggedInUser, 'preceptor');
-        
+
+            // 1. ดักจับสิทธิ์กรณีพยายามเข้าเมนูแหล่งข้อมูล
             if (tabName === 'data-sources' && !isSuperAdmin) {
                 showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
                 return;
             }
-        
+
+            // 2. บันทึกแท็ปล่าสุดไว้ใน Session
             sessionStorage.setItem('admin_last_tab', tabName);
-        
-            // 🟢 เปิดแสดงกลุ่มปุ่มบน Header
+
+            // 3. แสดงกลุ่มปุ่มเมนูบน Header
             document.getElementById('nav-4-buttons')?.classList.remove('hidden');
             document.getElementById('btn-admin-gear')?.classList.remove('hidden');
-        
+
             const btnHome = document.getElementById('nav-btn-home');
             const btnExam = document.getElementById('nav-btn-exam-settings');
             const btnTracker = document.getElementById('nav-btn-student-tracker');
             const btnEssay = document.getElementById('nav-btn-essay-grading');
-            const menuData = document.getElementById('menu-item-data-sources');
-        
-            if (btnHome) btnHome.classList.toggle('hidden', !isManager && !isSuperAdmin);
-            if (btnExam) btnExam.classList.toggle('hidden', !isAdmin && !isSuperAdmin);
-            if (btnTracker) btnTracker.classList.toggle('hidden', !isAdmin && !isManager && !isSuperAdmin);
-            if (btnEssay) btnEssay.classList.toggle('hidden', !isPreceptor && !isAdmin && !isSuperAdmin);
-            if (menuData) menuData.classList.toggle('hidden', !isSuperAdmin);
-        
-            const allNavBtns = [btnHome, btnExam, btnTracker, btnEssay];
-            allNavBtns.forEach(btn => {
+
+            // 4. รีเซ็ตสีไฮไลต์ของปุ่มเมนูบน Header ทั้งหมด
+            [btnHome, btnExam, btnTracker, btnEssay].forEach(btn => {
                 if (btn) btn.classList.remove('bg-white/20', 'text-white', 'shadow-inner');
             });
-        
-            if (tabName === 'manager-dashboard' && btnHome) btnHome.classList.add('bg-white/20', 'text-white');
-            if ((tabName === 'overview' || tabName === 'exam-settings') && btnExam) btnExam.classList.add('bg-white/20', 'text-white');
-            if (tabName === 'student-tracker' && btnTracker) btnTracker.classList.add('bg-white/20', 'text-white');
-            if (tabName === 'essay-grading' && btnEssay) btnEssay.classList.add('bg-white/20', 'text-white');
-        
-            // ซ่อน/แสดง แท็บเนื้อหาตามปกติ...
+
+            // 5. ซ่อนทุกแท็บเนื้อหาก่อนเรนเดอร์แท็บใหม่
             const tabOverview = document.getElementById('tab-admin-overview');
             const tabExam = document.getElementById('tab-admin-exam-settings');
             const tabTracker = document.getElementById('tab-admin-student-tracker');
@@ -2613,7 +2603,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const tabEssay = document.getElementById('tab-admin-essay-grading');
             const tabManager = document.getElementById('tab-admin-manager-dashboard');
             const branchWrapper = document.getElementById('branch-selector-wrapper');
-        
+
             if (tabOverview) tabOverview.classList.add('hidden');
             if (tabExam) tabExam.classList.add('hidden');
             if (tabTracker) tabTracker.classList.add('hidden');
@@ -2621,38 +2611,46 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (tabEssay) tabEssay.classList.add('hidden');
             if (tabManager) tabManager.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
-        
+
+            // 6. สลับเปิดแสดงเนื้อหาตาม tabName ที่ส่งมาจากปุ่มบน Header
             if (tabName === 'manager-dashboard') {
+                if (btnHome) btnHome.classList.add('bg-white/20', 'text-white');
                 if (tabManager) tabManager.classList.remove('hidden');
-                
-                // 🟢 1. วาดหน้าจอทันทีจากข้อมูลแคชเดิมที่มีอยู่แล้ว เพื่อไม่ให้หน้าเว็บติดหมุนโหลด
-                renderManagerDashboard(); 
-    
-                // 🟢 2. แอบดึงข้อมูลล่าสุดจาก Google Sheets เบื้องหลัง พอเสร็จค่อยอัปเดตหน้าให้อีกครั้ง
-                if (typeof fetchAndSyncResults === 'function') {
-                    fetchAndSyncResults().then(() => {
-                        renderManagerDashboard();
-                    }).catch(err => console.warn("Background sync results failed:", err));
-                }
+                renderManagerDashboard();
+
+            } else if (tabName === 'overview') {
+                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white');
+                if (tabOverview) tabOverview.classList.remove('hidden');
+                renderOverviewTable();
+
+            } else if (tabName === 'exam-settings') {
+                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white');
+                if (tabExam) tabExam.classList.remove('hidden');
+                if (branchWrapper) branchWrapper.classList.remove('hidden');
+                renderBranchButtons();
+                switchBranchSettings(currentSelectedBranch);
+
             } else if (tabName === 'student-tracker') {
+                if (btnTracker) btnTracker.classList.add('bg-white/20', 'text-white');
                 if (tabTracker) tabTracker.classList.remove('hidden');
                 if (typeof fetchAndSyncResults === 'function') {
                     Promise.resolve(fetchAndSyncResults()).then(() => renderStudentTrackerUI());
                 } else {
                     renderStudentTrackerUI();
                 }
-            } else if (tabName === 'exam-settings') {
-                if (tabExam) tabExam.classList.remove('hidden');
-                if (branchWrapper) branchWrapper.classList.remove('hidden');
-                renderBranchButtons();
-                switchBranchSettings(currentSelectedBranch);
-            } else if (tabName === 'data-sources') {
-                if (tabData) tabData.classList.remove('hidden');
+
             } else if (tabName === 'essay-grading') {
+                if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white');
                 if (tabEssay) tabEssay.classList.remove('hidden');
                 const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 renderEssayGradingCards(pendingList);
+
+            } else if (tabName === 'data-sources') {
+                if (tabData) tabData.classList.remove('hidden');
+
             } else {
+                // กรณีไม่ตรงกับเงื่อนไขใดเลย ให้แสดงหน้าภาพรวมการตั้งค่า (Overview)
+                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white');
                 if (tabOverview) tabOverview.classList.remove('hidden');
                 renderOverviewTable();
             }
