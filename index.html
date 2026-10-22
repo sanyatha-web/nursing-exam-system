@@ -2789,7 +2789,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         function viewAccessUsersModal(unitKey) {
             let matchedConf = unitSettings[unitKey];
         
-            // ถ้าค้นหาคีย์หลักไม่เจอ ให้ลองค้นด้วยคีย์รูปแบบอื่นๆ
             if (!matchedConf) {
                 const parts = unitKey.split('__'); 
                 const branchName = parts[0];
@@ -2808,7 +2807,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 return;
             }
         
-            // 🟢 ค้นหาจาก SAP-ID หรือ Username ใน userDatabase
             const allowedUsersList = userDatabase.filter(u => 
                 matchedConf.allowedUsers.includes(u.username) || 
                 matchedConf.allowedUsers.includes(u.sapId)
@@ -2819,7 +2817,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 return;
             }
         
-            const namesText = allowedUsersList.map(u => `• ${u.fullname || (u.fname + ' ' + u.lname)} (${u.username}) - สาขา: ${u.branch || 'ไม่ระบุ'} (${u.yearLevel || 'ไม่ระบุชั้นปี'})`).join('\n');
+            const namesText = allowedUsersList.map(u => `• ${u.fullname || (u.fname + ' ' + u.lname)} (${u.username || u.sapId}) - สาขา: ${u.branch || 'ไม่ระบุ'} (${u.yearLevel || 'ไม่ระบุชั้นปี'})`).join('\n');
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบเจาะจง (${allowedUsersList.length} คน)`, namesText);
         }
                                     
@@ -3473,53 +3471,70 @@ function openStudentSelectModal(uKey, idx) {
     const uConf = unitSettings[uKey] || {};
     tempSelectedUsers = [...(uConf.allowedUsers || [])];
 
-    document.getElementById('modal-student-unit-title').textContent = `หน่วย: ${uKey.split('__')[2] || uKey}`;
+    const parts = uKey.split('__');
+    const unitTitle = parts[2] || parts[1] || uKey;
+    document.getElementById('modal-student-unit-title').textContent = `หน่วย: ${unitTitle}`;
     document.getElementById('modal-student-search').value = '';
 
-    // สร้างตัวเลือก Dropdown ชั้นปีตามที่มีอยู่ในสาขานี้
-    const branchStudents = userDatabase.filter(u => u.role === 'student' && u.branch === currentSelectedBranch);
-    const availableYears = Array.from(new Set(branchStudents.map(s => s.yearLevel).filter(Boolean)));
-    
-    const yearSelect = document.getElementById('modal-student-year-filter');
-    if (yearSelect) {
-        yearSelect.innerHTML = `<option value="ทั้งหมด">ทุกชั้นปี (${branchStudents.length} คน)</option>` +
-            availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
-        yearSelect.value = "ทั้งหมด";
-    }
+    // ดึงรายชื่อนักศึกษากรองตามสิทธิ์นักเรียน
+    const branchStudents = userDatabase.filter(u => {
+        if (!u) return false;
+        const isStudent = hasRole(u, 'student');
+        const matchBranch = currentSelectedBranch === "ภาพรวมทุกสาขา" || !u.branch || u.branch === currentSelectedBranch;
+        return isStudent && matchBranch;
+    });
 
-    renderModalStudentList();
-    document.getElementById('modal-select-students').classList.remove('hidden');
+    const availableYears = Array.from(new Set(branchStudents.map(s => s.yearLevel).filter(Boolean)));
+            
+    const yearSelect = document.getElementById('modal-student-year-filter');
+        if (yearSelect) {
+            yearSelect.innerHTML = `<option value="ทั้งหมด">ทุกชั้นปี (${branchStudents.length} คน)</option>` +
+                availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
+            yearSelect.value = "ทั้งหมด";
+        }
+
+        renderModalStudentList();
+        document.getElementById('modal-select-students').classList.remove('hidden');
 }
 
 function renderModalStudentList() {
     const container = document.getElementById('modal-student-list-container');
     const searchVal = (document.getElementById('modal-student-search')?.value || '').toLowerCase().trim();
     const selectedYear = document.getElementById('modal-student-year-filter')?.value || 'ทั้งหมด';
-    
+            
     if (!container) return;
 
-    // 1. กรองนักศึกษาตามสาขาปัจจุบัน
-    const branchStudents = userDatabase.filter(u => u.role === 'student' && u.branch === currentSelectedBranch);
+    // 1. กรองนักศึกษาในสาขา (ใช้ hasRole เพื่อให้รองรับ Multi-Role)
+    const branchStudents = userDatabase.filter(u => {
+        if (!u) return false;
+        const isStudent = hasRole(u, 'student');
+        const matchBranch = currentSelectedBranch === "ภาพรวมทุกสาขา" || !u.branch || u.branch === currentSelectedBranch;
+        return isStudent && matchBranch;
+    });
 
     // 2. กรองตาม คำค้นหา (Search) และ ชั้นปี (Year Filter)
     const filtered = branchStudents.filter(s => {
-        const matchSearch = s.username.toLowerCase().includes(searchVal) || s.fullname.toLowerCase().includes(searchVal);
+        const sName = (s.fullname || `${s.prefix || ''}${s.fname || ''} ${s.lname || ''}`).toLowerCase();
+        const sId = (s.username || s.sapId || '').toLowerCase();
+        const matchSearch = sId.includes(searchVal) || sName.includes(searchVal);
         const matchYear = selectedYear === 'ทั้งหมด' || s.yearLevel === selectedYear;
         return matchSearch && matchYear;
     });
 
     if (filtered.length === 0) {
-        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบรายชื่อนักศึกษาที่ตรงตามเงื่อนไข</div>`;
+        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบรายชื่อนักศึกษาที่ตรงตามเงื่อนไข (รวมทั้งสาขา: ${branchStudents.length} คน)</div>`;
     } else {
         container.innerHTML = filtered.map(s => {
-            const isChecked = tempSelectedUsers.includes(s.username);
+            const uId = s.username || s.sapId;
+            const uName = s.fullname || `${s.prefix || ''}${s.fname || ''} ${s.lname || ''}`.trim();
+            const isChecked = tempSelectedUsers.includes(uId);
             return `
                 <label class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
                     <div class="flex items-center space-x-3">
-                        <input type="checkbox" value="${s.username}" ${isChecked ? 'checked' : ''} onchange="toggleModalUserSelection('${s.username}', this.checked)" class="w-4 h-4 text-indigo-600 rounded">
+                        <input type="checkbox" value="${uId}" ${isChecked ? 'checked' : ''} onchange="toggleModalUserSelection('${uId}', this.checked)" class="w-4 h-4 text-indigo-600 rounded">
                         <div>
-                            <span class="font-bold text-slate-800">${s.fullname}</span>
-                            <span class="text-slate-400 text-[11px] ml-1">(${s.username})</span>
+                            <span class="font-bold text-slate-800">${uName}</span>
+                            <span class="text-slate-400 text-[11px] ml-1">(${uId})</span>
                         </div>
                     </div>
                     <span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-[10px] border border-indigo-100">${s.yearLevel || 'ไม่ระบุชั้นปี'}</span>
@@ -3527,7 +3542,6 @@ function renderModalStudentList() {
             `;
         }).join('');
     }
-
     updateModalStudentCount();
 }
 
@@ -3537,20 +3551,24 @@ function selectAllModalStudents(isSelectAll) {
     const selectedYear = document.getElementById('modal-student-year-filter')?.value || 'ทั้งหมด';
 
     const currentFiltered = userDatabase.filter(u => {
-        if (u.role !== 'student' || u.branch !== currentSelectedBranch) return false;
-        const matchSearch = u.username.toLowerCase().includes(searchVal) || u.fullname.toLowerCase().includes(searchVal);
+        if (!u || !hasRole(u, 'student')) return false;
+        const matchBranch = currentSelectedBranch === "ภาพรวมทุกสาขา" || !u.branch || u.branch === currentSelectedBranch;
+        const sName = (u.fullname || `${u.prefix || ''}${u.fname || ''} ${u.lname || ''}`).toLowerCase();
+        const sId = (u.username || u.sapId || '').toLowerCase();
+        const matchSearch = sId.includes(searchVal) || sName.includes(searchVal);
         const matchYear = selectedYear === 'ทั้งหมด' || u.yearLevel === selectedYear;
-        return matchSearch && matchYear;
+        return matchBranch && matchSearch && matchYear;
     });
 
     if (isSelectAll) {
         currentFiltered.forEach(s => {
-            if (!tempSelectedUsers.includes(s.username)) {
-                tempSelectedUsers.push(s.username);
+            const uId = s.username || s.sapId;
+            if (uId && !tempSelectedUsers.includes(uId)) {
+                tempSelectedUsers.push(uId);
             }
         });
     } else {
-        const filteredIds = currentFiltered.map(s => s.username);
+        const filteredIds = currentFiltered.map(s => s.username || s.sapId);
         tempSelectedUsers = tempSelectedUsers.filter(id => !filteredIds.includes(id));
     }
 
