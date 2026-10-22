@@ -2838,14 +2838,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบเจาะจง (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (พร้อมตัวกรองสาขา และ ชั้นปี)
+        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (คำนวณ 6 ส่วนสำหรับปี 3 ศัลยศาสตร์/ออร์โธปิดิกส์)
         function renderStudentTrackerUI() {
             const container = document.getElementById('tracker-cards-container');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
             const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
         
-            // 1. จัดการตัวกรองสาขา (Branch Filter Option Population)
+            // 1. จัดการตัวกรองสาขา
             const branchSelect = document.getElementById('tracker-branch-filter');
             if (branchSelect) {
                 if (loggedInUser && hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'superadmin')) {
@@ -2863,7 +2863,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
             const selectedBranch = branchSelect ? branchSelect.value : 'ทั้งหมด';
         
-            // 2. ดึงเฉพาะรายชื่อนักศึกษา (กรองเจ้าหน้าที่ออก)
+            // 2. ดึงเฉพาะรายชื่อนักศึกษา
             const students = userDatabase.filter(u => {
                 if (!u) return false;
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
@@ -2888,51 +2888,56 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
                 const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
                 const yearLevel = student.yearLevel || 'ชั้นปีที่ 1';
+                const studentBranch = student.branch || '';
         
-                // 3. กำหนดโครงสร้างบทเรียนและการสอบวัดผลสะสมตามชั้นปีและโครงสร้างสาขา
+                // 🟢 3. กำหนดรายการประเมินตามโครงสร้างชั้นปีและสาขา
                 let targetExamList = [];
         
-                // ปี 1: บทเรียนปี 1 + สอบเลื่อนชั้นปี 1 (รวม 2 ส่วน)
-                targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ประจำปี 1', isSet: true, yearMatch: 'ปี 1' });
+                // ปี 1: (2 ส่วน) -> บทเรียนปี 1 + สอบเลื่อนชั้นปี 1
+                targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ประจำปี 1', isSet: true, keyword: '1' });
                 targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 1', isSet: false, keyword: 'เลื่อนชั้นปีที่ 1' });
         
                 if (yearLevel.includes('2') || yearLevel.includes('3')) {
-                    // ปี 2: เพิ่มบทเรียนปี 2 + สอบเลื่อนชั้นปี 2 (รวมเป็น 4 ส่วน)
-                    targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ประจำปี 2', isSet: true, yearMatch: 'ปี 2' });
+                    // ปี 2: (+2 ส่วน) -> บทเรียนปี 2 + สอบเลื่อนชั้นปี 2 (รวมเป็น 4 ส่วน)
+                    targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ประจำปี 2', isSet: true, keyword: '2' });
                     targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 2', isSet: false, keyword: 'เลื่อนชั้นปีที่ 2' });
                 }
         
                 if (yearLevel.includes('3')) {
-                    // ปี 3: ตรวจสอบจำนวนชุดข้อสอบของสาขา (5 ชุด vs 6 ชุด)
-                    const branchQuestions = masterQuestions.filter(q => !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === student.branch);
-                    const availableSetNames = Array.from(new Set(branchQuestions.map(q => q.setGroup || '')));
-                    const hasSet6 = availableSetNames.some(s => s.includes('6') || s.includes('ชุดที่ 6'));
+                    // ตรวจสอบว่าใช่มนุษย์สาขา ศัลยศาสตร์ หรือ ออร์โธปิดิกส์ หรือมีชุดที่ 6 หรือไม่
+                    const isSpecialBranch = studentBranch.includes('ศัลยศาสตร์') || studentBranch.includes('ออร์โธปิดิกส์');
+                    const branchQuestions = masterQuestions.filter(q => !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === studentBranch);
+                    const hasSet6 = branchQuestions.some(q => (q.setGroup || '').includes('6') || (q.setGroup || '').includes('ชุดที่ 6'));
         
-                    if (hasSet6) {
-                        targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ที่ 6 (ปี 3)', isSet: true, yearMatch: 'ปี 3' });
+                    if (isSpecialBranch || hasSet6) {
+                        // เพิ่มบทเรียนชุดที่ 6 เป็นส่วนที่ 5
+                        targetExamList.push({ name: 'บทเรียนชุดการเรียนรู้ที่ 6 (ปี 3)', isSet: true, keyword: '6' });
                     }
-                    // เพิ่มการสอบประมวลความรู้
+                    
+                    // เพิ่มการสอบประมวลความรู้เป็นส่วนสุดท้าย (รวมเป็น 6 ส่วนสำหรับสาขาพิเศษ)
                     targetExamList.push({ name: 'การสอบประมวลความรู้ (Comprehensive Exam)', isSet: false, keyword: 'ประมวล' });
                 }
         
                 const totalPartsCount = targetExamList.length;
                 let passedPartsCount = 0;
         
-                // 4. คำนวณส่วนที่สอบผ่านเกณฑ์ (>= 80%)
+                // 🟢 4. คำนวณส่วนที่สอบผ่านเกณฑ์ (>= 80%)
                 targetExamList.forEach(item => {
                     if (item.isSet) {
-                        // สำหรับกลุ่มบทเรียน: คำนวณผ่านเมื่อทำผ่านบทเรียนในกลุ่มนั้นๆ
                         const matchedAttempts = studentHistory.filter(r => {
                             const name = ((r.examSet || '') + ' ' + (r.category || '')).toLowerCase();
-                            return !name.includes('เลื่อนชั้น') && !name.includes('ประมวล') && !name.includes('comprehensive');
+                            const isNotTermExam = !name.includes('เลื่อนชั้น') && !name.includes('ประมวล') && !name.includes('comprehensive');
+                            return isNotTermExam && (name.includes(item.keyword) || (r.examSet || '').includes(item.keyword));
                         });
                         if (matchedAttempts.some(a => a.percentage >= 80)) {
                             passedPartsCount++;
                         }
                     } else {
-                        // สำหรับการสอบเลื่อนชั้น/ประมวลความรู้
                         const matchedAttempts = studentHistory.filter(r => {
                             const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
+                            if (item.keyword === 'ประมวล') {
+                                return name.includes('ประมวล') || name.includes('comprehensive');
+                            }
                             return name.includes(item.keyword.toLowerCase());
                         });
                         if (matchedAttempts.some(a => a.percentage >= 80)) {
@@ -2941,7 +2946,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     }
                 });
         
-                const progressPercent = Math.min(100, Math.round((passedPartsCount / totalPartsCount) * 100));
+                const progressPercent = totalPartsCount > 0 ? Math.min(100, Math.round((passedPartsCount / totalPartsCount) * 100)) : 0;
                 const isFullyCompleted = passedPartsCount === totalPartsCount && totalPartsCount > 0;
         
                 const badgeColor = isFullyCompleted 
