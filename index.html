@@ -1003,9 +1003,9 @@ let settings = {
             let allBranches = Array.from(new Set([...branchFromQuestions, ...branchFromUsers]))
                                    .filter(b => b !== "ภาพรวมทุกสาขา");
         
-            // หากเป็น admin ประจำสาขา ให้กรองเหลือเฉพาะสาขาตนเอง
-            if (loggedInUser && loggedInUser.role === 'admin') {
-                allBranches = allBranches.filter(b => b === loggedInUser.branch);
+            // 🟢 ถ้าเป็น Admin ประจำสาขา ให้บังคับแสดงปุ่มเฉพาะสาขาตนเองเท่านั้น
+            if (loggedInUser && hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'superadmin')) {
+                allBranches = [loggedInUser.branch];
                 currentSelectedBranch = loggedInUser.branch;
             } else if ((currentSelectedBranch === "ภาพรวมทุกสาขา" || !allBranches.includes(currentSelectedBranch)) && allBranches.length > 0) {
                 currentSelectedBranch = allBranches[0];
@@ -1173,38 +1173,6 @@ let settings = {
                 }
             } else {
                 showAlertModal('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง');
-            }
-        }
-
-        // ✅ ฟังก์ชัน showAdminDashboard ฉบับแก้ไขให้ซ่อน/แสดงปุ่มบน Header ตามบทบาททันที
-        function showAdminDashboard() {
-            hideAllSections();
-            document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
-            document.getElementById('nav-4-buttons')?.classList.remove('hidden'); // 🟢 แสดงกลุ่ม 4 ปุ่มซ้าย
-            document.getElementById('btn-admin-gear')?.classList.remove('hidden'); // 🟢 แสดงปุ่มฟันเฟืองขวา
-        
-            if (!loggedInUser) return;
-        
-            const isSuper = hasRole(loggedInUser, 'superadmin');
-            const isAdminOnly = hasRole(loggedInUser, 'admin') && !isSuper;
-        
-            const adminTitle = isSuper ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch || 'ทั่วไป'})`;
-            const nameElem = document.getElementById('admin-fullname-display');
-            if (nameElem) nameElem.textContent = loggedInUser.fullname || adminTitle;
-        
-            const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
-            if (menuDataSources) {
-                if (isAdminOnly) {
-                    menuDataSources.classList.add('hidden');
-                } else {
-                    menuDataSources.classList.remove('hidden');
-                }
-            }
-        
-            if (isSuper) {
-                currentSelectedBranch = "ภาพรวมทุกสาขา";
-                const filterSelect = document.getElementById('overview-branch-filter');
-                if (filterSelect) filterSelect.value = "ทั้งหมด";
             }
         }
 
@@ -2527,7 +2495,17 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (!loggedInUser) return;
         
             const isSuper = hasRole(loggedInUser, 'superadmin');
-            const isAdminOnly = hasRole(loggedInUser, 'admin') && !isSuper;
+            const isAdmin = hasRole(loggedInUser, 'admin');
+
+            // 🟢 ซ่อนปุ่มตรวจข้อสอบข้อเขียนบน Header ถ้าเป็นบัญชี Admin (ไม่ใช่ Superadmin และไม่ใช่ Preceptor)
+            const btnEssay = document.getElementById('nav-btn-essay-grading');
+            if (btnEssay) {
+                if (isAdmin && !isSuper && !hasRole(loggedInUser, 'preceptor')) {
+                    btnEssay.classList.add('hidden');
+                } else {
+                    btnEssay.classList.remove('hidden');
+                }
+            }
         
             const adminTitle = isSuper ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch || 'ทั่วไป'})`;
             const nameElem = document.getElementById('admin-fullname-display');
@@ -2535,7 +2513,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
             const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
             if (menuDataSources) {
-                if (isAdminOnly) {
+                if (isAdmin && !isSuper) {
                     menuDataSources.classList.add('hidden');
                 } else {
                     menuDataSources.classList.remove('hidden');
@@ -2657,7 +2635,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
             let displayBranches = [];
         
-            if (loggedInUser && loggedInUser.role === 'admin') {
+            if (loggedInUser && hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'superadmin')) {
                 displayBranches = [loggedInUser.branch];
                 if (filterSelect) {
                     filterSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
@@ -3865,11 +3843,15 @@ function toggleModalUserSelection(username, isChecked) {
             // 1.1 จัดการ Filter สาขา
             const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
             
-            if (loggedInUser && hasRole(loggedInUser, 'manager') && !hasRole(loggedInUser, 'superadmin')) {
+            // 🟢 ล็อก Filter สาขาสำหรับทั้ง Manager และ Admin (ยกเว้น Superadmin)
+            const isRestrictedRole = (hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager')) && !hasRole(loggedInUser, 'superadmin');
+            
+            if (isRestrictedRole && loggedInUser.branch) {
                 branchSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
                 branchSelect.disabled = true;
             } else {
-                if (branchSelect.options.length <= 1) {
+                branchSelect.disabled = false;
+                if (branchSelect.options.length <= 1 || branchSelect.disabled) {
                     branchSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขา (${allBranches.length})</option>` + 
                         allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                 }
