@@ -2917,16 +2917,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         
             const selectedBranch = branchSelect ? branchSelect.value : 'ทั้งหมด';
-        
-            // 2. ดึงเฉพาะรายชื่อนักศึกษา
-            const students = userDatabase.filter(u => {
-                if (!u) return false;
-                const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
-                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
-                const matchYear = yearFilter === 'ทั้งหมด' || u.yearLevel === yearFilter;
-                return isStudent && matchBranch && matchYear;
-            });
-        
             if (students.length === 0) {
                 container.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบข้อมูลผู้เรียนตามเงื่อนไขที่กรอง</div>`;
                 return;
@@ -3089,7 +3079,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (!student) return;
         
             document.getElementById('transcript-student-name').textContent = `สมุดพกรายงานผลการเรียน: ${student.fullname}`;
-            document.getElementById('transcript-student-sub').textContent =ม`SAP-ID: ${student.username} | สาขา: ${student.branch} (${student.yearLevel || 'ไม่ระบุ'}) | ปีการศึกษา: ${student.academicYear || '-'}`;
+            document.getElementById('transcript-student-sub').textContent = `SAP-ID: ${student.username} | สาขา: ${student.branch} (${student.yearLevel || 'ไม่ระบุ'}) | ปีการศึกษา: ${student.academicYear || '-'}`;
         
             const printArea = document.getElementById('transcript-print-area');
             const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
