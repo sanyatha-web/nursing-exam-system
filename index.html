@@ -1045,9 +1045,11 @@ let settings = {
             // 1. โหลดการตั้งค่าเดิมขึ้นมา
             loadSettings();
 
-            // 🟢 เพิ่ม 2 บรรทัดนี้: ล้างคลังข้อสอบค้างเก่าเพื่อบังคับรับข้อมูลใหม่จาก Google Sheets ล่าสุด
-            localStorage.removeItem('online_exam_questions');
-            masterQuestions = [];
+            // โหลดคลังข้อสอบเดิมจาก LocalStorage ขึ้นมารองรับการแสดงผลทันที ไม่ให้หน้าตารางกระตุก/เด้ง
+            const savedQuestions = localStorage.getItem('online_exam_questions');
+            if (savedQuestions) {
+                try { masterQuestions = JSON.parse(savedQuestions); } catch(e) {}
+            }
 
             const savedUsers = localStorage.getItem('online_exam_users');
             if (savedUsers) {
@@ -2641,7 +2643,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 if (filterSelect) {
                     filterSelect.disabled = false;
                     
-                    // 🟢 1. ตรวจสอบและยึดค่าที่เลือกไว้อยู่ในปัจจุบันเป็นหลัก
                     let activeVal = filterSelect.value;
                     if (!activeVal || activeVal === "") {
                         activeVal = currentSelectedBranch;
@@ -2653,12 +2654,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     const optionsHtml = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
                         allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                     
-                    // 🟢 2. อัปเดต HTML เฉพาะกรณีที่รายการสาขาเปลี่ยนไปเท่านั้น (ลด DOM Re-render)
                     if (filterSelect.innerHTML !== optionsHtml) {
                         filterSelect.innerHTML = optionsHtml;
                     }
 
-                    // 🟢 3. กำหนดค่า Dropdown กลับเป็นค่าที่เลือกไว้เดิม และอัปเดต State Global
                     if (allBranches.includes(activeVal) || activeVal === "ทั้งหมด") {
                         filterSelect.value = activeVal;
                         currentSelectedBranch = activeVal;
@@ -2798,7 +2797,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 });
             });
         
-            tableBody.innerHTML = tableRowsHtml;
+            // 🟢 ป้องกันการกระตุก: อัปเดต HTML เฉพาะกรณีที่เนื้อหาตารางมีการเปลี่ยนแปลงจริงเท่านั้น
+            if (tableBody.innerHTML !== tableRowsHtml) {
+                tableBody.innerHTML = tableRowsHtml;
+            }
         }
  
         function viewAccessUsersModal(unitKey) {
