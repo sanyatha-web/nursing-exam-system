@@ -1041,8 +1041,6 @@ let settings = {
         }
         
         // Initialize Application
-        // Initialize Application
-        // Initialize Application
         window.addEventListener('DOMContentLoaded', () => {
             // 1. โหลดการตั้งค่าเดิมขึ้นมา
             loadSettings();
@@ -1062,43 +1060,34 @@ let settings = {
             renderInitialSetupNotice();
             setupAntiCheatListeners();
         
-            // 3. ตรวจสอบ Session และเปิดหน้าจอทันทีโดยไม่ต้องรอเน็ต
+            // 3. ตรวจสอบ Session และเปิดหน้าจอ Log-in หากยังไม่ได้ล็อกอิน
             const savedUserJson = sessionStorage.getItem('exam_session_user');
-            // 🟢 ค้นหาท่อนนี้ใน DOMContentLoaded แล้วอัปเดตให้เป็นโค้ดนี้:
-                if (savedUserJson) {
-                    try {
-                        loggedInUser = JSON.parse(savedUserJson);
-                
-                        if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
-                            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
-                            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
-                            document.getElementById('btn-header-logout')?.classList.add('hidden');
-                            showAdminDashboard();
-                
-                            // กำหนด Default Tab ตามสิทธิ์หากยังไม่มีการสลับแท็บ
-                            let defaultTab = 'overview';
-                            if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'manager')) {
-                                defaultTab = 'manager-dashboard';
-                            } else if (hasRole(loggedInUser, 'admin')) {
-                                defaultTab = 'exam-settings';
-                            } else if (hasRole(loggedInUser, 'preceptor')) {
-                                defaultTab = 'essay-grading';
-                            }
-                
-                            const savedTab = sessionStorage.getItem('admin_last_tab') || defaultTab;
-                            switchAdminTab(savedTab);
-                        } else {
-                            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
-                            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
-                            document.getElementById('btn-header-logout')?.classList.remove('hidden');
-                            showStudentDashboard();
-                        }
-                    } catch (e) {
-                        console.error("Failed to restore session:", e);
-                        hideAllSections();
-                        document.getElementById('section-login')?.classList.remove('hidden');
+            if (savedUserJson) {
+                try {
+                    loggedInUser = JSON.parse(savedUserJson);
+
+                    if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager') || hasRole(loggedInUser, 'preceptor')) {
+                        showAdminDashboard();
+                        let defaultTab = 'overview';
+                        if (hasRole(loggedInUser, 'superadmin') || hasRole(loggedInUser, 'manager')) defaultTab = 'manager-dashboard';
+                        else if (hasRole(loggedInUser, 'admin')) defaultTab = 'exam-settings';
+                        else if (hasRole(loggedInUser, 'preceptor')) defaultTab = 'essay-grading';
+
+                        const savedTab = sessionStorage.getItem('admin_last_tab') || defaultTab;
+                        switchAdminTab(savedTab);
+                    } else {
+                        showStudentDashboard();
                     }
+                } catch (e) {
+                    console.error("Failed to restore session:", e);
+                    hideAllSections();
+                    document.getElementById('section-login')?.classList.remove('hidden');
                 }
+            } else {
+                // ถ้าไม่มี Session ให้แสดงหน้า Log-in ทันที
+                hideAllSections();
+                document.getElementById('section-login')?.classList.remove('hidden');
+            }
         
             // 4. แอบซิงค์ข้อมูลผู้ใช้งานและข้อสอบเบื้องหลังพร้อมกัน (Silent Background Sync)
             setTimeout(() => {
@@ -3280,7 +3269,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     (q.unit && q.unit.trim() === cat.trim())
                 );
                 
-                // ดึงประเภทข้อสอบที่มีอยู่จริงในคลังของหน่วยนี้
+                // ดึงประเภทข้อสอบที่มีอยู่จริงในคลังของหน่วยนี้ (ประกาศครั้งเดียว)
                 const unitTypes = Array.from(new Set(unitPool.map(q => {
                     return q.type ? q.type.toString().trim().toLowerCase() : 'choice';
                 }).filter(Boolean)));
@@ -3370,7 +3359,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     <span id="unit-skill-status-${idx}" class="font-bold text-indigo-700">จัดสรร ${currentAllocatedSum} /${uConf.questionCount} ข้อ</span>
                                 </div>
                         
-                                <!-- ช่องกรอกสัดส่วน: ล็อกลำดับ 2x2 + รองรับประเภทใหม่ให้อัตโนมัติ -->
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     ${(() => {
                                         const defaultOrder = ['choice', 'text', 'media_choice', 'media_text'];
