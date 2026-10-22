@@ -2838,7 +2838,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบเจาะจง (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (Dynamic นับตามชุดข้อสอบที่มีจริงในคลัง รองรับปี 4+ และชุด 7+)
+        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (Dynamic 100% รองรับชั้นปีไร้ขีดจำกัด ปี 1 ถึง ปี N)
         function renderStudentTrackerUI() {
             const container = document.getElementById('tracker-cards-container');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
@@ -2890,20 +2890,16 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const yearLevel = student.yearLevel || 'ชั้นปีที่ 1';
                 const studentBranch = student.branch || '';
         
-                // 🟢 3. กำหนดช่วงชั้นปีที่จะดึงข้อมูลประวัติสะสมย้อนหลัง
-                let allowedYears = [];
-                if (yearLevel.includes('1')) {
-                    allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ทุกชั้นปี'];
-                } else if (yearLevel.includes('2')) {
-                    allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ชั้นปีที่ 2', 'ปี 2', 'ทุกชั้นปี'];
-                } else if (yearLevel.includes('3')) {
-                    allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ชั้นปีที่ 2', 'ปี 2', 'ชั้นปีที่ 3', 'ปี 3', 'ทุกชั้นปี'];
-                } else if (yearLevel.includes('4')) {
-                    allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ชั้นปีที่ 2', 'ปี 2', 'ชั้นปีที่ 3', 'ปี 3', 'ชั้นปีที่ 4', 'ปี 4', 'ทุกชั้นปี'];
-                } else {
-                    allowedYears = [yearLevel, 'ทุกชั้นปี'];
+                // 🟢 3. สกัดตัวเลขชั้นปีของผู้เรียนเพื่อสร้างช่วงชั้นปีสะสมแบบ Dynamic Loop (รองรับปี 1 ถึง ปี N)
+                const yearMatch = yearLevel.match(/\d+/);
+                const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
+        
+                let allowedYears = ['ทุกชั้นปี'];
+                for (let y = 1; y <= currentYearNum; y++) {
+                    allowedYears.push(`ชั้นปีที่ ${y}`);
+                    allowedYears.push(`ปี ${y}`);
                 }
-
+        
                 // 🟢 4. ค้นหาชุดข้อสอบที่มีจริงในคลังย้อนหลังตามชั้นปีและสาขาของนักศึกษารายนี้
                 const matchQuestions = masterQuestions.filter(q => {
                     const qYear = (q.yearLevel || '').trim();
@@ -2912,7 +2908,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === studentBranch;
                     return isYearMatch && isBranchMatch;
                 });
-
+        
                 // ดึงรายชื่อ "ชุดการเรียนรู้" ทั้งหมดที่มีจริงสำหรับนักเรียนคนนี้
                 const availableSets = Array.from(new Set(
                     matchQuestions
@@ -2923,29 +2919,21 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         })
                 ));
 
-                // 🟢 5. รวบรวมส่วนประเมินสะสม (ชุดการเรียนรู้ + การสอบเลื่อนชั้น/ประมวลความรู้)
+                // 🟢 5. รวบรวมส่วนประเมินสะสม (ชุดการเรียนรู้ + การสอบเลื่อนชั้นย้อนหลังแบบ Dynamic Loop)
                 let targetExamList = [];
 
-                // เพิ่มชุดการเรียนรู้ทั้งหมดที่ค้นพบเป็นแต่ละส่วน (Dynamic)
                 availableSets.forEach(setName => {
                     targetExamList.push({ name: setName, isSet: true, setName: setName });
                 });
 
-                // เพิ่มส่วนการสอบวัดผลประจำชั้นปีสะสม
-                if (yearLevel.includes('1')) {
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 1', isSet: false, keyword: 'เลื่อนชั้นปีที่ 1' });
-                } else if (yearLevel.includes('2')) {
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 1', isSet: false, keyword: 'เลื่อนชั้นปีที่ 1' });
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 2', isSet: false, keyword: 'เลื่อนชั้นปีที่ 2' });
-                } else if (yearLevel.includes('3')) {
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 1', isSet: false, keyword: 'เลื่อนชั้นปีที่ 1' });
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 2', isSet: false, keyword: 'เลื่อนชั้นปีที่ 2' });
-                    targetExamList.push({ name: 'การสอบประมวลความรู้ (Comprehensive Exam)', isSet: false, keyword: 'ประมวล' });
-                } else if (yearLevel.includes('4')) {
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 1', isSet: false, keyword: 'เลื่อนชั้นปีที่ 1' });
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 2', isSet: false, keyword: 'เลื่อนชั้นปีที่ 2' });
-                    targetExamList.push({ name: 'การสอบเลื่อนชั้นปีที่ 3', isSet: false, keyword: 'เลื่อนชั้นปีที่ 3' });
-                    targetExamList.push({ name: 'การสอบประมวลความรู้ (Comprehensive Exam)', isSet: false, keyword: 'ประมวล' });
+                // วนลูปสร้างการสอบวัดผลเลื่อนชั้นตามจำนวนปีย้อนหลัง
+                for (let y = 1; y <= currentYearNum; y++) {
+                    if (y === currentYearNum && currentYearNum >= 3) {
+                        // ชั้นปีสุดท้าย (เช่น ปี 3 ขึ้นไป) เพิ่มการสอบประมวลความรู้
+                        targetExamList.push({ name: 'การสอบประมวลความรู้ (Comprehensive Exam)', isSet: false, keyword: 'ประมวล' });
+                    } else {
+                        targetExamList.push({ name: `การสอบเลื่อนชั้นปีที่ ${y}`, isSet: false, keyword: `เลื่อนชั้นปีที่ ${y}` });
+                    }
                 }
 
                 const totalPartsCount = targetExamList.length;
@@ -3040,7 +3028,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขที่กรอง</div>`;
         }
 
-        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (จัดกลุ่มตามชุดการเรียนรู้ + แสดงประวัติสะสมย้อนหลังตามชั้นปี)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (Dynamic Loop รองรับชั้นปี 1 ถึง N)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3053,16 +3041,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const studentYear = (student.yearLevel || '').trim();
             const studentBranch = (student.branch || '').trim();
         
-            // 🟢 1. กำหนดช่วงชั้นปีที่จะดึงประวัติสะสมย้อนหลัง
-            let allowedYears = [];
-            if (studentYear.includes('1')) {
-                allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ทุกชั้นปี'];
-            } else if (studentYear.includes('2')) {
-                allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ชั้นปีที่ 2', 'ปี 2', 'ทุกชั้นปี'];
-            } else if (studentYear.includes('3')) {
-                allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ชั้นปีที่ 2', 'ปี 2', 'ชั้นปีที่ 3', 'ปี 3', 'ทุกชั้นปี'];
-            } else {
-                allowedYears = [studentYear, 'ทุกชั้นปี'];
+            // 🟢 1. สกัดตัวเลขชั้นปีเพื่อสร้างช่วงชั้นปีสะสมย้อนหลังแบบ Dynamic Loop
+            const yearMatch = studentYear.match(/\d+/);
+            const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
+        
+            let allowedYears = ['ทุกชั้นปี'];
+            for (let y = 1; y <= currentYearNum; y++) {
+                allowedYears.push(`ชั้นปีที่ ${y}`);
+                allowedYears.push(`ปี ${y}`);
             }
         
             // 🟢 2. กรองคลังข้อสอบย้อนหลังตามช่วงชั้นปีสะสมและสาขา
@@ -3166,23 +3152,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 });
             }
         
-            // 🟢 5. โครงสร้างการสอบวัดผลเลื่อนชั้น/ประมวลความรู้สะสม
+            // 🟢 5. โครงสร้างการสอบวัดผลเลื่อนชั้น/ประมวลความรู้สะสมย้อนหลังแบบ Dynamic Loop
             const termExamsToDisplay = [];
-            if (studentYear.includes('1')) {
-                termExamsToDisplay.push({ title: 'การสอบเลื่อนชั้นปีที่ 1', keyKeyword: 'เลื่อนชั้นปีที่ 1' });
-            } else if (studentYear.includes('2')) {
-                termExamsToDisplay.push(
-                    { title: 'การสอบเลื่อนชั้นปีที่ 1', keyKeyword: 'เลื่อนชั้นปีที่ 1' },
-                    { title: 'การสอบเลื่อนชั้นปีที่ 2', keyKeyword: 'เลื่อนชั้นปีที่ 2' }
-                );
-            } else if (studentYear.includes('3')) {
-                termExamsToDisplay.push(
-                    { title: 'การสอบเลื่อนชั้นปีที่ 1', keyKeyword: 'เลื่อนชั้นปีที่ 1' },
-                    { title: 'การสอบเลื่อนชั้นปีที่ 2', keyKeyword: 'เลื่อนชั้นปีที่ 2' },
-                    { title: 'การสอบประมวลความรู้ (Comprehensive Exam)', keyKeyword: 'ประมวล' }
-                );
-            } else {
-                termExamsToDisplay.push({ title: 'การสอบวัดผลประจำชั้นปี', keyKeyword: 'เลื่อนชั้น' });
+            for (let y = 1; y <= currentYearNum; y++) {
+                if (y === currentYearNum && currentYearNum >= 3) {
+                    termExamsToDisplay.push({ title: 'การสอบประมวลความรู้ (Comprehensive Exam)', keyKeyword: 'ประมวล' });
+                } else {
+                    termExamsToDisplay.push({ title: `การสอบเลื่อนชั้นปีที่ ${y}`, keyKeyword: `เลื่อนชั้นปีที่ ${y}` });
+                }
             }
         
             let termExamsHtml = '';
