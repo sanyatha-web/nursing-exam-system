@@ -1427,7 +1427,7 @@ let settings = {
                 
                 // ตรวจสอบว่าขณะนี้หน้าจอเปิดแท็บไหนอยู่ ให้รีเฟรชเฉพาะแท็บนั้น
                 const currentTab = sessionStorage.getItem('admin_last_tab');
-                if (currentTab) {
+                if (currentTab && typeof switchAdminTab === 'function') {
                     switchAdminTab(currentTab);
                 }
             }
@@ -2497,60 +2497,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const isSuper = hasRole(loggedInUser, 'superadmin');
             const isAdmin = hasRole(loggedInUser, 'admin');
             const isManager = hasRole(loggedInUser, 'manager');
-
-            const btnHome = document.getElementById('nav-btn-home');
-            const btnExam = document.getElementById('nav-btn-exam-settings');
-            const btnTracker = document.getElementById('nav-btn-student-tracker');
-            const btnEssay = document.getElementById('nav-btn-essay-grading');
-            
-            const isPreceptor = hasRole(loggedInUser, 'preceptor') && !isSuper && !isAdmin && !isManager;
-            
-            // 🟢 ถ้าเป็น Preceptor ให้ซ่อนปุ่ม หน้าแรก, ตั้งค่าการสอบ, ติดตามรายบุคคล
-            if (btnHome) btnHome.classList.toggle('hidden', isPreceptor);
-            if (btnExam) btnExam.classList.toggle('hidden', isPreceptor || isManager);
-            if (btnTracker) btnTracker.classList.toggle('hidden', isPreceptor);
-            
-            // 🟢 ปุ่มตรวจข้อสอบข้อเขียน (แสดงเฉพาะ Preceptor, Superadmin หรือผู้ที่มีสิทธิ์)
-            if (btnEssay) {
-                if ((isAdmin || isManager) && !isSuper && !hasRole(loggedInUser, 'preceptor')) {
-                    btnEssay.classList.add('hidden');
-                } else {
-                    btnEssay.classList.remove('hidden');
-                }
-            }
-        
-            const adminTitle = isSuper ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : (isManager ? `ผู้บริหารประจำสาขา (${loggedInUser.branch || 'ทั่วไป'})` : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch || 'ทั่วไป'})`);
-            const nameElem = document.getElementById('admin-fullname-display');
-            if (nameElem) nameElem.textContent = loggedInUser.fullname || adminTitle;
-        
-            const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
-            if (menuDataSources) {
-                if ((isAdmin || isManager) && !isSuper) {
-                    menuDataSources.classList.add('hidden');
-                } else {
-                    menuDataSources.classList.remove('hidden');
-                }
-            }
-        
-            if (isSuper) {
-                currentSelectedBranch = "ภาพรวมทุกสาขา";
-                const filterSelect = document.getElementById('overview-branch-filter');
-                if (filterSelect) filterSelect.value = "ทั้งหมด";
-            }
-        }
-
-        // 🟢 ฟังก์ชันสลับแท็บเมนูสำหรับอาจารย์/ผู้บริหาร (แก้ไข Routing ปุ่ม Header)
-        function showAdminDashboard() {
-            hideAllSections();
-            document.getElementById('section-dashboard-admin')?.classList.remove('hidden');
-            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
-            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
-        
-            if (!loggedInUser) return;
-        
-            const isSuper = hasRole(loggedInUser, 'superadmin');
-            const isAdmin = hasRole(loggedInUser, 'admin');
-            const isManager = hasRole(loggedInUser, 'manager');
             const isPreceptor = hasRole(loggedInUser, 'preceptor') && !isSuper && !isAdmin && !isManager;
 
             const btnHome = document.getElementById('nav-btn-home');
@@ -2558,12 +2504,12 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const btnTracker = document.getElementById('nav-btn-student-tracker');
             const btnEssay = document.getElementById('nav-btn-essay-grading');
 
-            // 🟢 จัดการซ่อน/แสดงปุ่มเมนูสำหรับสิทธิ์ Preceptor
+            // จัดการซ่อน/แสดงปุ่มเมนูสำหรับสิทธิ์ Preceptor
             if (btnHome) btnHome.classList.toggle('hidden', isPreceptor);
             if (btnExam) btnExam.classList.toggle('hidden', isPreceptor || (isManager && !isAdmin));
             if (btnTracker) btnTracker.classList.toggle('hidden', isPreceptor);
 
-            // 🟢 จัดการปุ่มตรวจข้อสอบข้อเขียน
+            // จัดการปุ่มตรวจข้อสอบข้อเขียน
             if (btnEssay) {
                 if ((isAdmin || isManager) && !isSuper && !hasRole(loggedInUser, 'preceptor')) {
                     btnEssay.classList.add('hidden');
@@ -2594,6 +2540,91 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 currentSelectedBranch = "ภาพรวมทุกสาขา";
                 const filterSelect = document.getElementById('overview-branch-filter');
                 if (filterSelect) filterSelect.value = "ทั้งหมด";
+            }
+        } // 🟢 ปิดฟังก์ชัน showAdminDashboard ตำแหน่งที่สองตรงนี้
+
+        // 🟢 วาง switchAdminTab ต่อท้ายทันทีตรงนี้
+        function switchAdminTab(tabName) {
+            if (!loggedInUser) return;
+
+            const isSuperAdmin = hasRole(loggedInUser, 'superadmin');
+            const isAdmin = hasRole(loggedInUser, 'admin');
+            const isManager = hasRole(loggedInUser, 'manager');
+            const isPreceptor = hasRole(loggedInUser, 'preceptor');
+
+            if (tabName === 'data-sources' && !isSuperAdmin) {
+                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
+                return;
+            }
+
+            // บล็อกไม่ให้ Preceptor เข้าแท็บอื่นนอกจาก essay-grading
+            const isOnlyPreceptor = isPreceptor && !isSuperAdmin && !isAdmin && !isManager;
+            if (isOnlyPreceptor && tabName !== 'essay-grading') {
+                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'สิทธิ์ พยาบาลพี่เลี้ยง (Preceptor) อนุญาตให้เข้าใช้งานได้เฉพาะส่วนตรวจข้อสอบข้อเขียนเท่านั้น');
+                return;
+            }
+
+            sessionStorage.setItem('admin_last_tab', tabName);
+
+            document.getElementById('nav-4-buttons')?.classList.remove('hidden');
+            document.getElementById('btn-admin-gear')?.classList.remove('hidden');
+
+            const btnHome = document.getElementById('nav-btn-home');
+            const btnExam = document.getElementById('nav-btn-exam-settings');
+            const btnTracker = document.getElementById('nav-btn-student-tracker');
+            const btnEssay = document.getElementById('nav-btn-essay-grading');
+
+            [btnHome, btnExam, btnTracker, btnEssay].forEach(btn => {
+                if (btn) btn.classList.remove('bg-white/20', 'text-white', 'shadow-inner');
+            });
+
+            // ซ่อนทุกแท็บเนื้อหา
+            const tabs = [
+                'tab-admin-overview',
+                'tab-admin-exam-settings',
+                'tab-admin-student-tracker',
+                'tab-admin-data-sources',
+                'tab-admin-essay-grading',
+                'tab-admin-manager-dashboard',
+                'branch-selector-wrapper'
+            ];
+            
+            tabs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+
+            // แสดงเฉพาะแท็บที่เลือก
+            if (tabName === 'manager-dashboard') {
+                if (btnHome) btnHome.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                document.getElementById('tab-admin-manager-dashboard')?.classList.remove('hidden');
+                renderManagerDashboard();
+
+            } else if (tabName === 'overview') {
+                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                document.getElementById('tab-admin-overview')?.classList.remove('hidden');
+                renderOverviewTable();
+
+            } else if (tabName === 'exam-settings') {
+                if (btnExam) btnExam.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                document.getElementById('tab-admin-exam-settings')?.classList.remove('hidden');
+                document.getElementById('branch-selector-wrapper')?.classList.remove('hidden');
+                renderBranchButtons();
+                switchBranchSettings(currentSelectedBranch);
+
+            } else if (tabName === 'student-tracker') {
+                if (btnTracker) btnTracker.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                document.getElementById('tab-admin-student-tracker')?.classList.remove('hidden');
+                renderStudentTrackerUI();
+
+            } else if (tabName === 'essay-grading') {
+                if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                document.getElementById('tab-admin-essay-grading')?.classList.remove('hidden');
+                const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
+                renderEssayGradingCards(pendingList);
+
+            } else if (tabName === 'data-sources') {
+                document.getElementById('tab-admin-data-sources')?.classList.remove('hidden');
             }
         }
 
