@@ -3873,18 +3873,6 @@ function toggleModalUserSelection(username, isChecked) {
                 }
             }
                
-            // 1.2 กรองผู้ใช้เฉพาะที่เป็นนักศึกษา (role === 'student') และปี 1-3 เท่านั้น
-            const branchStudents = userDatabase.filter(u => {
-                const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin');
-                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
-                
-                const validYears = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
-                const isYear1To3 = validYears.includes(u.yearLevel);
-                const matchYear = selectedYear === 'ทั้งหมด' ? isYear1To3 : u.yearLevel === selectedYear;
-        
-                return isStudent && matchBranch && matchYear;
-            });
-        
             const studentIds = branchStudents.map(s => s.username);
         
             // 1.3 กรองผลสอบ
