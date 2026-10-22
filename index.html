@@ -2898,14 +2898,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบเจาะจง (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (แก้ไขเรียงลำดับตัวแปรป้องกัน ReferenceError)
+        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (ย้ายประกาศ selectedBranch ขึ้นก่อนใช้งาน)
         function renderStudentTrackerUI() {
             const container = document.getElementById('tracker-cards-container');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
             const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
 
-            // 🟢 1. จัดการตัวกรองสาขาและประกาศตัวแปร selectedBranch ขึ้นมาก่อนนำไปใช้งาน
+            // 🟢 1. จัดการ Dropdown และประกาศตัวแปร selectedBranch ก่อนนำไปใช้งาน
             const branchSelect = document.getElementById('tracker-branch-filter');
             if (branchSelect) {
                 if (loggedInUser && hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'superadmin')) {
@@ -2921,6 +2921,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 }
             }
         
+            // 📌 ประกาศตัวแปรตรงนี้ เพื่อให้ลูปดึงไปใช้ได้ทันทีโดยไม่ติด ReferenceError
             const selectedBranch = branchSelect ? branchSelect.value : 'ทั้งหมด';
 
             // 🟢 2. เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown
@@ -2936,7 +2937,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
             const selectedAcadYear = acadYearSelect ? acadYearSelect.value : 'ทั้งหมด';
 
-            // 🟢 3. กรองรายชื่อนักศึกษา (ตอนนี้ selectedBranch ถูกประกาศเรียบร้อยแล้ว จะไม่เกิด Error)
+            // 🟢 3. กรองรายชื่อนักศึกษา
             const students = userDatabase.filter(u => {
                 if (!u) return false;
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
@@ -2964,7 +2965,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const yearLevel = student.yearLevel || 'ชั้นปีที่ 1';
                 const studentBranch = student.branch || '';
         
-                // สกัดตัวเลขชั้นปีของผู้เรียนเพื่อสร้างช่วงชั้นปีสะสมแบบ Dynamic Loop
                 const yearMatch = yearLevel.match(/\d+/);
                 const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
         
@@ -2974,7 +2974,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     allowedYears.push(`ปี ${y}`);
                 }
         
-                // ค้นหาชุดข้อสอบที่มีจริงในคลังย้อนหลังตามชั้นปีและสาขาของนักศึกษารายนี้
                 const matchQuestions = masterQuestions.filter(q => {
                     const qYear = (q.yearLevel || '').trim();
                     const qBranch = (q.branch || '').trim();
