@@ -3004,7 +3004,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขที่กรอง</div>`;
         }
 
-        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (กรองชุด/หน่วยการเรียนรู้ตามชั้นปีในคลังข้อสอบอัตโนมัติ)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (จัดกลุ่มตามชุดการเรียนรู้ + แสดงประวัติสะสมย้อนหลังตามชั้นปี)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3017,94 +3017,120 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const studentYear = (student.yearLevel || '').trim();
             const studentBranch = (student.branch || '').trim();
         
-            // 🟢 1. กรองคลังข้อสอบเฉพาะที่คอลัมน์ "ชั้นปี" และ "สาขา" ตรงกับนักศึกษาคนนี้
+            // 🟢 1. กำหนดช่วงชั้นปีที่จะดึงประวัติสะสมย้อนหลัง
+            let allowedYears = [];
+            if (studentYear.includes('1')) {
+                allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ทุกชั้นปี'];
+            } else if (studentYear.includes('2')) {
+                allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ชั้นปีที่ 2', 'ปี 2', 'ทุกชั้นปี'];
+            } else if (studentYear.includes('3')) {
+                allowedYears = ['ชั้นปีที่ 1', 'ปี 1', 'ชั้นปีที่ 2', 'ปี 2', 'ชั้นปีที่ 3', 'ปี 3', 'ทุกชั้นปี'];
+            } else {
+                allowedYears = [studentYear, 'ทุกชั้นปี'];
+            }
+        
+            // 🟢 2. กรองคลังข้อสอบย้อนหลังตามช่วงชั้นปีสะสมและสาขา
             const matchQuestions = masterQuestions.filter(q => {
                 const qYear = (q.yearLevel || '').trim();
                 const qBranch = (q.branch || '').trim();
                 
-                // ตรวจสอบชั้นปี: ต้องตรงกัน หรือระบุเป็น 'ทุกชั้นปี'
-                const isYearMatch = !qYear || qYear === 'ทุกชั้นปี' || qYear === studentYear;
-                // ตรวจสอบสาขา: ต้องตรงกัน หรือเป็นข้อสอบกลาง/ทุกสาขา
+                const isYearMatch = !qYear || allowedYears.includes(qYear);
                 const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === studentBranch;
                 
                 return isYearMatch && isBranchMatch;
             });
         
-            // 🟢 2. ดึงรายชื่อหน่วยการเรียนรู้ที่เป็นของชั้นปีนักศึกษาจริงๆ (ขจัดหน่วยซ้ำ)
-            const availableUnits = [];
+            // 🟢 3. จัดกลุ่มข้อสอบตาม "ชุดการเรียนรู้" -> "หน่วยการเรียนรู้ย่อย"
+            const setsGroupMap = {};
             matchQuestions.forEach(q => {
                 const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
                 const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
                 
-                // กรองไม่ให้รวมแบบทดสอบวัดผลปลายภาค/เลื่อนชั้นเข้ามาในหมวดหน่วยการเรียนรู้ปกติ
                 const isTermExam = catName.includes('เลื่อนชั้น') || catName.includes('ประมวล') || catName.includes('ปลายภาค') || catName.includes('กลางภาค');
                 
                 if (!isTermExam) {
-                    const isExist = availableUnits.some(u => u.catName === catName && u.setName === setName);
-                    if (!isExist) {
-                        availableUnits.push({ catName, setName });
+                    if (!setsGroupMap[setName]) {
+                        setsGroupMap[setName] = [];
+                    }
+                    if (!setsGroupMap[setName].includes(catName)) {
+                        setsGroupMap[setName].push(catName);
                     }
                 }
             });
         
-            // 🟢 3. สร้าง HTML รายงานผลบทเรียนรายหน่วย
+            // 🟢 4. สร้าง HTML รายงานผลแบบจัดหมวดหมู่ชุดการเรียนรู้
             let unitsHtml = '';
-            if (availableUnits.length === 0) {
-                unitsHtml = `<div class="p-4 text-center text-slate-400 bg-white rounded-xl border border-slate-200">ไม่พบหน่วยการเรียนรู้ที่กำหนดไว้สำหรับ ${studentYear}</div>`;
+            const setNames = Object.keys(setsGroupMap);
+        
+            if (setNames.length === 0) {
+                unitsHtml = `<div class="p-4 text-center text-slate-400 bg-white rounded-xl border border-slate-200">ไม่พบข้อมูลชุดการเรียนรู้สะสมสำหรับ ${studentYear}</div>`;
             } else {
-                availableUnits.forEach((uObj, idx) => {
-                    const uCat = uObj.catName;
-                    const uSet = uObj.setName;
-                    
-                    // ดึงประวัติการเข้าสอบของนักศึกษาในหน่วยนี้
-                    const attempts = studentHistory.filter(r => r.category === uCat || (r.examSet === uSet && r.category === uCat));
-                    const attemptCount = attempts.length;
-            
-                    if (attemptCount === 0) {
-                        unitsHtml += `
-                            <div class="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
-                                <div>
-                                    <div class="font-bold text-slate-800">${idx + 1}. ${uCat} <span class="text-[11px] font-normal text-indigo-600">(${uSet})</span></div>
-                                    <div class="text-[11px] text-slate-400">ยังไม่มีประวัติการเข้าทำแบบทดสอบ</div>
-                                </div>
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border">
-                                    ยังไม่ได้สอบ
-                                </span>
-                            </div>
-                        `;
-                    } else {
-                        const bestAttempt = attempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, attempts[0]);
-                        const isPassed = bestAttempt.percentage >= 80;
-            
-                        let historyRowsHtml = attempts.map(a => `
-                            <div class="flex justify-between items-center text-[11px] text-slate-500 py-1 border-t border-slate-100">
-                                <span>• สอบเมื่อ: ${a.timestamp}</span>
-                                <span class="font-bold text-slate-700">${a.score}/${a.total} (${a.percentage.toFixed(1)}%)</span>
-                            </div>
-                        `).join('');
-            
-                        unitsHtml += `
-                            <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
-                                <div class="flex justify-between items-center">
+                setNames.forEach((setName, setIdx) => {
+                    const categoriesList = setsGroupMap[setName];
+                    let subUnitsHtml = '';
+
+                    categoriesList.forEach((uCat, catIdx) => {
+                        const attempts = studentHistory.filter(r => r.category === uCat || (r.examSet === setName && r.category === uCat));
+                        const attemptCount = attempts.length;
+
+                        if (attemptCount === 0) {
+                            subUnitsHtml += `
+                                <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
                                     <div>
-                                        <div class="font-bold text-slate-800">${idx + 1}. ${uCat} <span class="text-[11px] font-normal text-indigo-600">(${uSet})</span></div>
-                                        <div class="text-[11px] text-indigo-600 font-semibold">สอบไปแล้วทั้งหมด: ${attemptCount} ครั้ง</div>
+                                        <div class="font-semibold text-slate-700">${catIdx + 1}. ${uCat}</div>
+                                        <div class="text-[10px] text-slate-400">ยังไม่มีประวัติการเข้าทำแบบทดสอบ</div>
                                     </div>
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${isPassed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}">
-                                        ${isPassed ? '✓ ผ่านเกณฑ์ (≥80%)' : '✕ ต้องสอบซ่อม (<80%)'}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-400 border border-slate-200 whitespace-nowrap">
+                                        ยังไม่ได้สอบ
                                     </span>
                                 </div>
-                                <div class="bg-slate-50 p-2 rounded-lg space-y-0.5">
-                                    <div class="font-bold text-slate-600 text-[11px]">ประวัติการสอบรายครั้ง:</div>
-                                    ${historyRowsHtml}
+                            `;
+                        } else {
+                            const bestAttempt = attempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, attempts[0]);
+                            const isPassed = bestAttempt.percentage >= 80;
+
+                            let historyRowsHtml = attempts.map(a => `
+                                <div class="flex justify-between items-center text-[10px] text-slate-500 py-0.5 border-t border-slate-100">
+                                    <span>• สอบเมื่อ: ${a.timestamp}</span>
+                                    <span class="font-bold text-slate-700">${a.score}/${a.total} (${a.percentage.toFixed(1)}%)</span>
                                 </div>
+                            `).join('');
+
+                            subUnitsHtml += `
+                                <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5 text-xs">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <div class="font-bold text-slate-800">${catIdx + 1}. ${uCat}</div>
+                                            <div class="text-[10px] text-indigo-600 font-semibold">สอบไปแล้ว: ${attemptCount} ครั้ง</div>
+                                        </div>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${isPassed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}">
+                                            ${isPassed ? '✓ ผ่านเกณฑ์' : '✕ ต้องสอบซ่อม'}
+                                        </span>
+                                    </div>
+                                    <div class="bg-white p-2 rounded border border-slate-100 space-y-0.5">
+                                        ${historyRowsHtml}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    unitsHtml += `
+                        <div class="p-3 bg-white rounded-xl border border-indigo-100 shadow-sm space-y-2">
+                            <div class="flex items-center space-x-2 border-b border-indigo-50 pb-2">
+                                <i class="fa-solid fa-layer-group text-indigo-600 text-xs"></i>
+                                <span class="font-bold text-xs text-indigo-950">${setName}</span>
+                                <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">(${categoriesList.length} หน่วย)</span>
                             </div>
-                        `;
-                    }
+                            <div class="space-y-2 pl-1">
+                                ${subUnitsHtml}
+                            </div>
+                        </div>
+                    `;
                 });
             }
         
-            // 🟢 4. โครงสร้างการสอบวัดผลเลื่อนชั้น/ประมวลความรู้สะสม
+            // 🟢 5. โครงสร้างการสอบวัดผลเลื่อนชั้น/ประมวลความรู้สะสม
             const termExamsToDisplay = [];
             if (studentYear.includes('1')) {
                 termExamsToDisplay.push({ title: 'การสอบเลื่อนชั้นปีที่ 1', keyKeyword: 'เลื่อนชั้นปีที่ 1' });
@@ -3178,7 +3204,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 }
             });
         
-            // 🟢 5. แสดงผลลง Modal
+            // 🟢 6. ประกอบโครงสร้าง HTML ทั้งหมดลง Modal
             printArea.innerHTML = `
                 <div class="space-y-4">
                     <div class="p-3 bg-indigo-900 text-white rounded-xl flex justify-between items-center">
@@ -3203,7 +3229,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
-                            <i class="fa-solid fa-list-check text-indigo-600 mr-2"></i> รายละเอียดผลการสอบบทเรียนประจำชั้นปี (${studentYear})
+                            <i class="fa-solid fa-book-bookmark text-indigo-600 mr-2"></i> ประวัติผลการสอบบทเรียนสะสม (${studentYear})
                         </h5>
                         <div class="space-y-2">
                             ${unitsHtml}
