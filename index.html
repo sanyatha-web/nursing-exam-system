@@ -4109,11 +4109,18 @@ function toggleModalUserSelection(username, isChecked) {
                     const failedList = [];
                     const unattemptedList = [];
         
-                    // 🟢 ปรับการกรองนักเรียนที่สอดคล้องกับชั้นปีของกลุ่มเมื่อเลือกมุมมอง 'ตามชั้นปี'
+                    // 🟢 [แก้ไขจุดนี้] ดึงชั้นปีจากคลังข้อสอบเพื่อกรองเฉพาะนักศึกษาในชั้นปีของชุดการเรียนรู้นั้นๆ
+                    const sampleQ = availableQuestions.find(q => 
+                        (currentManagerViewMode === 'set' ? (q.setGroup || '').trim() === groupName : (q.yearLevel || '').trim() === groupName) &&
+                        (q.category || '').trim() === catName
+                    );
+                    const targetYearLevel = (sampleQ?.yearLevel || '').trim();
+
                     const filteredStudentsList = studentsList.filter(st => {
-                        if (currentManagerViewMode === 'year' && groupName !== 'ทุกชั้นปี') {
+                        // หากมีชั้นปีระบุในชุดข้อสอบ และไม่ใช่ 'ทุกชั้นปี' ให้นับเฉพาะนักเรียนชั้นปีนั้น
+                        if (targetYearLevel && targetYearLevel !== 'ทุกชั้นปี' && selectedYear === 'ทั้งหมด') {
                             const stYear = (st.yearLevel || '').trim();
-                            return !stYear || stYear === groupName;
+                            return !stYear || stYear === 'ทุกชั้นปี' || stYear === targetYearLevel;
                         }
                         return true;
                     });
