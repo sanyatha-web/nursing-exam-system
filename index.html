@@ -318,28 +318,28 @@
                     </div>
                 </div>
 
-                <!-- 🟢 เพิ่มกลุ่มปุ่มสลับมุมมอง (View Switcher Toggle) -->
-                        <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200 self-start sm:self-auto">
-                            <button type="button" id="btn-view-by-set" onclick="switchManagerDashboardView('set')" 
-                                class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm">
-                                <i class="fa-solid fa-layer-group"></i>
-                                <span>ตามชุดการเรียนรู้</span>
-                            </button>
-                            <button type="button" id="btn-view-by-year" onclick="switchManagerDashboardView('year')" 
-                                class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600">
-                                <i class="fa-solid fa-graduation-cap"></i>
-                                <span>ตามชั้นปี</span>
-                            </button>
-                        </div>
+                <!-- 🟢 กลุ่มปุ่มสลับมุมมอง + Accordion -->
+                <div class="space-y-4">
+                    <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200 self-start sm:self-auto w-fit">
+                        <button type="button" id="btn-view-by-set" onclick="switchManagerDashboardView('set')" 
+                            class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm">
+                            <i class="fa-solid fa-layer-group"></i>
+                            <span>ตามชุดการเรียนรู้</span>
+                        </button>
+                        <button type="button" id="btn-view-by-year" onclick="switchManagerDashboardView('year')" 
+                            class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            <span>ตามชั้นปี</span>
+                        </button>
                     </div>
 
-                    <!-- 🟢 พื้นที่สำหรับวาด Accordion แสดงข้อมูล -->
-                    <div id="manager-sets-accordion-container" class="space-y-4 mt-4">
-                        <!-- โครง Skeleton หรือ เนื้อหาจาก JavaScript จะถูกนำมาวาดตรงนี้ -->
+                    <!-- พื้นที่แสดง Accordion -->
+                    <div id="manager-sets-accordion-container" class="space-y-4">
+                        <!-- Dynamic Accordion Content -->
                     </div>
                 </div>
 
-                <!-- 📌 3. สรุปผลสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม (ย้ายมาไว้อันดับที่ 3) -->
+                <!-- 📌 3. สรุปผลสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                         <div>
@@ -355,7 +355,8 @@
                         <!-- Dynamic Term Exams Cards -->
                     </div>
                 </div>
-            </div>
+
+            </div> <!-- 🟢 แท็ก </div> นี้จะต้องเป็นตัวปิดแท็บ tab-admin-manager-dashboard ทั้งหมด -->
 
             <!-- 📌 MODAL: ป๊อบอัปแสดงรายชื่อผู้สอบและติดตามสอบซ่อมละเอียด -->
             <div id="modal-manager-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
