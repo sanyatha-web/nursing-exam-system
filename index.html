@@ -2897,36 +2897,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             showAlertModal('success', `รายชื่อผู้มีสิทธิ์สอบเจาะจง (${allowedUsersList.length} คน)`, namesText);
         }
                                     
-        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (Dynamic 100% รองรับชั้นปีไร้ขีดจำกัด ปี 1 ถึง ปี N)
+        // ✅ ฟังก์ชันเรนเดอร์ บัตรความก้าวหน้าสะสมตามชั้นปี (แก้ไขเรียงลำดับตัวแปรป้องกัน ReferenceError)
         function renderStudentTrackerUI() {
             const container = document.getElementById('tracker-cards-container');
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
             const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
 
-            const acadYearSelect = document.getElementById('tracker-academic-year-filter');
-            if (acadYearSelect) {
-                const studentUsers = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor'));
-                const allAcademicYears = Array.from(new Set(studentUsers.map(u => u.academicYear).filter(Boolean))).sort();
-                const currentVal = acadYearSelect.value;
-                acadYearSelect.innerHTML = `<option value="ทั้งหมด">ทุกปีการศึกษา</option>` + 
-                    allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
-                if (allAcademicYears.includes(currentVal)) acadYearSelect.value = currentVal;
-            }
-
-            const selectedAcadYear = acadYearSelect ? acadYearSelect.value : 'ทั้งหมด';
-
-            // กรองนักศึกษาในลูป
-            const students = userDatabase.filter(u => {
-                if (!u) return false;
-                const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
-                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
-                const matchYear = yearFilter === 'ทั้งหมด' || u.yearLevel === yearFilter;
-                const matchAcadYear = selectedAcadYear === 'ทั้งหมด' || u.academicYear === selectedAcadYear; // 🟢
-                return isStudent && matchBranch && matchYear && matchAcadYear;
-            });
-        
-            // 1. จัดการตัวกรองสาขา
+            // 🟢 1. จัดการตัวกรองสาขาและประกาศตัวแปร selectedBranch ขึ้นมาก่อนนำไปใช้งาน
             const branchSelect = document.getElementById('tracker-branch-filter');
             if (branchSelect) {
                 if (loggedInUser && hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'superadmin')) {
@@ -2943,6 +2921,30 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             }
         
             const selectedBranch = branchSelect ? branchSelect.value : 'ทั้งหมด';
+
+            // 🟢 2. เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown
+            const acadYearSelect = document.getElementById('tracker-academic-year-filter');
+            if (acadYearSelect) {
+                const studentUsers = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor'));
+                const allAcademicYears = Array.from(new Set(studentUsers.map(u => u.academicYear).filter(Boolean))).sort();
+                const currentVal = acadYearSelect.value;
+                acadYearSelect.innerHTML = `<option value="ทั้งหมด">ทุกปีการศึกษา</option>` + 
+                    allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
+                if (allAcademicYears.includes(currentVal)) acadYearSelect.value = currentVal;
+            }
+
+            const selectedAcadYear = acadYearSelect ? acadYearSelect.value : 'ทั้งหมด';
+
+            // 🟢 3. กรองรายชื่อนักศึกษา (ตอนนี้ selectedBranch ถูกประกาศเรียบร้อยแล้ว จะไม่เกิด Error)
+            const students = userDatabase.filter(u => {
+                if (!u) return false;
+                const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
+                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
+                const matchYear = yearFilter === 'ทั้งหมด' || u.yearLevel === yearFilter;
+                const matchAcadYear = selectedAcadYear === 'ทั้งหมด' || u.academicYear === selectedAcadYear;
+                return isStudent && matchBranch && matchYear && matchAcadYear;
+            });
+
             if (students.length === 0) {
                 container.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบข้อมูลผู้เรียนตามเงื่อนไขที่กรอง</div>`;
                 return;
@@ -2961,7 +2963,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const yearLevel = student.yearLevel || 'ชั้นปีที่ 1';
                 const studentBranch = student.branch || '';
         
-                // 🟢 3. สกัดตัวเลขชั้นปีของผู้เรียนเพื่อสร้างช่วงชั้นปีสะสมแบบ Dynamic Loop (รองรับปี 1 ถึง ปี N)
+                // สกัดตัวเลขชั้นปีของผู้เรียนเพื่อสร้างช่วงชั้นปีสะสมแบบ Dynamic Loop
                 const yearMatch = yearLevel.match(/\d+/);
                 const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
         
@@ -2971,7 +2973,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     allowedYears.push(`ปี ${y}`);
                 }
         
-                // 🟢 4. ค้นหาชุดข้อสอบที่มีจริงในคลังย้อนหลังตามชั้นปีและสาขาของนักศึกษารายนี้
+                // ค้นหาชุดข้อสอบที่มีจริงในคลังย้อนหลังตามชั้นปีและสาขาของนักศึกษารายนี้
                 const matchQuestions = masterQuestions.filter(q => {
                     const qYear = (q.yearLevel || '').trim();
                     const qBranch = (q.branch || '').trim();
@@ -2980,7 +2982,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     return isYearMatch && isBranchMatch;
                 });
         
-                // ดึงรายชื่อ "ชุดการเรียนรู้" ทั้งหมดที่มีจริงสำหรับนักเรียนคนนี้
                 const availableSets = Array.from(new Set(
                     matchQuestions
                         .map(q => q.setGroup || 'ชุดการเรียนรู้ทั่วไป')
@@ -2990,17 +2991,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         })
                 ));
 
-                // 🟢 5. รวบรวมส่วนประเมินสะสม (ชุดการเรียนรู้ + การสอบเลื่อนชั้นย้อนหลังแบบ Dynamic Loop)
                 let targetExamList = [];
 
                 availableSets.forEach(setName => {
                     targetExamList.push({ name: setName, isSet: true, setName: setName });
                 });
 
-                // วนลูปสร้างการสอบวัดผลเลื่อนชั้นตามจำนวนปีย้อนหลัง
                 for (let y = 1; y <= currentYearNum; y++) {
                     if (y === currentYearNum && currentYearNum >= 3) {
-                        // ชั้นปีสุดท้าย (เช่น ปี 3 ขึ้นไป) เพิ่มการสอบประมวลความรู้
                         targetExamList.push({ name: 'การสอบประมวลความรู้ (Comprehensive Exam)', isSet: false, keyword: 'ประมวล' });
                     } else {
                         targetExamList.push({ name: `การสอบเลื่อนชั้นปีที่ ${y}`, isSet: false, keyword: `เลื่อนชั้นปีที่ ${y}` });
@@ -3010,7 +3008,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const totalPartsCount = targetExamList.length;
                 let passedPartsCount = 0;
         
-                // 🟢 6. คำนวณส่วนที่สอบผ่านเกณฑ์ (>= 80%)
                 targetExamList.forEach(item => {
                     if (item.isSet) {
                         const matchedAttempts = studentHistory.filter(r => {
@@ -3050,7 +3047,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 cardsHtml += `
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 hover:border-indigo-300 transition flex flex-col justify-between">
                         <div>
-                            <!-- Header การ์ด -->
                             <div class="flex justify-between items-start border-b border-slate-100 pb-2.5">
                                 <div>
                                     <h4 class="font-bold text-slate-800 text-sm">${fullname}</h4>
@@ -3061,7 +3057,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 </span>
                             </div>
         
-                            <!-- ข้อมูลสาขาและชั้นปี -->
                             <div class="mt-2 text-xs text-slate-500 space-y-1">
                                 <div class="flex justify-between">
                                     <span>สาขาวิชา:</span>
@@ -3073,7 +3068,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 </div>
                             </div>
         
-                            <!-- แถบวัดความก้าวหน้า Progress Bar -->
                             <div class="mt-3 space-y-1">
                                 <div class="flex justify-between text-xs font-bold">
                                     <span class="text-slate-500">ความก้าวหน้าสะสม (${yearLevel}):</span>
@@ -3085,7 +3079,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             </div>
                         </div>
         
-                        <!-- ปุ่มเปิดดูสมุดพก -->
                         <div class="pt-3 border-t border-slate-100">
                             <button onclick="openStudentTranscriptModal('${sapId}')" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs border border-indigo-200 transition flex items-center justify-center space-x-1.5 shadow-sm">
                                 <i class="fa-solid fa-book-bookmark"></i>
