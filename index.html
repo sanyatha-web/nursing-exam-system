@@ -4110,7 +4110,7 @@ function toggleModalUserSelection(username, isChecked) {
                     const unattemptedList = [];
         
                     studentsList.forEach(st => {
-                        // 🟢 แก้ไขจุดสำคัญ: ทำการลบช่องว่างส่วนเกิน (.trim()) และแปลงตัวพิมพ์เล็กเพื่อจับคู่ รหัสนักศึกษา (sapId / username) ให้แม่นยำ 100%
+                        // 🟢 จุดแก้ไขสำคัญ: ตัดช่องว่าง (.trim()) และแปลงตัวพิมพ์เล็ก (.toLowerCase()) ของ รหัสนักเรียน ทั้งฝั่ง User และ Results
                         const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
                         
                         const stAttempts = history.filter(r => {
