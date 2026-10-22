@@ -1092,10 +1092,10 @@ let settings = {
                         showStudentDashboard();
                     }
                 } catch (e) {
-                    console.error("Failed to restore session:", e);
-                    hideAllSections();
-                    document.getElementById('section-login')?.classList.remove('hidden');
-                }
+                console.error("Failed to restore session:", e);
+                hideAllSections();
+                document.getElementById('section-login')?.classList.remove('hidden');
+            }
             } else {
                 // ถ้าไม่มี Session ให้แสดงหน้า Log-in ทันที
                 hideAllSections();
