@@ -2881,7 +2881,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
             const acadYearSelect = document.getElementById('tracker-academic-year-filter');
             if (acadYearSelect) {
-                const allAcademicYears = Array.from(new Set(userDatabase.map(u => u.academicYear).filter(y => y && !['superadmin', 'admin', 'manager', 'preceptor'].includes(y.toLowerCase())))).sort();
+                const studentUsers = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor'));
+                const allAcademicYears = Array.from(new Set(studentUsers.map(u => u.academicYear).filter(Boolean))).sort();
                 const currentVal = acadYearSelect.value;
                 acadYearSelect.innerHTML = `<option value="ทั้งหมด">ทุกปีการศึกษา</option>` + 
                     allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
@@ -3836,7 +3837,8 @@ function toggleModalUserSelection(username, isChecked) {
 
             // 🟢 เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown อัตโนมัติ
             if (academicYearSelect) {
-                const allAcademicYears = Array.from(new Set(userDatabase.map(u => u.academicYear).filter(y => y && !['superadmin', 'admin', 'manager', 'preceptor'].includes(y.toLowerCase())))).sort();
+                const studentUsers = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor'));
+                const allAcademicYears = Array.from(new Set(studentUsers.map(u => u.academicYear).filter(Boolean))).sort();
                 const currentVal = academicYearSelect.value;
                 academicYearSelect.innerHTML = `<option value="ทั้งหมด">ทุกปีการศึกษา</option>` + 
                     allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
