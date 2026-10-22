@@ -1071,6 +1071,7 @@ let settings = {
         }
         
         // Initialize Application
+        // Initialize Application (ดึง Caching แสดงผลทันที + โหลดซิงค์เบื้องหลัง)
         window.addEventListener('DOMContentLoaded', () => {
             // 1. โหลดการตั้งค่าเดิมขึ้นมา
             loadSettings();
@@ -2612,7 +2613,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (tabManager) tabManager.classList.add('hidden');
             if (branchWrapper) branchWrapper.classList.add('hidden');
 
-            // 6. สลับเปิดแสดงเนื้อหาตาม tabName ที่ตรงกับปุ่มบน Header
+            // 6. สลับเปิดแสดงเนื้อหาตาม tabName ที่ส่งมาจากปุ่ม Header
             if (tabName === 'manager-dashboard') {
                 // ปุ่มที่ 1: หน้าแรก / สถิติผลสัมฤทธิ์
                 if (btnHome) btnHome.classList.add('bg-white/20', 'text-white', 'shadow-inner');
