@@ -4344,7 +4344,8 @@ function toggleModalUserSelection(username, isChecked) {
                     <div class="p-2.5 flex justify-between items-center text-xs hover:bg-slate-50 transition">
                         <div>
                             <div class="font-bold text-slate-800">${st.fullname || 'ไม่ระบุชื่อ'}</div>
-                            <div class="text-[10px] text-slate-400 font-mono">SAP-ID: ${st.username || '-'} • ${st.yearLevel || '-'}</div>
+                            <!-- 🟢 เพิ่ม | สาขาวิชา ต่อท้ายชั้นปีตรงนี้ -->
+                            <div class="text-[10px] text-slate-400 font-mono">SAP-ID: ${st.username || '-'} • ${st.yearLevel || '-'} | ${st.branch || 'ทั่วไป'}</div>
                         </div>
                         <div class="text-right">
                             <div class="font-bold ${statusColor}">
