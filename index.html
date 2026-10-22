@@ -331,7 +331,28 @@
                     </div>
 
                     <div id="manager-sets-accordion-container" class="space-y-3">
-                        <!-- Dynamic Sets & Units Progress Bars -->
+                        <!-- 🟢 Skeleton Loading State แสดงระหว่างรอประมวลผลข้อมูล -->
+                        <div class="animate-pulse border border-slate-200 rounded-xl p-4 bg-white space-y-3">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center space-x-3 w-1/2">
+                                    <div class="w-8 h-8 rounded-lg bg-slate-200"></div>
+                                    <div class="h-4 bg-slate-200 rounded w-2/3"></div>
+                                </div>
+                                <div class="h-4 bg-slate-200 rounded w-1/4"></div>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full w-full"></div>
+                        </div>
+                        <div class="animate-pulse border border-slate-200 rounded-xl p-4 bg-white space-y-3">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center space-x-3 w-1/2">
+                                    <div class="w-8 h-8 rounded-lg bg-slate-200"></div>
+                                    <div class="h-4 bg-slate-200 rounded w-2/3"></div>
+                                </div>
+                                <div class="h-4 bg-slate-200 rounded w-1/4"></div>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full w-full"></div>
+                        </div>
+                    </div>
                     </div>
                 </div>
 
@@ -1623,6 +1644,8 @@ async function fetchAndSyncUsers() {
         
             // เรียงลำดับจากรายการ ล่าสุด -> เก่าสุด (Newest First)
             examResultsHistory = parsedResults.reverse();
+            // 🟢 บันทึก Cache ประวัติการสอบลง LocalStorage เพื่อให้โหลดได้ทันทีตอน Refresh หน้าเว็บ
+            localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
         }
 
         // ฟังก์ชันแปลง CSV เป็นข้อมูลผู้สอบ (ดึงชั้นปี และแยก ชื่อ/นามสกุล)
@@ -3836,6 +3859,14 @@ function toggleModalUserSelection(username, isChecked) {
 
         // 1. ฟังก์ชันหลักสำหรับเรนเดอร์ Manager Dashboard
         function renderManagerDashboard() {
+            // 🟢 ดึงข้อมูลจาก LocalStorage Cache มาแสดงก่อนทันทีขณะรอซิงค์ข้อมูลใหม่
+            if ((!examResultsHistory || examResultsHistory.length === 0) && localStorage.getItem('cached_exam_results_history')) {
+                try {
+                    examResultsHistory = JSON.parse(localStorage.getItem('cached_exam_results_history'));
+                } catch(e) {
+                    console.error(e);
+                }
+            }
             const branchSelect = document.getElementById('manager-branch-filter');
             const yearSelect = document.getElementById('manager-year-filter');
             const academicYearSelect = document.getElementById('manager-academic-year-filter'); // 🟢 เพิ่มเติม
