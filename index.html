@@ -1562,6 +1562,7 @@ async function fetchAndSyncUsers() {
             const setIdx = headerCols.findIndex(h => h.includes('examset') || h.includes('ชุดข้อสอบ') || h.includes('ชุด'));
             const branchIdx = headerCols.findIndex(h => h.includes('branch') || h.includes('สาขา'));
             const yearIdx = headerCols.findIndex(h => h.includes('yearlevel') || h.includes('ชั้นปี') || h.includes('ปี'));
+            const academicYearIdx = headerCols.findIndex(h => h.includes('academicyear') || h.includes('ปีการศึกษา'));
             const catIdx = headerCols.findIndex(h => h.includes('category') || h.includes('หมวดหมู่') || h.includes('หน่วย'));
             const scoreIdx = headerCols.findIndex(h => h.includes('score') || h.includes('คะแนน'));
             const totalIdx = headerCols.findIndex(h => h.includes('totalquestions') || h.includes('ข้อเต็ม') || h.includes('จำนวนข้อ'));
@@ -1572,21 +1573,22 @@ async function fetchAndSyncUsers() {
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
                 if (cols.length < 3) continue;
-        
+
                 const sapId = sapIdx !== -1 ? cols[sapIdx] : '';
                 if (!sapId) continue;
-        
+
                 const timestamp = timeIdx !== -1 ? cols[timeIdx] : '-';
                 const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
                 const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
                 const examSet = setIdx !== -1 ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
                 const branch = branchIdx !== -1 ? cols[branchIdx] : '';
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
+                const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : '';
                 const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
                 const score = scoreIdx !== -1 ? parseFloat(cols[scoreIdx]) || 0 : 0;
                 const total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 15 : 15;
                 const percentage = percentIdx !== -1 ? parseFloat(cols[percentIdx]) || ((score / total) * 100) : ((score / total) * 100);
-        
+
                 parsedResults.push({
                     timestamp,
                     sapId,
@@ -1594,6 +1596,7 @@ async function fetchAndSyncUsers() {
                     examSet,
                     branch,
                     yearLevel,
+                    academicYear,
                     category,
                     score,
                     total,
@@ -1642,13 +1645,14 @@ async function fetchAndSyncUsers() {
             const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
             const roleIdx = headerCols.findIndex(h => h.includes('บทบาท'));
             const passIdx = headerCols.findIndex(h => h.includes('password') || h.includes('รหัสผ่าน'));
-    
+            const academicYearIdx = headerCols.findIndex(h => h.includes('ปีการศึกษา') || h.includes('academicyear')); // 🟢 ค้นหาคอลัมน์ปีการศึกษา
+
             const fetchedUsers = [];
-    
+
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
                 if (cols.length < 3) continue;
-    
+
                 const sapId = sapIdx !== -1 ? cols[sapIdx] : '';
                 const prefix = prefixIdx !== -1 ? cols[prefixIdx] : '';
                 const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
@@ -1657,8 +1661,8 @@ async function fetchAndSyncUsers() {
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
                 const rawRole = roleIdx !== -1 ? cols[roleIdx] : 'student';
                 const password = passIdx !== -1 ? cols[passIdx] : '';
-    
-                // 🟢 แปลงคอลัมน์ Role ที่คั่นด้วย Comma ให้เป็น Array
+                const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : ''; // 🟢 ดึงค่าปีการศึกษา
+
                 const rolesArray = rawRole.split(/[,/]+/).map(r => r.trim().toLowerCase());
                 let userRoles = [];
                 
@@ -1671,7 +1675,7 @@ async function fetchAndSyncUsers() {
                 });
 
                 if (userRoles.length === 0) userRoles.push('student');
-    
+
                 if (sapId && password) {
                     fetchedUsers.push({
                         username: sapId,
@@ -1682,7 +1686,8 @@ async function fetchAndSyncUsers() {
                         fullname: `${prefix}${fname} ${lname}`.trim(),
                         branch: branch || 'ทั่วไป',
                         yearLevel: yearLevel || 'ไม่ระบุ',
-                        roles: userRoles // 🟢 บันทึกเป็น Array รองรับหลายสิทธิ์
+                        academicYear: academicYear || '', // 🟢 บันทึกเข้า Object
+                        roles: userRoles
                     });
                 }
             }
@@ -2386,6 +2391,7 @@ async function fetchAndSyncUsers() {
                 examSet: settings.selectedSet,
                 branch: studentData.branch,
                 yearLevel: studentData.yearLevel,
+                academicYear: loggedInUser?.academicYear || "",
                 category: studentData.category,
                 score: rawScore,
                 totalQuestions: total,
