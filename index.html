@@ -343,6 +343,10 @@
                         </div>
                     </div>
                 </div>
+                <!-- 🟢 เติมกล่องนี้เพื่อเป็นพื้นที่สำหรับวาด Accordion แสดงข้อมูล -->
+                <div id="manager-sets-accordion-container" class="space-y-4">
+                    <!-- โครง Skeleton หรือ เนื้อหาจาก JavaScript จะถูกนำมาวาดตรงนี้ -->
+                </div>
 
                 <!-- 📌 3. สรุปผลสอบวัดผล กลางภาค / ปลายภาค และการติดตามสอบซ่อม (ย้ายมาไว้อันดับที่ 3) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
@@ -3990,10 +3994,10 @@ function toggleModalUserSelection(username, isChecked) {
             document.body.removeChild(link);
         }
 
-        // 🟢 ตัวแปรจัดเก็บสถานะมุมมองปัจจุบัน ('set' = ตามชุดการเรียนรู้, 'year' = ตามชั้นปี)
+        // 🟢 1. ตัวแปรจัดเก็บสถานะมุมมองปัจจุบัน ('set' = ตามชุดการเรียนรู้, 'year' = ตามชั้นปี)
         let currentManagerViewMode = 'set';
 
-        // 🟢 ฟังก์ชันสลับมุมมองและปรับสีปุ่ม
+        // 🟢 2. ฟังก์ชันสลับมุมมองและปรับสีปุ่ม Toggle
         function switchManagerDashboardView(mode) {
             currentManagerViewMode = mode;
             
@@ -4008,7 +4012,7 @@ function toggleModalUserSelection(username, isChecked) {
                 if (btnYear) btnYear.className = "px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm";
             }
 
-            // เรนเดอร์หน้าจอใหม่ตามมุมมองที่เลือก
+            // สั่งเรนเดอร์หน้าจอใหม่ทันทีหลังกดปุ่ม
             renderManagerDashboard();
         }
 
