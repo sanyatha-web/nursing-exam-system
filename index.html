@@ -2496,24 +2496,36 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         
             const isSuper = hasRole(loggedInUser, 'superadmin');
             const isAdmin = hasRole(loggedInUser, 'admin');
+            const isManager = hasRole(loggedInUser, 'manager');
 
-            // 🟢 ซ่อนปุ่มตรวจข้อสอบข้อเขียนบน Header ถ้าเป็นบัญชี Admin (ไม่ใช่ Superadmin และไม่ใช่ Preceptor)
+            const btnExam = document.getElementById('nav-btn-exam-settings');
             const btnEssay = document.getElementById('nav-btn-essay-grading');
+
+            // 🟢 ซ่อนปุ่มการตั้งค่าการสอบสำหรับสิทธิ์ Manager
+            if (btnExam) {
+                if (isManager && !isSuper && !isAdmin) {
+                    btnExam.classList.add('hidden');
+                } else {
+                    btnExam.classList.remove('hidden');
+                }
+            }
+
+            // 🟢 ซ่อนปุ่มตรวจข้อสอบข้อเขียนสำหรับสิทธิ์ Admin และ Manager
             if (btnEssay) {
-                if (isAdmin && !isSuper && !hasRole(loggedInUser, 'preceptor')) {
+                if ((isAdmin || isManager) && !isSuper && !hasRole(loggedInUser, 'preceptor')) {
                     btnEssay.classList.add('hidden');
                 } else {
                     btnEssay.classList.remove('hidden');
                 }
             }
         
-            const adminTitle = isSuper ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch || 'ทั่วไป'})`;
+            const adminTitle = isSuper ? 'อาจารย์ผู้ดูแลระบบสูงสุด' : (isManager ? `ผู้บริหารประจำสาขา (${loggedInUser.branch || 'ทั่วไป'})` : `อาจารย์ผู้ดูแลสาขา (${loggedInUser.branch || 'ทั่วไป'})`);
             const nameElem = document.getElementById('admin-fullname-display');
             if (nameElem) nameElem.textContent = loggedInUser.fullname || adminTitle;
         
             const menuDataSources = document.querySelector("#admin-dropdown-menu a[onclick*='data-sources']");
             if (menuDataSources) {
-                if (isAdmin && !isSuper) {
+                if ((isAdmin || isManager) && !isSuper) {
                     menuDataSources.classList.add('hidden');
                 } else {
                     menuDataSources.classList.remove('hidden');
@@ -2847,19 +2859,18 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
 
-            // 🟢 1. จัดการ Dropdown และประกาศตัวแปร selectedBranch ก่อนนำไปใช้งาน
-            const branchSelect = document.getElementById('tracker-branch-filter');
-            if (branchSelect) {
-                if (loggedInUser && hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'superadmin')) {
-                    branchSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
-                    branchSelect.disabled = true;
-                } else {
-                    branchSelect.disabled = false;
-                    const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
-                    if (branchSelect.options.length <= 1) {
-                        branchSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขาวิชา (${allBranches.length})</option>` + 
-                            allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
-                    }
+            // 🟢 ล็อก Filter สาขาสำหรับทั้ง Admin และ Manager (ยกเว้น Superadmin)
+            const isRestrictedRole = (hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager')) && !hasRole(loggedInUser, 'superadmin');
+            
+            if (isRestrictedRole && loggedInUser.branch) {
+                branchSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
+                branchSelect.disabled = true;
+            } else {
+                branchSelect.disabled = false;
+                const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
+                if (branchSelect.options.length <= 1 || branchSelect.disabled) {
+                    branchSelect.innerHTML = `<option value="ทั้งหมด">ทุกสาขาวิชา (${allBranches.length})</option>` + 
+                        allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                 }
             }
         
