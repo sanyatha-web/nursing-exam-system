@@ -2036,17 +2036,16 @@ async function fetchAndSyncUsers() {
             const selectedSet = document.getElementById('setting-exam-set') ? document.getElementById('setting-exam-set').value : "ทั้งหมด (ทุกชุดการเรียนรู้)";
             const globalElem = document.getElementById('setting-exam-global-enable');
         
-            // 🟢 ดึงค่าลิงก์จากหน้าจอเข้าตัวแปร settings
             const usersUrlElem = document.getElementById('setting-users-csv-url');
             const sheetUrlElem = document.getElementById('setting-sheet-csv-url');
             const resultsUrlElem = document.getElementById('setting-results-csv-url');
             const webAppUrlElem = document.getElementById('setting-webapp-url');
-
+        
             if (usersUrlElem) settings.usersCsvUrl = usersUrlElem.value.trim();
             if (sheetUrlElem) settings.sheetCsvUrl = sheetUrlElem.value.trim();
             if (resultsUrlElem) settings.resultsCsvUrl = resultsUrlElem.value.trim();
             if (webAppUrlElem) settings.webAppUrl = webAppUrlElem.value.trim();
-
+        
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
@@ -2065,6 +2064,12 @@ async function fetchAndSyncUsers() {
                     }
                 });
         
+                // 🟢 อ่านค่าสิทธิ์ผู้เข้าสอบ (Access Mode) จาก Radio Button
+                const selectedAccessMode = document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all';
+        
+                // 🟢 ดึงรายชื่อเดิมคงไว้ ไม่ให้โดนล้างเป็นอาร์เรย์ว่าง
+                const existingAllowedUsers = unitSettings[uKey]?.allowedUsers || [];
+        
                 unitSettings[uKey] = {
                     ...(unitSettings[uKey] || {}),
                     enabled: document.getElementById(`unit-enable-${idx}`)?.checked || false,
@@ -2075,25 +2080,21 @@ async function fetchAndSyncUsers() {
                     shuffleOptions: document.getElementById(`unit-shuffle-${idx}`)?.checked || false,
                     distributeBySkills: document.getElementById(`unit-distribute-${idx}`)?.checked || false,
                     skillCounts: unitSkillCounts,
-                    accessMode: document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all',
-                    allowedUsers: unitSettings[uKey]?.allowedUsers || [],
+                    accessMode: selectedAccessMode,
+                    allowedUsers: existingAllowedUsers, // 🟢 ป้องกันรายชื่อหาย
                     blindGrading: document.getElementById(`unit-blind-${idx}`)?.checked || false
                 };
             });
         
-            branchSettings[currentSelectedBranch] = {
-                ...(branchSettings[currentSelectedBranch] || {}),
-                globalExamEnable: globalElem ? globalElem.checked : true,
-                selectedSet: selectedSet
-            };
-        
-            // 🟢 บันทึก settings ทั้งหมดลง LocalStorage
+            // บันทึกลง LocalStorage
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการเชื่อมต่อและคลังข้อสอบถูกบันทึกเรียบร้อยแล้ว');
-        }                          
+            if (typeof renderOverviewTable === 'function') renderOverviewTable();
+        
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลสิทธิ์ผู้เข้าสอบและคลังข้อสอบถูกบันทึกเรียบร้อยแล้ว');
+        }                        
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
@@ -3363,8 +3364,9 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                     accessMode: 'all',
                     allowedUsers: []
                 };
-
+                
                 const allowedCount = (uConf.allowedUsers || []).length;
+                const isCustomMode = uConf.accessMode === 'custom';
                 
                 // ดึงข้อมูลข้อสอบในหน่วยนี้ โดยลบช่องว่างส่วนเกินออก
                 const unitPool = pool.filter(q => 
@@ -3429,18 +3431,18 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             <div class="flex items-center space-x-4">
                                 <span class="font-bold text-slate-700"><i class="fa-solid fa-users-gear text-indigo-500 mr-1"></i> สิทธิ์ผู้เข้าสอบ:</span>
                                 <label class="inline-flex items-center space-x-1 cursor-pointer">
-                                    <input type="radio" name="unit-access-${idx}" value="all" ${uConf.accessMode !== 'custom' ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
+                                    <input type="radio" name="unit-access-${idx}" value="all" ${!isCustomMode ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
                                     <span>ทุกคน (Default)</span>
                                 </label>
                                 <label class="inline-flex items-center space-x-1 cursor-pointer">
-                                    <input type="radio" name="unit-access-${idx}" value="custom" ${uConf.accessMode === 'custom' ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
+                                    <input type="radio" name="unit-access-${idx}" value="custom" ${isCustomMode ? 'checked' : ''} ${!isMasterOn ? 'disabled' : ''} onchange="toggleAccessModeUI(${idx})" class="text-indigo-600">
                                     <span>เฉพาะบุคคล</span>
                                 </label>
                             </div>
-
+                        
                             <button type="button" id="btn-select-students-${idx}" onclick="openStudentSelectModal('${uKey}', ${idx})" 
-                                class="px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1.5 ${uConf.accessMode === 'custom' && isMasterOn ? 'bg-amber-500 hover:bg-amber-600 text-slate-900' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"
-                                ${uConf.accessMode !== 'custom' || !isMasterOn ? 'disabled' : ''}>
+                                class="px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1.5 ${isCustomMode && isMasterOn ? 'bg-amber-500 hover:bg-amber-600 text-slate-900' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"
+                                ${!isCustomMode || !isMasterOn ? 'disabled' : ''}>
                                 <i class="fa-solid fa-user-plus"></i>
                                 <span id="btn-select-students-label-${idx}">จัดการผู้สอบ (${allowedCount} คน)</span>
                             </button>
@@ -3701,19 +3703,26 @@ function saveSelectedStudentsFromModal() {
             unitSettings[currentEditingUnitKey] = {};
         }
         
-        // 1. อัปเดตรายชื่อผู้มีสิทธิ์สอบ
+        // 1. บันทึกรายชื่อและโหมด custom
         unitSettings[currentEditingUnitKey].allowedUsers = [...tempSelectedUsers];
         unitSettings[currentEditingUnitKey].accessMode = 'custom';
 
-        // 2. บันทึกลง LocalStorage ทันที เพื่อไม่ให้ข้อมูลหาย
+        // 2. บันทึกลง LocalStorage ทันที
         localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
 
-        // 3. อัปเดตข้อความบนปุ่มเลือกนักศึกษา
-        const label = document.getElementById(`btn-select-students-label-${currentEditingUnitIndex}`);
-        if (label) label.textContent = `จัดการผู้สอบ (${tempSelectedUsers.length} คน)`;
+        // 3. ปรับ Radio Button หน้าจอให้ติ๊ก "เฉพาะบุคคล" อัตโนมัติ
+        if (currentEditingUnitIndex !== null && currentEditingUnitIndex !== undefined) {
+            const radioCustom = document.querySelector(`input[name="unit-access-${currentEditingUnitIndex}"][value="custom"]`);
+            if (radioCustom) {
+                radioCustom.checked = true;
+                toggleAccessModeUI(currentEditingUnitIndex);
+            }
+            const label = document.getElementById(`btn-select-students-label-${currentEditingUnitIndex}`);
+            if (label) label.textContent = `จัดการผู้สอบ (${tempSelectedUsers.length} คน)`;
+        }
         
         // 4. สั่งวาดตารางภาพรวมใหม่
-        renderOverviewTable();
+        if (typeof renderOverviewTable === 'function') renderOverviewTable();
     }
     closeStudentSelectModal();
 }
