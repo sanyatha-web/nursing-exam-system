@@ -954,7 +954,7 @@
         let studentData = {};
 
         // Settings State
-let currentSelectedBranch = "ภาพรวมทุกสาขา"; // สาขาที่กำลังเลือกตั้งค่า
+let currentSelectedBranch = "ทั้งหมด"; // สาขาที่กำลังเลือกตั้งค่า
 let branchSettings = {}; // ตัวแปรเก็บการตั้งค่าแยกตามสาขา
 let unitSettings = {};
 
@@ -2640,22 +2640,31 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             } else {
                 if (filterSelect) {
                     filterSelect.disabled = false;
-                    // 🟢 จำค่าที่ผู้ใช้เลือกไว้ปัจจุบันก่อนสร้าง Option ใหม่
-                    const currentSelectedVal = filterSelect.value || currentSelectedBranch || "ทั้งหมด";
                     
+                    // 🟢 1. ตรวจสอบและยึดค่าที่เลือกไว้อยู่ในปัจจุบันเป็นหลัก
+                    let activeVal = filterSelect.value;
+                    if (!activeVal || activeVal === "") {
+                        activeVal = currentSelectedBranch;
+                    }
+                    if (!activeVal || activeVal === "ภาพรวมทุกสาขา") {
+                        activeVal = "ทั้งหมด";
+                    }
+
                     const optionsHtml = `<option value="ทั้งหมด">ทั้งหมด (${allBranches.length} สาขา)</option>` + 
                         allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                     
-                    // อัปเดต HTML เฉพาะเมื่อโครงสร้างสาขาเปลี่ยน เพื่อลดอาการกระตุกของหน้าจอ
+                    // 🟢 2. อัปเดต HTML เฉพาะกรณีที่รายการสาขาเปลี่ยนไปเท่านั้น (ลด DOM Re-render)
                     if (filterSelect.innerHTML !== optionsHtml) {
                         filterSelect.innerHTML = optionsHtml;
                     }
-                    
-                    // คืนค่าที่เลือกไว้เดิม ไม่ให้เด้งกลับเป็น "ทั้งหมด"
-                    if (allBranches.includes(currentSelectedVal) || currentSelectedVal === "ทั้งหมด") {
-                        filterSelect.value = currentSelectedVal;
+
+                    // 🟢 3. กำหนดค่า Dropdown กลับเป็นค่าที่เลือกไว้เดิม และอัปเดต State Global
+                    if (allBranches.includes(activeVal) || activeVal === "ทั้งหมด") {
+                        filterSelect.value = activeVal;
+                        currentSelectedBranch = activeVal;
                     } else {
                         filterSelect.value = "ทั้งหมด";
+                        currentSelectedBranch = "ทั้งหมด";
                     }
                 }
                 const selectedFilter = filterSelect ? filterSelect.value : "ทั้งหมด";
