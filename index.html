@@ -266,6 +266,12 @@
                                 <option value="ทั้งหมด">ทุกปีการศึกษา</option>
                             </select>
                         </div>
+                        <!-- 🟢 เพิ่มปุ่ม Export CSV สำหรับ QA Report ตรงนี้ -->
+                            <button type="button" onclick="exportManagerReportCSV()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow transition flex items-center space-x-1.5 whitespace-nowrap ml-auto">
+                                <i class="fa-solid fa-file-csv"></i>
+                                <span>ส่งออกรายงานสาขา (CSV)</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -3926,47 +3932,95 @@ function toggleModalUserSelection(username, isChecked) {
             document.getElementById('kpi-remedial-count').textContent = `${remedialCount} คน`;
         }
 
+        // 🟢 ฟังก์ชันส่งออกรายงานภาพรวมสาขา (QA Report) เป็น CSV
+        function exportManagerReportCSV() {
+            if (!userDatabase || userDatabase.length === 0) {
+                showAlertModal('warning', 'ไม่พบข้อมูล', 'ไม่มีข้อมูลสำหรับการส่งออก');
+                return;
+            }
+        
+            let csvContent = "\uFEFF"; // ใส่ UTF-8 BOM เพื่อให้อ่านภาษาไทยใน Excel ได้ถูกต้อง
+            csvContent += "SAP-ID,ชื่อ-นามสกุล,สาขาวิชา,ชั้นปี,ปีการศึกษา,จำนวนบทเรียนที่สอบผ่าน,สถานะภาพรวม\n";
+        
+            const selectedBranch = document.getElementById('manager-branch-filter')?.value || 'ทั้งหมด';
+            const selectedYear = document.getElementById('manager-year-filter')?.value || 'ทั้งหมด';
+        
+            const students = userDatabase.filter(u => {
+                const isStudent = hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor');
+                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
+                const matchYear = selectedYear === 'ทั้งหมด' || u.yearLevel === selectedYear;
+                return isStudent && matchBranch && matchYear;
+            });
+        
+            students.forEach(st => {
+                const stHistory = examResultsHistory.filter(r => r.sapId === st.username);
+                const passedUnits = new Set(stHistory.filter(r => r.percentage >= 80).map(r => r.category));
+                
+                const status = passedUnits.size > 0 ? `ผ่าน ${passedUnits.size} หน่วย` : "ยังไม่ได้เข้าสอบ/ยังไม่ผ่านเกณฑ์";
+                
+                csvContent += `"${st.username}","${st.fullname}","${st.branch}","${st.yearLevel}","${st.academicYear || '-'}","${passedUnits.size}","${status}"\n`;
+            });
+        
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `รายงานสรุปผลสัมฤทธิ์_${selectedBranch}_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         // ฟังก์ชันเรนเดอร์ Accordion แสดงครบทุกหน่วย
         function renderNormalUnitsAccordion(studentsList, normalResults, availableQuestions) {
             const container = document.getElementById('manager-sets-accordion-container');
             if (!container) return;
-
+        
+            const selectedYear = document.getElementById('manager-year-filter')?.value || 'ทั้งหมด';
+        
+            // 1. กรองข้อสอบเฉพาะชั้นปีที่เลือก (Curriculum-Aligned Filtering)
+            const filteredQuestions = availableQuestions.filter(q => {
+                const qYear = (q.yearLevel || '').trim();
+                if (selectedYear === 'ทั้งหมด') return true;
+                return !qYear || qYear === 'ทุกชั้นปี' || qYear === selectedYear;
+            });
+        
             const setsStructure = {};
-
-            availableQuestions.forEach(q => {
+        
+            filteredQuestions.forEach(q => {
                 const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
                 const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
-
+        
                 if (!setsStructure[setName]) setsStructure[setName] = {};
                 if (!setsStructure[setName][catName]) setsStructure[setName][catName] = [];
             });
-
+        
             normalResults.forEach(r => {
                 const setName = r.examSet || 'ชุดการเรียนรู้ทั่วไป';
                 const catName = r.category || 'หน่วยการเรียนรู้ทั่วไป';
-
-                if (!setsStructure[setName]) setsStructure[setName] = {};
-                if (!setsStructure[setName][catName]) setsStructure[setName][catName] = [];
-
-                setsStructure[setName][catName].push(r);
+        
+                if (setsStructure[setName] && setsStructure[setName][catName]) {
+                    setsStructure[setName][catName].push(r);
+                }
             });
-
+        
             const setNames = Object.keys(setsStructure);
             if (setNames.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">ไม่พบข้อมูลชุดการเรียนรู้ในสาขานี้</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">ไม่พบข้อมูลชุดการเรียนรู้ตรงตามชั้นปีที่เลือก</p>`;
                 return;
             }
-
+        
             let html = '';
             setNames.forEach((setName, setIdx) => {
                 const unitsMap = setsStructure[setName];
                 const unitNames = Object.keys(unitsMap);
-
+        
+                // คำนวณคะแนนเฉลี่ยชุดเฉพาะผู้ที่เข้าสอบจริง
                 let setTotalScores = [];
                 unitNames.forEach(u => unitsMap[u]?.forEach(r => setTotalScores.push(r.percentage)));
                 const setAvg = setTotalScores.length > 0 ? (setTotalScores.reduce((a, b) => a + b, 0) / setTotalScores.length).toFixed(1) : "0.0";
                 const setBarColor = setAvg >= 80 ? 'bg-emerald-500' : (setAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
-
+        
                 html += `
                     <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                         <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -3982,7 +4036,7 @@ function toggleModalUserSelection(username, isChecked) {
                             <div class="flex items-center space-x-4 min-w-[180px]">
                                 <div class="w-full space-y-1">
                                     <div class="flex justify-between text-[11px] font-bold">
-                                        <span class="text-slate-500">เฉลี่ยชุด:</span>
+                                        <span class="text-slate-500">เฉลี่ยชุด (เฉพาะผู้สอบ):</span>
                                         <span class="text-indigo-900">${setAvg}%</span>
                                     </div>
                                     <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -3992,45 +4046,54 @@ function toggleModalUserSelection(username, isChecked) {
                                 <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
                             </div>
                         </div>
-
+        
                         <div id="set-body-${setIdx}" class="hidden divide-y divide-slate-100 bg-white border-t border-slate-200">
                 `;
-
+        
                 unitNames.forEach((catName, unitIdx) => {
                     const history = unitsMap[catName];
                     const uAvg = history.length > 0 ? (history.reduce((a, b) => a + b.percentage, 0) / history.length).toFixed(1) : "0.0";
-
+        
+                    // 🟢 แยกออกเป็น 3 กลุ่มสถานะชัดเจน
                     const passedList = [];
                     const failedList = [];
-
+                    const unattemptedList = [];
+        
                     studentsList.forEach(st => {
                         const stAttempts = history.filter(r => r.sapId === st.username);
                         if (stAttempts.length === 0) {
-                            failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
+                            unattemptedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
                         } else {
                             const best = stAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, stAttempts[0]);
                             if (best.percentage >= 80) {
                                 passedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'สอบผ่าน' });
                             } else {
-                                failedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'ไม่ผ่าน' });
+                                failedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'ไม่ผ่าน/ต้องสอบซ่อม' });
                             }
                         }
                     });
-
+        
                     const cacheKey = `unit_${setIdx}_${unitIdx}`;
-                    managerModalCache[cacheKey] = { title: catName, subtitle: setName, passedList, failedList };
-
+                    managerModalCache[cacheKey] = { 
+                        title: catName, 
+                        subtitle: setName, 
+                        passedList, 
+                        failedList, 
+                        unattemptedList 
+                    };
+        
                     const uBarColor = uAvg >= 80 ? 'bg-emerald-500' : (uAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
-
+        
                     html += `
                         <div class="p-4 space-y-2">
-                            <div class="flex justify-between items-center">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <span class="font-bold text-slate-800 text-xs"><i class="fa-solid fa-book-bookmark text-indigo-600 mr-1.5"></i>${catName}</span>
-                                <div class="flex items-center space-x-2 text-xs">
-                                    <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">ผ่าน ${passedList.length}</span>
-                                    <span class="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded">ไม่ผ่าน ${failedList.length}</span>
+                                <div class="flex items-center space-x-1.5 text-xs flex-wrap">
+                                    <span class="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">ผ่าน ${passedList.length}</span>
+                                    <span class="font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">สอบซ่อม ${failedList.length}</span>
+                                    <span class="font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">ยังไม่สอบ ${unattemptedList.length}</span>
                                     <button onclick="openManagerDetailModalFromCache('${cacheKey}')" 
-                                        class="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white rounded font-bold text-[11px] shadow">
+                                        class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold text-[11px] shadow transition">
                                         🔍 รายชื่อ
                                     </button>
                                 </div>
@@ -4041,10 +4104,10 @@ function toggleModalUserSelection(username, isChecked) {
                         </div>
                     `;
                 });
-
+        
                 html += `</div></div>`;
             });
-
+        
             container.innerHTML = html;
         }
 
@@ -4144,19 +4207,37 @@ function toggleModalUserSelection(username, isChecked) {
         function openManagerDetailModalFromCache(cacheKey) {
             const data = managerModalCache[cacheKey];
             if (!data) return;
-
+        
             currentManagerModalData = {
                 title: data.title,
                 subtitle: data.subtitle,
                 passedList: data.passedList || [],
                 failedList: data.failedList || [],
+                unattemptedList: data.unattemptedList || [],
                 activeTab: 'failed'
             };
-
+        
             document.getElementById('manager-modal-title').textContent = data.title;
             document.getElementById('manager-modal-subtitle').textContent = data.subtitle;
             document.getElementById('manager-modal-search').value = '';
-
+        
+            // สร้าง Tab Switcher ใหม่ใน Modal
+            const tabContainer = document.getElementById('modal-tab-container') || document.querySelector('#modal-manager-detail .bg-slate-100');
+            if (tabContainer) {
+                tabContainer.id = 'modal-tab-container';
+                tabContainer.innerHTML = `
+                    <button id="modal-tab-btn-passed" onclick="switchManagerModalTab('passed')" class="px-3 py-1.5 rounded-md transition font-bold text-slate-600">
+                        ผ่าน (<span id="modal-count-passed">0</span>)
+                    </button>
+                    <button id="modal-tab-btn-failed" onclick="switchManagerModalTab('failed')" class="px-3 py-1.5 rounded-md transition font-bold text-slate-600">
+                        สอบซ่อม (<span id="modal-count-failed">0</span>)
+                    </button>
+                    <button id="modal-tab-btn-unattempted" onclick="switchManagerModalTab('unattempted')" class="px-3 py-1.5 rounded-md transition font-bold text-slate-600">
+                        ยังไม่สอบ (<span id="modal-count-unattempted">0</span>)
+                    </button>
+                `;
+            }
+        
             switchManagerModalTab('failed');
             document.getElementById('modal-manager-detail').classList.remove('hidden');
         }
@@ -4169,30 +4250,40 @@ function toggleModalUserSelection(username, isChecked) {
             currentManagerModalData.activeTab = tabType;
             const btnPassed = document.getElementById('modal-tab-btn-passed');
             const btnFailed = document.getElementById('modal-tab-btn-failed');
-
-            if (tabType === 'passed') {
+            const btnUnattempted = document.getElementById('modal-tab-btn-unattempted');
+        
+            [btnPassed, btnFailed, btnUnattempted].forEach(btn => {
+                if (btn) btn.className = "px-3 py-1.5 rounded-md transition font-bold text-slate-600";
+            });
+        
+            if (tabType === 'passed' && btnPassed) {
                 btnPassed.className = "px-3 py-1.5 rounded-md transition bg-white text-emerald-700 shadow-sm font-bold";
-                btnFailed.className = "px-3 py-1.5 rounded-md transition text-slate-600 font-bold";
-            } else {
+            } else if (tabType === 'failed' && btnFailed) {
                 btnFailed.className = "px-3 py-1.5 rounded-md transition bg-white text-rose-700 shadow-sm font-bold";
-                btnPassed.className = "px-3 py-1.5 rounded-md transition text-slate-600 font-bold";
+            } else if (tabType === 'unattempted' && btnUnattempted) {
+                btnUnattempted.className = "px-3 py-1.5 rounded-md transition bg-white text-slate-800 shadow-sm font-bold";
             }
-
+        
             renderManagerModalList();
         }
-
+        
         function renderManagerModalList() {
             const container = document.getElementById('manager-modal-list-container');
             const searchVal = (document.getElementById('manager-modal-search')?.value || '').toLowerCase().trim();
             if (!container) return;
         
-            const isPassedTab = currentManagerModalData.activeTab === 'passed';
-            const rawList = isPassedTab ? currentManagerModalData.passedList : currentManagerModalData.failedList;
+            const tabType = currentManagerModalData.activeTab;
+            let rawList = currentManagerModalData.passedList;
+            if (tabType === 'failed') rawList = currentManagerModalData.failedList;
+            if (tabType === 'unattempted') rawList = currentManagerModalData.unattemptedList;
         
             const countPassed = document.getElementById('modal-count-passed');
             const countFailed = document.getElementById('modal-count-failed');
+            const countUnattempted = document.getElementById('modal-count-unattempted');
+        
             if (countPassed) countPassed.textContent = currentManagerModalData.passedList.length;
             if (countFailed) countFailed.textContent = currentManagerModalData.failedList.length;
+            if (countUnattempted) countUnattempted.textContent = currentManagerModalData.unattemptedList.length;
         
             const filtered = rawList.filter(item => {
                 const st = item.student || {};
@@ -4202,7 +4293,7 @@ function toggleModalUserSelection(username, isChecked) {
             });
         
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบข้อมูลรายชื่อนักศึกษาตามที่ค้นหา</div>`;
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบข้อมูลรายชื่อนักศึกษาในหมวดนี้</div>`;
                 return;
             }
         
@@ -4212,6 +4303,8 @@ function toggleModalUserSelection(username, isChecked) {
                     ? `${item.score}/${item.total || 15} (${item.percentage.toFixed(1)}%)` 
                     : 'ยังไม่ได้สอบ';
         
+                const statusColor = tabType === 'passed' ? 'text-emerald-600' : (tabType === 'failed' ? 'text-rose-600' : 'text-slate-400');
+        
                 return `
                     <div class="p-2.5 flex justify-between items-center text-xs hover:bg-slate-50 transition">
                         <div>
@@ -4219,7 +4312,7 @@ function toggleModalUserSelection(username, isChecked) {
                             <div class="text-[10px] text-slate-400 font-mono">SAP-ID: ${st.username || '-'} • ${st.yearLevel || '-'}</div>
                         </div>
                         <div class="text-right">
-                            <div class="font-bold ${isPassedTab ? 'text-emerald-600' : 'text-rose-600'}">
+                            <div class="font-bold ${statusColor}">
                                 ${scoreText}
                             </div>
                             <div class="text-[10px] text-slate-400">สอบไปแล้ว: <strong class="text-indigo-600">${item.attemptCount} ครั้ง</strong></div>
