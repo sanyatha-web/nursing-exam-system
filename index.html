@@ -320,39 +320,27 @@
 
                 <!-- 📌 2. สรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ (ย้ายขึ้นมาไว้อันดับที่ 2) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                         <div>
                             <h4 class="font-bold text-slate-800 text-base flex items-center">
-                                <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> สรุปผลสัมฤทธิ์รายชุดและหน่วยการเรียนรู้ปกติ
+                                <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> สรุปผลสัมฤทธิ์และสถิติรายหน่วยการเรียนรู้
                             </h4>
-                            <p class="text-xs text-slate-500 mt-0.5">คะแนนเฉลี่ยและการผ่านเกณฑ์ประจำบทเรียนรายหน่วย</p>
+                            <p class="text-xs text-slate-500 mt-0.5">คะแนนเฉลี่ยและการผ่านเกณฑ์ประจำบทเรียนรายหน่วย (* เกณฑ์การผ่าน 80%)</p>
                         </div>
-                        <span class="text-xs font-semibold text-slate-400">* เกณฑ์การผ่าน 80%</span>
-                    </div>
-
-                    <div id="manager-sets-accordion-container" class="space-y-3">
-                        <!-- 🟢 Skeleton Loading State แสดงระหว่างรอประมวลผลข้อมูล -->
-                        <div class="animate-pulse border border-slate-200 rounded-xl p-4 bg-white space-y-3">
-                            <div class="flex justify-between items-center">
-                                <div class="flex items-center space-x-3 w-1/2">
-                                    <div class="w-8 h-8 rounded-lg bg-slate-200"></div>
-                                    <div class="h-4 bg-slate-200 rounded w-2/3"></div>
-                                </div>
-                                <div class="h-4 bg-slate-200 rounded w-1/4"></div>
-                            </div>
-                            <div class="h-2 bg-slate-100 rounded-full w-full"></div>
+                    
+                        <!-- 🟢 เพิ่มกลุ่มปุ่มสลับมุมมอง (View Switcher Toggle) -->
+                        <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200 self-start sm:self-auto">
+                            <button type="button" id="btn-view-by-set" onclick="switchManagerDashboardView('set')" 
+                                class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm">
+                                <i class="fa-solid fa-layer-group"></i>
+                                <span>ตามชุดการเรียนรู้</span>
+                            </button>
+                            <button type="button" id="btn-view-by-year" onclick="switchManagerDashboardView('year')" 
+                                class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                                <span>ตามชั้นปี</span>
+                            </button>
                         </div>
-                        <div class="animate-pulse border border-slate-200 rounded-xl p-4 bg-white space-y-3">
-                            <div class="flex justify-between items-center">
-                                <div class="flex items-center space-x-3 w-1/2">
-                                    <div class="w-8 h-8 rounded-lg bg-slate-200"></div>
-                                    <div class="h-4 bg-slate-200 rounded w-2/3"></div>
-                                </div>
-                                <div class="h-4 bg-slate-200 rounded w-1/4"></div>
-                            </div>
-                            <div class="h-2 bg-slate-100 rounded-full w-full"></div>
-                        </div>
-                    </div>
                     </div>
                 </div>
 
@@ -4002,6 +3990,28 @@ function toggleModalUserSelection(username, isChecked) {
             document.body.removeChild(link);
         }
 
+        // 🟢 ตัวแปรจัดเก็บสถานะมุมมองปัจจุบัน ('set' = ตามชุดการเรียนรู้, 'year' = ตามชั้นปี)
+        let currentManagerViewMode = 'set';
+
+        // 🟢 ฟังก์ชันสลับมุมมองและปรับสีปุ่ม
+        function switchManagerDashboardView(mode) {
+            currentManagerViewMode = mode;
+            
+            const btnSet = document.getElementById('btn-view-by-set');
+            const btnYear = document.getElementById('btn-view-by-year');
+
+            if (mode === 'set') {
+                if (btnSet) btnSet.className = "px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm";
+                if (btnYear) btnYear.className = "px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600";
+            } else {
+                if (btnSet) btnSet.className = "px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600";
+                if (btnYear) btnYear.className = "px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm";
+            }
+
+            // เรนเดอร์หน้าจอใหม่ตามมุมมองที่เลือก
+            renderManagerDashboard();
+        }
+
         // ฟังก์ชันเรนเดอร์ Accordion แสดงครบทุกหน่วย
         function renderNormalUnitsAccordion(studentsList, normalResults, availableQuestions) {
             const container = document.getElementById('manager-sets-accordion-container');
@@ -4009,7 +4019,7 @@ function toggleModalUserSelection(username, isChecked) {
         
             const selectedYear = document.getElementById('manager-year-filter')?.value || 'ทั้งหมด';
         
-            // 1. กรองข้อสอบเฉพาะชั้นปีที่เลือก (Curriculum-Aligned Filtering)
+            // 1. กรองข้อสอบเฉพาะชั้นปีที่เลือก
             const filteredQuestions = availableQuestions.filter(q => {
                 const qYear = (q.yearLevel || '').trim();
                 if (selectedYear === 'ทั้งหมด') return true;
@@ -4018,56 +4028,63 @@ function toggleModalUserSelection(username, isChecked) {
         
             const setsStructure = {};
         
+            // 🟢 2. จัดกลุ่มข้อมูลตามมุมมองที่เลือก (ตามชุดการเรียนรู้ VS ตามชั้นปี)
             filteredQuestions.forEach(q => {
-                const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                const groupName = currentManagerViewMode === 'set' 
+                    ? (q.setGroup || 'ชุดการเรียนรู้ทั่วไป') 
+                    : (q.yearLevel || 'ทุกชั้นปี');
                 const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
         
-                if (!setsStructure[setName]) setsStructure[setName] = {};
-                if (!setsStructure[setName][catName]) setsStructure[setName][catName] = [];
+                if (!setsStructure[groupName]) setsStructure[groupName] = {};
+                if (!setsStructure[groupName][catName]) setsStructure[groupName][catName] = [];
             });
         
             normalResults.forEach(r => {
-                const setName = r.examSet || 'ชุดการเรียนรู้ทั่วไป';
+                const groupName = currentManagerViewMode === 'set' 
+                    ? (r.examSet || 'ชุดการเรียนรู้ทั่วไป') 
+                    : (r.yearLevel || 'ทุกชั้นปี');
                 const catName = r.category || 'หน่วยการเรียนรู้ทั่วไป';
         
-                if (setsStructure[setName] && setsStructure[setName][catName]) {
-                    setsStructure[setName][catName].push(r);
+                if (setsStructure[groupName] && setsStructure[groupName][catName]) {
+                    setsStructure[groupName][catName].push(r);
                 }
             });
         
-            const setNames = Object.keys(setsStructure);
-            if (setNames.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">ไม่พบข้อมูลชุดการเรียนรู้ตรงตามชั้นปีที่เลือก</p>`;
+            const groupNames = Object.keys(setsStructure);
+            if (groupNames.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">ไม่พบข้อมูลตรงตามเงื่อนไขที่เลือก</p>`;
                 return;
             }
         
             let html = '';
-            setNames.forEach((setName, setIdx) => {
-                const unitsMap = setsStructure[setName];
+            groupNames.forEach((groupName, setIdx) => {
+                const unitsMap = setsStructure[groupName];
                 const unitNames = Object.keys(unitsMap);
         
-                // คำนวณคะแนนเฉลี่ยชุดเฉพาะผู้ที่เข้าสอบจริง
+                // คำนวณคะแนนเฉลี่ยประจำกลุ่ม
                 let setTotalScores = [];
                 unitNames.forEach(u => unitsMap[u]?.forEach(r => setTotalScores.push(r.percentage)));
                 const setAvg = setTotalScores.length > 0 ? (setTotalScores.reduce((a, b) => a + b, 0) / setTotalScores.length).toFixed(1) : "0.0";
                 const setBarColor = setAvg >= 80 ? 'bg-emerald-500' : (setAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
         
+                const groupIcon = currentManagerViewMode === 'set' ? 'fa-folder-open' : 'fa-graduation-cap';
+
                 html += `
                     <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                         <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div class="flex items-center space-x-3">
                                 <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
-                                    <i class="fa-solid fa-folder-open"></i>
+                                    <i class="fa-solid ${groupIcon}"></i>
                                 </div>
                                 <div>
-                                    <h5 class="font-bold text-slate-800 text-sm">${setName}</h5>
+                                    <h5 class="font-bold text-slate-800 text-sm">${groupName}</h5>
                                     <p class="text-[11px] text-slate-400">${unitNames.length} หน่วยการเรียนรู้ย่อย</p>
                                 </div>
                             </div>
                             <div class="flex items-center space-x-4 min-w-[180px]">
                                 <div class="w-full space-y-1">
                                     <div class="flex justify-between text-[11px] font-bold">
-                                        <span class="text-slate-500">เฉลี่ยชุด (เฉพาะผู้สอบ):</span>
+                                        <span class="text-slate-500">เฉลี่ยกลุ่ม (เฉพาะผู้สอบ):</span>
                                         <span class="text-indigo-900">${setAvg}%</span>
                                     </div>
                                     <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -4085,7 +4102,6 @@ function toggleModalUserSelection(username, isChecked) {
                     const history = unitsMap[catName];
                     const uAvg = history.length > 0 ? (history.reduce((a, b) => a + b.percentage, 0) / history.length).toFixed(1) : "0.0";
         
-                    // 🟢 แยกออกเป็น 3 กลุ่มสถานะชัดเจน
                     const passedList = [];
                     const failedList = [];
                     const unattemptedList = [];
@@ -4107,7 +4123,7 @@ function toggleModalUserSelection(username, isChecked) {
                     const cacheKey = `unit_${setIdx}_${unitIdx}`;
                     managerModalCache[cacheKey] = { 
                         title: catName, 
-                        subtitle: setName, 
+                        subtitle: groupName, 
                         passedList, 
                         failedList, 
                         unattemptedList 
