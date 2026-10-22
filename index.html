@@ -259,6 +259,13 @@
                                 <option value="ชั้นปีที่ 3">ชั้นปีที่ 3</option>
                             </select>
                         </div>
+                        <!-- Filter ปีการศึกษา พ.ศ. -->
+                        <div class="flex items-center space-x-1.5">
+                            <label class="text-xs font-semibold text-slate-600 whitespace-nowrap"><i class="fa-solid fa-calendar-days text-slate-400"></i> ปีการศึกษา:</label>
+                            <select id="manager-academic-year-filter" onchange="renderManagerDashboard()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="ทั้งหมด">ทุกปีการศึกษา</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -525,6 +532,10 @@
                             <option value="ชั้นปีที่ 1">ชั้นปีที่ 1</option>
                             <option value="ชั้นปีที่ 2">ชั้นปีที่ 2</option>
                             <option value="ชั้นปีที่ 3">ชั้นปีที่ 3</option>
+                        </select>
+                        <!-- 4. Dropdown กรองปีการศึกษา พ.ศ. -->
+                        <select id="tracker-academic-year-filter" onchange="renderStudentTrackerUI()" class="px-3 py-1.5 border border-slate-300 rounded-xl font-semibold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="ทั้งหมด">ทุกปีการศึกษา</option>
                         </select>
                     </div>
                 </div>
@@ -1645,7 +1656,7 @@ async function fetchAndSyncUsers() {
             const yearIdx = headerCols.findIndex(h => h.includes('ชั้นปี') || h.includes('ปี'));
             const roleIdx = headerCols.findIndex(h => h.includes('บทบาท'));
             const passIdx = headerCols.findIndex(h => h.includes('password') || h.includes('รหัสผ่าน'));
-            const academicYearIdx = headerCols.findIndex(h => h.includes('ปีการศึกษา') || h.includes('academicyear')); // 🟢 ค้นหาคอลัมน์ปีการศึกษา
+            const academicYearIdx = headerCols.findIndex(h => h.includes('ปีการศึกษา') || h.includes('academicyear'));
 
             const fetchedUsers = [];
 
@@ -1661,7 +1672,7 @@ async function fetchAndSyncUsers() {
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
                 const rawRole = roleIdx !== -1 ? cols[roleIdx] : 'student';
                 const password = passIdx !== -1 ? cols[passIdx] : '';
-                const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : ''; // 🟢 ดึงค่าปีการศึกษา
+                const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : '';
 
                 const rolesArray = rawRole.split(/[,/]+/).map(r => r.trim().toLowerCase());
                 let userRoles = [];
@@ -2867,6 +2878,27 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const searchVal = (document.getElementById('tracker-search-input')?.value || '').toLowerCase().trim();
             const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
+
+            const acadYearSelect = document.getElementById('tracker-academic-year-filter');
+            if (acadYearSelect) {
+                const allAcademicYears = Array.from(new Set(userDatabase.map(u => u.academicYear).filter(y => y && !['superadmin', 'admin', 'manager', 'preceptor'].includes(y.toLowerCase())))).sort();
+                const currentVal = acadYearSelect.value;
+                acadYearSelect.innerHTML = `<option value="ทั้งหมด">ทุกปีการศึกษา</option>` + 
+                    allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
+                if (allAcademicYears.includes(currentVal)) acadYearSelect.value = currentVal;
+            }
+
+            const selectedAcadYear = acadYearSelect ? acadYearSelect.value : 'ทั้งหมด';
+
+            // กรองนักศึกษาในลูป
+            const students = userDatabase.filter(u => {
+                if (!u) return false;
+                const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
+                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
+                const matchYear = yearFilter === 'ทั้งหมด' || u.yearLevel === yearFilter;
+                const matchAcadYear = selectedAcadYear === 'ทั้งหมด' || u.academicYear === selectedAcadYear; // 🟢
+                return isStudent && matchBranch && matchYear && matchAcadYear;
+            });
         
             // 1. จัดการตัวกรองสาขา
             const branchSelect = document.getElementById('tracker-branch-filter');
@@ -3057,7 +3089,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             if (!student) return;
         
             document.getElementById('transcript-student-name').textContent = `สมุดพกรายงานผลการเรียน: ${student.fullname}`;
-            document.getElementById('transcript-student-sub').textContent = `SAP-ID: ${student.username} | สาขา: ${student.branch} (${student.yearLevel || 'ไม่ระบุ'})`;
+            document.getElementById('transcript-student-sub').textContent =ม`SAP-ID: ${student.username} | สาขา: ${student.branch} (${student.yearLevel || 'ไม่ระบุ'}) | ปีการศึกษา: ${student.academicYear || '-'}`;
         
             const printArea = document.getElementById('transcript-print-area');
             const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
@@ -3809,7 +3841,34 @@ function toggleModalUserSelection(username, isChecked) {
         function renderManagerDashboard() {
             const branchSelect = document.getElementById('manager-branch-filter');
             const yearSelect = document.getElementById('manager-year-filter');
+            const academicYearSelect = document.getElementById('manager-academic-year-filter'); // 🟢 เพิ่มเติม
             if (!branchSelect) return;
+
+            // 🟢 เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown อัตโนมัติ
+            if (academicYearSelect) {
+                const allAcademicYears = Array.from(new Set(userDatabase.map(u => u.academicYear).filter(y => y && !['superadmin', 'admin', 'manager', 'preceptor'].includes(y.toLowerCase())))).sort();
+                const currentVal = academicYearSelect.value;
+                academicYearSelect.innerHTML = `<option value="ทั้งหมด">ทุกปีการศึกษา</option>` + 
+                    allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
+                if (allAcademicYears.includes(currentVal)) academicYearSelect.value = currentVal;
+            }
+
+            const selectedBranch = branchSelect.value || (loggedInUser ? loggedInUser.branch : 'ทั้งหมด');
+            const selectedYear = yearSelect ? yearSelect.value : 'ทั้งหมด';
+            const selectedAcademicYear = academicYearSelect ? academicYearSelect.value : 'ทั้งหมด'; // 🟢 ดึงค่าที่เลือก
+
+            // กรองนักเรียนโดยเช็กปีการศึกษา พ.ศ.
+            const branchStudents = userDatabase.filter(u => {
+                const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin');
+                const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
+                
+                const validYears = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
+                const isYear1To3 = validYears.includes(u.yearLevel);
+                const matchYear = selectedYear === 'ทั้งหมด' ? isYear1To3 : u.yearLevel === selectedYear;
+                const matchAcademicYear = selectedAcademicYear === 'ทั้งหมด' || u.academicYear === selectedAcademicYear; // 🟢 กรองปีการศึกษา
+
+                return isStudent && matchBranch && matchYear && matchAcademicYear;
+            });
         
             // 1.1 จัดการ Filter สาขา
             const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
