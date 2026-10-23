@@ -1421,8 +1421,9 @@ let settings = {
             userAnswers = {};
             currentQuestionIndex = 0;
 
-            // 🟢 ล้างค่าการสลับหน้าจอเป็น 0 ทุกครั้งที่เริ่มทำแบบทดสอบใหม่
+            // 🟢 ล้างค่านับสลับหน้าจอเป็น 0 ทุกครั้งที่เริ่มสอบ
             tabSwitchCount = 0;
+            lastTabSwitchTime = 0;
         
             isExamActive = true;
             sessionStorage.setItem('is_exam_running', 'true');
@@ -2348,8 +2349,9 @@ async function fetchAndSyncUsers() {
                 `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // 🟢 ตัวแปร Flag ป้องกันการผูก Event Listeners ซ้ำซ้อน
+        // 🟢 ตัวแปร Flag ป้องกันการผูก Event Listeners ซ้ำซ้อน และกันการรับ Event เบิ้ลในเวลาใกล้เคียงกัน
         let isAntiCheatListenersSetup = false;
+        let lastTabSwitchTime = 0;
 
         function setupAntiCheatListeners() {
             // 1. สร้าง Layer หน้าจอดำบังตาเมื่อนักเรียนเปิดโปรแกรมอื่นมาซ้อน (สร้างเพียงครั้งเดียว)
@@ -2365,7 +2367,7 @@ async function fetchAndSyncUsers() {
                 document.body.appendChild(overlay);
             }
 
-            // ถ้าเคยสั่งผูก Event ไปแล้ว ให้จบฟังก์ชันทันที (ป้องกัน Event สลับจอเด้งซ้ำ)
+            // ถ้าเคยผูก Event ไปแล้ว ให้จบฟังก์ชันทันที
             if (isAntiCheatListenersSetup) return;
             isAntiCheatListenersSetup = true;
 
@@ -2379,23 +2381,28 @@ async function fetchAndSyncUsers() {
                     if (overlayElem) overlayElem.classList.remove('hidden');
 
                     if (settings.antiCheatEnable) {
-                        tabSwitchCount++;
+                        const now = Date.now();
+                        // 🟢 บล็อกการนับเบิ้ลจาก visibilitychange และ blur ที่เกิดขึ้นพร้อมกัน (ห่างกันไม่เกิน 800ms)
+                        if (now - lastTabSwitchTime > 800) {
+                            lastTabSwitchTime = now;
+                            tabSwitchCount++;
 
-                        // อัปเดตตัวเลขการสลับจอบน Header
-                        const countElem = document.getElementById('tab-switch-count-num');
-                        if (countElem) countElem.textContent = tabSwitchCount;
+                            // อัปเดตตัวเลขการสลับจอบน Header
+                            const countElem = document.getElementById('tab-switch-count-num');
+                            if (countElem) countElem.textContent = tabSwitchCount;
 
-                        const maxLimit = settings.maxTabSwitches || 3;
+                            const maxLimit = settings.maxTabSwitches || 3;
 
-                        // ตรวจสอบว่าสลับจอเกินกำหนดหรือยัง
-                        if (settings.autoSubmitOnCheat && tabSwitchCount >= maxLimit) {
-                            isExamActive = false; // ปิดสถานะสอบทันที ป้องกัน Event เด้งซ้ำ
-                            if (overlayElem) overlayElem.classList.add('hidden');
+                            // ตรวจสอบว่าสลับจอเกินกำหนดหรือยัง
+                            if (settings.autoSubmitOnCheat && tabSwitchCount >= maxLimit) {
+                                isExamActive = false; // ปิดสถานะสอบทันที ป้องกัน Event เด้งซ้ำ
+                                if (overlayElem) overlayElem.classList.add('hidden');
 
-                            showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอครบกำหนด (${maxLimit} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
-                            submitExam(true);
-                        } else {
-                            showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาตสูงสุด ${maxLimit} ครั้ง`);
+                                showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอครบกำหนด (${maxLimit} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
+                                submitExam(true);
+                            } else {
+                                showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาตสูงสุด ${maxLimit} ครั้ง`);
+                            }
                         }
                     }
                 } else {
