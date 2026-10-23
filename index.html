@@ -1321,6 +1321,9 @@ let settings = {
             const selectElem = document.getElementById('dashboard-category-select');
             if (!selectElem) return;
         
+            // 🟢 ผูก Event เมื่อนักเรียนเปลี่ยนตัวเลือกบทเรียน ให้กล่องเตือนอัปเดตตามทันที
+            selectElem.onchange = renderInitialSetupNotice;
+        
             if (pendingCategories.length === 0) {
                 selectElem.innerHTML = `<option value="">-- คุณสอบผ่านครบทุกหน่วยการเรียนรู้ของชั้นปีนี้แล้ว --</option>`;
             } else {
@@ -1330,6 +1333,9 @@ let settings = {
                     return `<option value="${cat}">${setGrp} - ${cat}</option>`;
                 }).join('');
             }
+        
+            // 🟢 สั่งอัปเดตกล่องแจ้งเตือนทันทีหลังจากสร้างตัวเลือกเสร็จ
+            renderInitialSetupNotice();
         }
 
         function startExamFromDashboard() {
@@ -2109,25 +2115,48 @@ async function fetchAndSyncUsers() {
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
-            if (!container) return;
-
-            if (settings.antiCheatEnable) {
-                container.className = "p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs space-y-1";
-                container.innerHTML = `
+            if (!container || !loggedInUser) return;
+        
+            const selectedCategory = document.getElementById('dashboard-category-select')?.value || '';
+            const selectedSet = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
+            const uKey = `${loggedInUser.branch}__${selectedSet}__${selectedCategory}`;
+            const matchedUnitConf = unitSettings[uKey];
+        
+            // ดึงค่าการตั้งค่า Anti-Cheat และ ป้องกันแคปจอ (ถ้าในหน่วยตั้งไว้ให้ใช้ค่าหน่วย ถ้าไม่มีให้ใช้ค่า Global)
+            const isAntiCheatOn = matchedUnitConf ? matchedUnitConf.antiCheatEnable : settings.antiCheatEnable;
+            const isPreventScreenshotOn = matchedUnitConf ? matchedUnitConf.preventScreenshot : (settings.preventScreenshot !== false);
+        
+            let noticeHtml = '';
+        
+            if (isAntiCheatOn) {
+                container.className = "p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs space-y-1.5";
+                noticeHtml += `
                     <div class="font-bold flex items-center text-amber-900">
                         <i class="fa-solid fa-shield-halved mr-1.5 text-amber-600"></i> ระบบตรวจจับการเปลี่ยนหน้าจอเปิดใช้งาน (Anti-Cheating ON)
                     </div>
-                    <p>ห้ามสลับ Tab หรือย่อหน้าจอขณะทำข้อสอบ อนุญาตให้สลับได้สูงสุด ${settings.maxTabSwitches} ครั้ง ${settings.autoSubmitOnCheat ? '(สลับเกินจะถูกส่งข้อสอบทันที)' : ''}</p>
+                    <p>• ห้ามสลับ Tab หรือย่อหน้าจอขณะทำข้อสอบ อนุญาตให้สลับได้สูงสุด ${settings.maxTabSwitches || 3} ครั้ง ${settings.autoSubmitOnCheat ? '(สลับเกินจะถูกส่งข้อสอบทันที)' : ''}</p>
                 `;
             } else {
-                container.className = "p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-1";
-                container.innerHTML = `
-                    <div class="font-bold flex items-center text-emerald-900">
-                        <i class="fa-solid fa-circle-check mr-1.5 text-emerald-600"></i> โหมดแบบทดสอบค้นคว้าอิสระ (Anti-Cheating OFF)
+                container.className = "p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs space-y-1.5";
+                noticeHtml += `
+                    <div class="font-bold flex items-center text-slate-800">
+                        <i class="fa-solid fa-circle-info mr-1.5 text-slate-500"></i> โหมดแบบทดสอบค้นคว้าอิสระ (Anti-Cheating OFF)
                     </div>
-                    <p>สามารถสลับหน้าจอหรือเปิดเอกสารประกอบการทำข้อสอบได้ตามสบาย ระบบจะไม่นับการสลับหน้าจอ</p>
+                    <p>• สามารถสลับหน้าจอหรือเปิดเอกสารประกอบการทำข้อสอบได้ตามสบาย</p>
                 `;
             }
+        
+            // 🟢 เพิ่มข้อความแจ้งเตือนห้ามจับภาพหน้าจอ (Screenshot Warning)
+            if (isPreventScreenshotOn) {
+                noticeHtml += `
+                    <div class="pt-1.5 border-t border-amber-200/60 font-bold text-rose-700 flex items-center">
+                        <i class="fa-solid fa-camera-retro mr-1.5"></i> คำเตือน: ระบบบล็อกการจับภาพหน้าจอ (Prevent Screenshot)
+                    </div>
+                    <p class="text-rose-600">• ไม่อนุญาตให้ใช้คีย์ลัด PrintScreen, Capture หน้าจอ หรือบันทึกภาพข้อสอบโดยเด็ดขาด</p>
+                `;
+            }
+        
+            container.innerHTML = noticeHtml;
         }
 
        function updateAntiCheatStatusTag() {
