@@ -2513,16 +2513,17 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         function showStudentDashboard() {
             hideAllSections();
             document.getElementById('section-dashboard-student')?.classList.remove('hidden');
-                
+            
+            // 🟢 ซ่อนปุ่มฝั่งอาจารย์ แต่เปิดแสดงปุ่มออกจากระบบของนักเรียน
             document.getElementById('nav-4-buttons')?.classList.add('hidden');
             document.getElementById('btn-admin-gear')?.classList.add('hidden');
-            
+            document.getElementById('btn-header-logout')?.classList.remove('hidden');
+        
             if (loggedInUser) {
                 document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname || '';
                 document.getElementById('dashboard-user-id').textContent = loggedInUser.username || '';
                 document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch || '';
-                    
-                // 🟢 เรียกโหลดรายการแบบทดสอบที่จะอัปเดตป้ายให้ด้วย
+                
                 loadCategoriesForLoggedInUser();
             }
         }
