@@ -2348,7 +2348,7 @@ async function fetchAndSyncUsers() {
                 `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // 🟢 ตัวแปรสำหรับป้องกันการผูก Event Listeners ซ้ำซ้อน
+        // 🟢 ตัวแปร Flag ป้องกันการผูก Event Listeners ซ้ำซ้อน
         let isAntiCheatListenersSetup = false;
 
         function setupAntiCheatListeners() {
@@ -2365,7 +2365,7 @@ async function fetchAndSyncUsers() {
                 document.body.appendChild(overlay);
             }
 
-            // ถ้าเคยสั่งผูก Event ไปแล้ว ให้จบฟังก์ชันทันที (ป้องกัน Event ซ้ำ)
+            // ถ้าเคยสั่งผูก Event ไปแล้ว ให้จบฟังก์ชันทันที (ป้องกัน Event สลับจอเด้งซ้ำ)
             if (isAntiCheatListenersSetup) return;
             isAntiCheatListenersSetup = true;
 
