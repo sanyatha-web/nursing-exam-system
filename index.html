@@ -1421,12 +1421,14 @@ let settings = {
             userAnswers = {};
             currentQuestionIndex = 0;
             tabSwitchCount = 0;
-        
+            
             isExamActive = true;
             sessionStorage.setItem('is_exam_running', 'true');
         
             document.getElementById('exam-student-heading').textContent = `ผู้สอบ: ${studentData.name} (${studentData.id})`;
             document.getElementById('exam-current-category').textContent = `${studentData.branch} > ${selectedCategory}`;
+            
+            // อัปเดตป้ายเตือนมุมขวาบนให้แสดงสลับจอเป็น 0/Max
             updateAntiCheatStatusTag();
         
             hideAllSections();
@@ -2399,39 +2401,107 @@ async function fetchAndSyncUsers() {
             sectionExam.addEventListener('contextmenu', e => { if (isExamActive) e.preventDefault(); });
             sectionExam.addEventListener('copy', e => { if (isExamActive) e.preventDefault(); });
             sectionExam.addEventListener('cut', e => { if (isExamActive) e.preventDefault(); });
-        }
-    
-        // 🟢 3. บล็อกคีย์ลัดแคปจอ และคีย์ลัดคัดลอก (PrtScn, Win+Shift+S, Ctrl+C, Ctrl+P)
-        window.addEventListener('keydown', (e) => {
-            if (!isExamActive) return;
-    
-            const isPreventing = settings.preventScreenshot !== false;
-    
-            // บล็อก Ctrl+C, Cmd+C (คัดลอก)
-            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-                e.preventDefault();
-                showAlertModal('warning', 'เตือนการคัดลอก', 'ไม่อนุญาตให้คัดลอกข้อความในแบบทดสอบ');
-                return;
+        // 🟢 ตัวแปรสำหรับเช็กว่าเคยผูก Event Listeners ไปแล้วหรือยัง (ป้องกันการผูกซ้ำ)
+        let isAntiCheatListenersSetup = false;
+
+        function setupAntiCheatListeners() {
+            // สร้าง Layer หน้าจอดำบังตาเมื่อนักเรียนกดเปิดโปรแกรมอื่นขึ้นมาซ้อน (สร้างเพียงครั้งเดียว)
+            if (!document.getElementById('anti-screenshot-overlay')) {
+                const overlay = document.createElement('div');
+                overlay.id = 'anti-screenshot-overlay';
+                overlay.className = 'fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9999] hidden flex-col items-center justify-center text-white text-center p-6';
+                overlay.innerHTML = `
+                    <i class="fa-solid fa-eye-slash text-5xl text-rose-500 mb-4 animate-bounce"></i>
+                    <h3 class="text-xl font-bold mb-1">ซ่อนหน้าข้อสอบชั่วคราว</h3>
+                    <p class="text-xs text-slate-400">ระบบทำการบดบังหน้าจอเพื่อป้องกันการจับภาพหรือเปิดโปรแกรมอื่นซ้อน</p>
+                `;
+                document.body.appendChild(overlay);
             }
-    
-            // บล็อกคีย์ลัดจับภาพหน้าจอ
-            if (isPreventing) {
-                if (
-                    e.key === 'PrintScreen' || 
-                    e.keyCode === 44 ||
-                    (e.ctrlKey && e.key === 'p') ||
-                    (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) ||
-                    (e.key === 'S' && e.shiftKey && (e.metaKey || e.key === 'Meta'))
-                ) {
-                    e.preventDefault();
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText('').catch(() => {}); // ล้างคลิปบอร์ด
+
+            // 🟢 ถ้าเคยสั่งผูก Event Listeners ไปแล้ว ให้จบฟังก์ชันทันทีเพื่อไม่ให้ผูกซ้ำ
+            if (isAntiCheatListenersSetup) return;
+            isAntiCheatListenersSetup = true;
+
+            const handleVisibilityChange = (e) => {
+                if (!isExamActive) return;
+
+                const overlayElem = document.getElementById('anti-screenshot-overlay');
+                
+                // ตรวจสอบสถานะการหลุดโฟกัส/พรางหน้าจอ
+                if (document.hidden || !document.hasFocus()) {
+                    if (overlayElem) overlayElem.classList.remove('hidden');
+
+                    if (settings.antiCheatEnable) {
+                        tabSwitchCount++;
+                        
+                        // อัปเดตตัวเลขแสดงผลบน Badge มุมขวาบน
+                        const countElem = document.getElementById('tab-switch-count-num');
+                        if (countElem) countElem.textContent = tabSwitchCount;
+
+                        const maxLimit = settings.maxTabSwitches || 3;
+
+                        // ตรวจสอบว่าเกินจำนวนครั้งที่อนุญาตหรือยัง
+                        if (settings.autoSubmitOnCheat && tabSwitchCount >= maxLimit) {
+                            isExamActive = false; // ปิดสถานะการสอบทันที ป้องกัน Event เด้งซ้ำ
+                            if (overlayElem) overlayElem.classList.add('hidden');
+                            
+                            showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอครบกำหนด (${maxLimit} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
+                            submitExam(true);
+                        } else {
+                            showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาตสูงสุด ${maxLimit} ครั้ง`);
+                        }
                     }
-                    showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้ใช้คีย์ลัดจับภาพหน้าจอขณะทำข้อสอบ');
+                } else {
+                    // เมื่อกลับมาโฟกัสที่หน้าจอเดิม
+                    if (overlayElem) overlayElem.classList.add('hidden');
                 }
+            };
+
+            // ผูก Event เพียงครั้งเดียวตลอด Life-cycle
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('blur', handleVisibilityChange);
+            window.addEventListener('focus', () => {
+                const overlayElem = document.getElementById('anti-screenshot-overlay');
+                if (overlayElem) overlayElem.classList.add('hidden');
+            });
+
+            // บล็อกคลิกขวา บล็อกการ Copy, Cut ในหน้าสอบ
+            const sectionExam = document.getElementById('section-exam');
+            if (sectionExam) {
+                sectionExam.addEventListener('contextmenu', e => { if (isExamActive) e.preventDefault(); });
+                sectionExam.addEventListener('copy', e => { if (isExamActive) e.preventDefault(); });
+                sectionExam.addEventListener('cut', e => { if (isExamActive) e.preventDefault(); });
             }
-        });
-    }
+
+            // บล็อกคีย์ลัดแคปจอ และคีย์ลัดคัดลอก
+            window.addEventListener('keydown', (e) => {
+                if (!isExamActive) return;
+
+                const isPreventing = settings.preventScreenshot !== false;
+
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+                    e.preventDefault();
+                    showAlertModal('warning', 'เตือนการคัดลอก', 'ไม่อนุญาตให้คัดลอกข้อความในแบบทดสอบ');
+                    return;
+                }
+
+                if (isPreventing) {
+                    if (
+                        e.key === 'PrintScreen' || 
+                        e.keyCode === 44 ||
+                        (e.ctrlKey && e.key === 'p') ||
+                        (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) ||
+                        (e.key === 'S' && e.shiftKey && (e.metaKey || e.key === 'Meta'))
+                    ) {
+                        e.preventDefault();
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText('').catch(() => {});
+                        }
+                        showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้ใช้คีย์ลัดจับภาพหน้าจอขณะทำข้อสอบ');
+                    }
+                }
+            });
+        }
 
         function confirmSubmitExam() {
             const unanswered = activeQuestions.length - Object.keys(userAnswers).length;
