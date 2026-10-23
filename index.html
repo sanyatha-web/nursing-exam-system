@@ -1245,43 +1245,86 @@ let settings = {
         function loadCategoriesForLoggedInUser() {
             if (!loggedInUser) return;
         
-            let userPool = masterQuestions.filter(q => 
-                !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || 
-                q.branch === loggedInUser.branch
+            const studentYear = loggedInUser.yearLevel || 'ไม่ระบุชั้นปี';
+            const studentBranch = loggedInUser.branch || '';
+            const studentId = loggedInUser.username;
+        
+            // 1. ดึงประวัติการสอบที่ผ่านเกณฑ์ (≥ 80%) ของนักศึกษาคนนี้
+            const studentHistory = examResultsHistory.filter(r => r.sapId === studentId);
+            const passedCategories = new Set(
+                studentHistory.filter(r => r.percentage >= 80).map(r => r.category)
             );
         
-            const availableCategories = [];
+            // 2. กรองข้อสอบเฉพาะ สาขา และ ชั้นปี ของนักศึกษาคนนี้
+            let userPool = masterQuestions.filter(q => {
+                const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === studentBranch;
+                const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === studentYear;
+                return matchBranch && matchYear;
+            });
+        
+            const pendingCategories = [];
+            const pendingSets = new Set();
         
             userPool.forEach(q => {
                 const cat = q.category;
                 const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
                 if (!cat) return;
         
-                const uKey = `${loggedInUser.branch}__${setGrp}__${cat}`;
-                const conf = unitSettings[uKey];
+                // 🟢 เช็กว่าบทเรียนนี้ยังสอบ "ไม่ผ่าน" หรือ "ยังไม่ได้สอบ" ใช่หรือไม่
+                const isNotPassedYet = !passedCategories.has(cat);
         
-                if (conf && conf.enabled === true) {
-                    // เช็กสิทธิ์การเข้าถึงรายบุคคล
-                    const isAllAccess = !conf.accessMode || conf.accessMode === 'all';
-                    const isUserAllowed = conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
+                if (isNotPassedYet) {
+                    // เช็กการเปิด/ปิดสิทธิ์การสอบใน unitSettings
+                    const possibleKeys = [
+                        `${studentBranch}__${setGrp}__${cat}`,
+                        `${studentBranch}__${settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)'}__${cat}`,
+                        `${studentBranch}__${cat}`
+                    ];
         
-                    if (isAllAccess || isUserAllowed) {
-                        // 📌 แก้ไขจุดนี้: เก็บเฉพาะ cat ลงอาร์เรย์ เพื่อให้เทียบค่าตรงกับ q.category
-                        if (!availableCategories.includes(cat)) {
-                            availableCategories.push(cat);
+                    let conf = null;
+                    for (let key of possibleKeys) {
+                        if (unitSettings[key]) {
+                            conf = unitSettings[key];
+                            break;
+                        }
+                    }
+        
+                    const isEnabled = conf ? conf.enabled === true : true;
+        
+                    if (isEnabled) {
+                        const isAllAccess = !conf || !conf.accessMode || conf.accessMode === 'all';
+                        const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(studentId);
+        
+                        if (isAllAccess || isUserAllowed) {
+                            if (!pendingCategories.includes(cat)) {
+                                pendingCategories.push(cat);
+                                pendingSets.add(setGrp);
+                            }
                         }
                     }
                 }
             });
         
+            // 🟢 3. อัปเดตข้อความป้ายแสดงสถานะด้านบน
+            const badgeElem = document.getElementById('dashboard-active-set-badge');
+            if (badgeElem) {
+                if (pendingCategories.length === 0) {
+                    badgeElem.textContent = `🎉 สอบผ่านครบทุกหน่วยของ ${studentYear} แล้ว`;
+                    badgeElem.className = "font-bold text-emerald-600";
+                } else {
+                    badgeElem.textContent = `${studentYear} (เหลือต้องสอบอีก ${pendingCategories.length} หน่วยการเรียนรู้)`;
+                    badgeElem.className = "font-bold text-amber-600";
+                }
+            }
+        
+            // 🟢 4. อัปเดต Dropdown เลือกแบบทดสอบ
             const selectElem = document.getElementById('dashboard-category-select');
             if (!selectElem) return;
         
-            if (availableCategories.length === 0) {
-                selectElem.innerHTML = `<option value="">-- ขณะนี้ไม่มีหน่วยการเรียนรู้เปิดให้ทำ --</option>`;
+            if (pendingCategories.length === 0) {
+                selectElem.innerHTML = `<option value="">-- คุณสอบผ่านครบทุกหน่วยการเรียนรู้ของชั้นปีนี้แล้ว --</option>`;
             } else {
-                // แสดงผล "ชื่อชุด - ชื่อหน่วย" บนเมนู แต่นำส่งค่า value เป็นชื่อหน่วยตรงๆ เพื่อไม่ให้กระทบการดึงข้อสอบ
-                selectElem.innerHTML = availableCategories.map(cat => {
+                selectElem.innerHTML = pendingCategories.map(cat => {
                     const qMatch = userPool.find(q => q.category === cat);
                     const setGrp = qMatch?.setGroup || 'ชุดการเรียนรู้ทั่วไป';
                     return `<option value="${cat}">${setGrp} - ${cat}</option>`;
@@ -2467,23 +2510,22 @@ function togglePasswordVisibility(inputId, eyeIconId) {
         // ระบบจัดการหน้า Dashboard ของอาจารย์ และภาพรวมการตั้งค่า (Home)
         // -------------------------------------------------------------
         // หน้าสำหรับผู้เรียน (Student Dashboard)
-                function showStudentDashboard() {
-                    hideAllSections();
-                    document.getElementById('section-dashboard-student')?.classList.remove('hidden');
+        function showStudentDashboard() {
+            hideAllSections();
+            document.getElementById('section-dashboard-student')?.classList.remove('hidden');
+                
+            document.getElementById('nav-4-buttons')?.classList.add('hidden');
+            document.getElementById('btn-admin-gear')?.classList.add('hidden');
+            
+            if (loggedInUser) {
+                document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname || '';
+                document.getElementById('dashboard-user-id').textContent = loggedInUser.username || '';
+                document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch || '';
                     
-                    // 🟢 ซ่อนปุ่มส่วนของอาจารย์บน Header ทั้งหมด
-                    document.getElementById('nav-4-buttons')?.classList.add('hidden');
-                    document.getElementById('btn-admin-gear')?.classList.add('hidden');
-        
-                    if (loggedInUser) {
-                        document.getElementById('dashboard-user-fullname').textContent = loggedInUser.fullname || '';
-                        document.getElementById('dashboard-user-id').textContent = loggedInUser.username || '';
-                        document.getElementById('dashboard-user-branch').textContent = loggedInUser.branch || '';
-                        document.getElementById('dashboard-active-set-badge').textContent = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
-                    }
-        
-                    loadCategoriesForLoggedInUser();
-                }
+                // 🟢 เรียกโหลดรายการแบบทดสอบที่จะอัปเดตป้ายให้ด้วย
+                loadCategoriesForLoggedInUser();
+            }
+        }
                 
         // 1. หน้าสำหรับอาจารย์ (Admin Dashboard & Overview)
         function showAdminDashboard() {
