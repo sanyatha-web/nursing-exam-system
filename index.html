@@ -2551,13 +2551,18 @@ async function fetchAndSyncUsers() {
                     academicYear: loggedInUser?.academicYear || "",
                     examSet: settings.selectedSet,
                     category: studentData.category,
-                    score: choiceScore,
-                    totalQuestions: choiceCount,
-                    percentage: choicePercentage,
                     examType: "ปรนัย",
+                    score: choiceScore,
+                    percentage: choicePercentage,
                     essayAnswers: "-",
                     timeSpent: timeSpentFormatted,
-                    tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0
+                    feedback: "-",
+                    graderName: "-",
+                    gradedTimestamp: "-",
+                    tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
+                    antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
+                    preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
+                    autoSubmitted: isAutoSubmitted ? "อัตโนมัติ" : "ปกติ"
                 });
             }
 
@@ -2573,15 +2578,18 @@ async function fetchAndSyncUsers() {
                     academicYear: loggedInUser?.academicYear || "",
                     examSet: settings.selectedSet,
                     category: studentData.category,
-                    score: null,             // 🟢 เว้นว่างรอ Preceptor ตรวจ
-                    totalQuestions: essayCount * 10, // คะแนนเต็มข้อเขียน (สมมติข้อละ 10 คะแนน)
-                    percentage: null,        // 🟢 เว้นว่างรอ Preceptor ตรวจ
                     examType: "อัตนัย/ข้อเขียน",
+                    score: null,             // เว้นว่างรอ Preceptor
+                    percentage: null,        // เว้นว่างรอ Preceptor
                     essayAnswers: JSON.stringify(essayList),
-                    graderName: "",          // 🟢 เว้นว่างรอ Preceptor
-                    gradedTimestamp: "",     // 🟢 เว้นว่างรอ Preceptor
                     timeSpent: timeSpentFormatted,
-                    tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0
+                    feedback: "",            // เว้นว่างรอ Preceptor
+                    graderName: "",          // เว้นว่างรอ Preceptor
+                    gradedTimestamp: "",     // เว้นว่างรอ Preceptor
+                    tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
+                    antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
+                    preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
+                    autoSubmitted: isAutoSubmitted ? "อัตโนมัติ" : "ปกติ"
                 });
             }
 
