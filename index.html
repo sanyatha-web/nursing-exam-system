@@ -2516,7 +2516,7 @@ async function fetchAndSyncUsers() {
             const percentElem = document.getElementById('result-percentage');
             if (percentElem) {
                 if (essayCount > 0) {
-                    percentElem.innerHTML = `คิดเป็น <strong>${percentage}%</strong> (เฉพาะข้อสอบปรนัย)<br><span class="text-amber-600 font-bold mt-1 inline-block"><i class="fa-solid fa-clock"></i> มีข้อสอบข้อเขียนรออาจารย์ตรวจ ${essayCount} ข้อ</span>`;
+                    percentElem.innerHTML = `คิดเป็น <strong>${percentage}%</strong> (เฉพาะข้อสอบปรนัย)<br><span class="text-amber-600 font-bold mt-1 inline-block"><i class="fa-solid fa-clock"></i> มีข้อสอบข้อเขียนรอตรวจ ${essayCount} ข้อ</span>`;
                 } else {
                     percentElem.innerHTML = `คิดเป็น <strong>${percentage}%</strong>`;
                 }
@@ -2546,6 +2546,26 @@ async function fetchAndSyncUsers() {
                 });
                 localStorage.setItem('pending_essay_list', JSON.stringify(currentPendingList));
             }
+
+            // 🟢 บันทึกผลการสอบลงในประวัติการสอบของเครื่องทันที (เพื่อให้หน้ารายงานอัปเดตทันที)
+            const newResultRecord = {
+                timestamp: new Date().toLocaleString('th-TH'),
+                sapId: studentData.id,
+                fullname: studentData.name,
+                examSet: settings.selectedSet || 'ชุดการเรียนรู้ทั่วไป',
+                branch: studentData.branch,
+                yearLevel: studentData.yearLevel,
+                academicYear: loggedInUser?.academicYear || "",
+                category: studentData.category,
+                score: rawScore,
+                total: choiceCount,
+                percentage: parseFloat(percentage)
+            };
+
+            // อัปเดตตัวแปร Global
+            examResultsHistory.unshift(newResultRecord);
+            // บันทึกลง LocalStorage
+            localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
 
             postResultToGoogleSheets({
                 timestamp: new Date().toLocaleString('th-TH'),
