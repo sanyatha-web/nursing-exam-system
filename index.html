@@ -1110,13 +1110,16 @@ let settings = {
                 document.getElementById('section-login')?.classList.remove('hidden');
             }
         
-            // 4. แอบซิงค์ข้อมูลผู้ใช้งานและข้อสอบเบื้องหลังพร้อมกัน (Silent Background Sync)
-            setTimeout(() => {
-                fetchAndSyncUsers();
-                if (settings.sheetCsvUrl) {
-                    fetchAndSyncGoogleSheets();
-                }
-            }, 50);
+            // 4. แอบซิงค์ข้อมูลผู้ใช้งาน ข้อสอบ และประวัติการสอบเบื้องหลังพร้อมกัน (Silent Background Sync)
+         setTimeout(() => {
+             fetchAndSyncUsers();
+             if (settings.sheetCsvUrl) {
+                 fetchAndSyncGoogleSheets();
+             }
+             if (settings.resultsCsvUrl) {
+                 fetchAndSyncResults(); // 🟢 เพิ่มการเรียกสั่งให้ดึงประวัติการสอบ
+             }
+         }, 50);
         });
 
         // ✅ ฟังก์ชัน handleLogin กำหนดหน้าแรก (Default Tab) ตามบทบาทผู้ใช้
@@ -1568,7 +1571,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ
+        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (ปรับปรุงการค้นหาคอลัมน์ยืดหยุ่น)
         function parseCSVToResults(csvText) {
             if (!csvText || csvText.trim() === '') return;
             if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
@@ -1598,7 +1601,7 @@ async function fetchAndSyncUsers() {
             const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
             
             const timeIdx = headerCols.findIndex(h => h.includes('timestamp') || h.includes('เวลา') || h.includes('วันที่'));
-            const sapIdx = headerCols.findIndex(h => h.includes('studentid') || h.includes('sap-id') || h.includes('รหัส'));
+            const sapIdx = headerCols.findIndex(h => h.includes('studentid') || h.includes('sap-id') || h.includes('sap') || h.includes('รหัส'));
             const fnameIdx = headerCols.findIndex(h => h.includes('fname') || h.includes('ชื่อ'));
             const lnameIdx = headerCols.findIndex(h => h.includes('lname') || h.includes('นามสกุล'));
             const setIdx = headerCols.findIndex(h => h.includes('examset') || h.includes('ชุดข้อสอบ') || h.includes('ชุด'));
@@ -1614,7 +1617,7 @@ async function fetchAndSyncUsers() {
         
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
-                if (cols.length < 3) continue;
+                if (cols.length < 2) continue;
 
                 const sapId = sapIdx !== -1 ? cols[sapIdx] : '';
                 if (!sapId) continue;
@@ -1633,7 +1636,8 @@ async function fetchAndSyncUsers() {
 
                 parsedResults.push({
                     timestamp,
-                    sapId,
+                    sapId: sapId,
+                    studentId: sapId, // 🟢 รองรับทั้ง sapId และ studentId
                     fullname: `${fname} ${lname}`.trim(),
                     examSet,
                     branch,
@@ -1646,9 +1650,8 @@ async function fetchAndSyncUsers() {
                 });
             }
         
-            // เรียงลำดับจากรายการ ล่าสุด -> เก่าสุด (Newest First)
+            // เรียงลำดับจากรายการ ล่าสุด -> เก่าสุด
             examResultsHistory = parsedResults.reverse();
-            // 🟢 บันทึก Cache ประวัติการสอบลง LocalStorage เพื่อให้โหลดได้ทันทีตอน Refresh หน้าเว็บ
             localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
         }
 
@@ -2548,9 +2551,11 @@ async function fetchAndSyncUsers() {
             }
 
             // 🟢 บันทึกผลการสอบลงในประวัติการสอบของเครื่องทันที (เพื่อให้หน้ารายงานอัปเดตทันที)
+            // 🟢 บันทึกผลการสอบลงในประวัติการสอบของเครื่องทันที (เพื่อให้หน้ารายงานและสมุดพกอัปเดตทันที)
             const newResultRecord = {
                 timestamp: new Date().toLocaleString('th-TH'),
                 sapId: studentData.id,
+                studentId: studentData.id, // 🟢 ใส่ฟิลด์ studentId ควบคู่
                 fullname: studentData.name,
                 examSet: settings.selectedSet || 'ชุดการเรียนรู้ทั่วไป',
                 branch: studentData.branch,
