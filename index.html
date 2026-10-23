@@ -1571,7 +1571,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (ปรับปรุงให้กรองรายการซ้ำ และซิงค์การลบจาก Google Sheets)
+        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (แก้ไขการคำนวณ % ผิดพลาด 3333%)
         function parseCSVToResults(csvText) {
             if (!csvText || csvText.trim() === '') return;
             if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
@@ -1614,7 +1614,7 @@ async function fetchAndSyncUsers() {
             const percentIdx = headerCols.findIndex(h => h.includes('percentage') || h.includes('เปอร์เซ็นต์') || h.includes('%'));
 
             const parsedResults = [];
-            const uniqueKeys = new Set(); // ตัวแปรสำหรับตรวจจับและตัดแถวรายการซ้ำ
+            const uniqueKeys = new Set();
 
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
@@ -1626,10 +1626,9 @@ async function fetchAndSyncUsers() {
                 const timestamp = timeIdx !== -1 ? cols[timeIdx] : '-';
                 const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
 
-                // 🟢 สร้าง Key พิเศษสำหรับตรวจจับรายการซ้ำ (SAP-ID + หน่วยการเรียนรู้ + เวลาสอบ)
                 const uniqueKey = `${sapId.trim()}__${category.trim()}__${timestamp.trim()}`;
                 if (uniqueKeys.has(uniqueKey)) {
-                    continue; // ข้ามแถวซ้ำ (กรณีข้อสอบข้อเขียนบันทึกแยกหลายแถว) ไม่ให้นำมาแสดงซ้ำในประวัติ
+                    continue;
                 }
                 uniqueKeys.add(uniqueKey);
 
@@ -1639,9 +1638,26 @@ async function fetchAndSyncUsers() {
                 const branch = branchIdx !== -1 ? cols[branchIdx] : '';
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
                 const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : '';
-                const score = scoreIdx !== -1 ? parseFloat(cols[scoreIdx]) || 0 : 0;
-                const total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 15 : 15;
-                const percentage = percentIdx !== -1 ? parseFloat(cols[percentIdx]) || ((score / total) * 100) : ((score / total) * 100);
+                
+                // 🟢 คำนวณคะแนนและเปอร์เซ็นต์อย่างรัดกุม
+                let score = scoreIdx !== -1 ? parseFloat(cols[scoreIdx]) || 0 : 0;
+                let total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 15 : 15;
+                if (total <= 0) total = 15; // ป้องกันการหารด้วย 0
+
+                let rawPercent = percentIdx !== -1 ? parseFloat(cols[percentIdx]) : NaN;
+
+                let percentage = 0;
+                if (!isNaN(rawPercent)) {
+                    // ถ้าค่าใน CSV คำนวณมาเป็นสัดส่วน (เช่น 0.33) ให้คูณ 100 แต่ถ้าเกิน 100 ให้ยึดตามคะแนนจริง
+                    percentage = rawPercent <= 1 ? rawPercent * 100 : rawPercent;
+                } else {
+                    percentage = (score / total) * 100;
+                }
+
+                // 🟢 ดักทางกรณีเปอร์เซ็นต์ถูกคำนวณมาผิดพลาดใน Google Sheets ให้คิดคำนวณใหม่จาก (score / total) * 100
+                if (percentage > 100 || isNaN(percentage)) {
+                    percentage = (score / total) * 100;
+                }
 
                 parsedResults.push({
                     timestamp,
@@ -1655,11 +1671,10 @@ async function fetchAndSyncUsers() {
                     category,
                     score,
                     total,
-                    percentage
+                    percentage: parseFloat(percentage.toFixed(2))
                 });
             }
 
-            // 🟢 ยึดข้อมูลล่าสุดจาก Google Sheets เป็นหลัก และอัปเดตลง LocalStorage (ทำให้เมื่อลบใน Sheets หน้าเว็บจะถูกลบตาม)
             examResultsHistory = parsedResults.reverse();
             localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
         }
