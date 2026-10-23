@@ -2223,9 +2223,11 @@ async function fetchAndSyncUsers() {
         function renderCurrentQuestion() {
             const q = activeQuestions[currentQuestionIndex];
             document.getElementById('question-number-badge').textContent = `ข้อที่ ${currentQuestionIndex + 1} / ${activeQuestions.length}`;
-            document.getElementById('question-id-display').textContent = `หน่วย: ${q.category}`;
+            
+            // 🟢 [ปรับแก้จุดที่ 1] แสดงหน่วยการเรียนรู้พร้อมคะแนนเต็มต่อข้อในหน้าสอบนักเรียน
+            const scoreLabel = q.fullScore ? ` (${q.fullScore} คะแนน)` : '';
+            document.getElementById('question-id-display').textContent = `หน่วย: ${q.category}${scoreLabel}`;
         
-            // 🟢 1. บล็อกการคลุมดำ/คัดลอก และคลิกขวาที่ตัวโจทย์คำถาม
             const qTextElem = document.getElementById('question-text');
             qTextElem.textContent = q.question;
             qTextElem.className = "text-lg sm:text-xl font-semibold text-slate-800 leading-relaxed select-none"; 
@@ -2234,12 +2236,10 @@ async function fetchAndSyncUsers() {
             const optionsContainer = document.getElementById('options-container');
             optionsContainer.innerHTML = '';
         
-            // แสดงสื่อประกอบ (ถ้ามี)
-            const mediaUrl = q.media;
-            if (mediaUrl) {
+            if (q.media) {
                 let mediaHtml = '';
-                if (mediaUrl.includes('youtube') || mediaUrl.includes('embed')) {
-                    const embedUrl = mediaUrl.replace('watch?v=', 'embed/');
+                if (q.media.includes('youtube') || q.media.includes('embed')) {
+                    const embedUrl = q.media.replace('watch?v=', 'embed/');
                     mediaHtml = `
                         <div class="my-3 aspect-video w-full max-w-2xl mx-auto overflow-hidden rounded-xl shadow border select-none">
                             <iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allowfullscreen></iframe>
@@ -2247,13 +2247,12 @@ async function fetchAndSyncUsers() {
                 } else {
                     mediaHtml = `
                         <div class="my-3 text-center select-none" oncontextmenu="return false;">
-                            <img src="${mediaUrl}" alt="สื่อประกอบโจทย์" class="max-h-80 mx-auto rounded-xl shadow border pointer-events-none" />
+                            <img src="${q.media}" alt="สื่อประกอบโจทย์" class="max-h-80 mx-auto rounded-xl shadow border pointer-events-none" />
                         </div>`;
                 }
                 optionsContainer.innerHTML += mediaHtml;
             }
         
-            // 🟢 2. ตรวจสอบประเภทข้อสอบข้อเขียน (รองรับทั้ง text, essay, media_text, subjective)
             const rawType = (q.type || 'choice').toString().trim().toLowerCase();
             const isEssayType = rawType === 'text' || rawType === 'essay' || rawType === 'media_text' || rawType === 'subjective';
         
@@ -2261,8 +2260,11 @@ async function fetchAndSyncUsers() {
                 const currentAns = userAnswers[currentQuestionIndex] || '';
                 optionsContainer.innerHTML += `
                     <div class="mt-4">
-                        <label class="block text-xs font-bold text-slate-600 mb-1">พิมพ์คำตอบบรรยายของคุณที่นี่:</label>
-                        <textarea rows="5" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white text-slate-800" 
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-bold text-slate-600">พิมพ์คำตอบบรรยายของคุณที่นี่:</label>
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100">คะแนนเต็มข้อนี้: ${q.fullScore || 10} คะแนน</span>
+                        </div>
+                        <textarea rows="6" class="w-full p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white text-slate-800 leading-relaxed" 
                             placeholder="กรอกคำตอบของคุณ..." 
                             oninput="saveEssayAnswer(${currentQuestionIndex}, this.value)">${currentAns}</textarea>
                     </div>
@@ -2273,7 +2275,6 @@ async function fetchAndSyncUsers() {
                     const isSelected = userAnswers[currentQuestionIndex] === opt.originalIndex;
                     const optionDiv = document.createElement('div');
                     optionDiv.onclick = () => selectOption(opt.originalIndex);
-                    // 🟢 ป้องกันการคลุมดำและคลิกขวาที่ตัวเลือก
                     optionDiv.className = `p-4 rounded-xl border-2 cursor-pointer transition flex items-center justify-between select-none ${
                         isSelected 
                         ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-sm' 
@@ -3337,8 +3338,11 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
             const studentYear = (student.yearLevel || '').trim();
             const studentBranch = (student.branch || '').trim();
+
+            // 🟢 ดึงรายการข้อเขียนที่ค้างตรวจของนักเรียนคนนี้จาก LocalStorage
+            const pendingEssayList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]')
+                .filter(p => p.studentId === sapId);
         
-            // 🟢 1. สกัดตัวเลขชั้นปีเพื่อสร้างช่วงชั้นปีสะสมย้อนหลังแบบ Dynamic Loop
             const yearMatch = studentYear.match(/\d+/);
             const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
         
@@ -3348,36 +3352,26 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 allowedYears.push(`ปี ${y}`);
             }
         
-            // 🟢 2. กรองคลังข้อสอบย้อนหลังตามช่วงชั้นปีสะสมและสาขา
             const matchQuestions = masterQuestions.filter(q => {
                 const qYear = (q.yearLevel || '').trim();
                 const qBranch = (q.branch || '').trim();
-                
                 const isYearMatch = !qYear || allowedYears.includes(qYear);
                 const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === studentBranch;
-                
                 return isYearMatch && isBranchMatch;
             });
         
-            // 🟢 3. จัดกลุ่มข้อสอบตาม "ชุดการเรียนรู้" -> "หน่วยการเรียนรู้ย่อย"
             const setsGroupMap = {};
             matchQuestions.forEach(q => {
                 const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
                 const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
-                
                 const isTermExam = catName.includes('เลื่อนชั้น') || catName.includes('ประมวล') || catName.includes('ปลายภาค') || catName.includes('กลางภาค');
                 
                 if (!isTermExam) {
-                    if (!setsGroupMap[setName]) {
-                        setsGroupMap[setName] = [];
-                    }
-                    if (!setsGroupMap[setName].includes(catName)) {
-                        setsGroupMap[setName].push(catName);
-                    }
+                    if (!setsGroupMap[setName]) setsGroupMap[setName] = [];
+                    if (!setsGroupMap[setName].includes(catName)) setsGroupMap[setName].push(catName);
                 }
             });
         
-            // 🟢 4. สร้าง HTML รายงานผลแบบจัดหมวดหมู่ชุดการเรียนรู้
             let unitsHtml = '';
             const setNames = Object.keys(setsGroupMap);
         
@@ -3390,9 +3384,11 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                     categoriesList.forEach((uCat, catIdx) => {
                         const attempts = studentHistory.filter(r => r.category === uCat || (r.examSet === setName && r.category === uCat));
-                        const attemptCount = attempts.length;
+                        
+                        // 🟢 เช็กว่าบทเรียนนี้มีข้อเขียนค้างตรวจอยู่หรือไม่
+                        const isPendingEssay = pendingEssayList.some(p => p.category === uCat || p.examSet === setName);
 
-                        if (attemptCount === 0) {
+                        if (attempts.length === 0 && !isPendingEssay) {
                             subUnitsHtml += `
                                 <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
                                     <div>
@@ -3404,27 +3400,42 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     </span>
                                 </div>
                             `;
+                        } else if (isPendingEssay) {
+                            // 🟢 [ปรับแก้จุดที่ 4] แสดงสถานะรอ Preceptor ตรวจข้อเขียน
+                            subUnitsHtml += `
+                                <div class="p-2.5 bg-amber-50/60 rounded-lg border border-amber-200 flex justify-between items-center text-xs">
+                                    <div>
+                                        <div class="font-bold text-slate-800">${catIdx + 1}. ${uCat}</div>
+                                        <div class="text-[10px] text-amber-700 font-semibold">ส่งข้อสอบแล้ว (มีข้อเขียนรอการตรวจ)</div>
+                                    </div>
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 whitespace-nowrap">
+                                        ⏳ รอ Preceptor ตรวจข้อเขียน
+                                    </span>
+                                </div>
+                            `;
                         } else {
-                            const bestAttempt = attempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, attempts[0]);
+                            // 🟢 [ปรับแก้จุดที่ 4] คำนวณคะแนนรวมสะสม (ปรนัย + อัตนัย) จากประวัติสอบใน Sheets
+                            let totalEarnedScore = 0;
+                            let totalMaxScore = 0;
 
-                            // เช็กสถานะรอ Preceptor ตรวจข้อเขียน
-                            const isPendingEssay = bestAttempt.hasEssay && bestAttempt.gradingStatus === 'pending';
-                            const isPassed = bestAttempt.percentage >= 80;
-                            
-                            // กำหนดป้าย Badge และข้อความแสดงสถานะ
-                            let statusBadgeHtml = '';
-                            if (isPendingEssay) {
-                                statusBadgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-amber-100 text-amber-800 border border-amber-200">⏳ รอ Preceptor ตรวจข้อเขียน</span>`;
-                            } else if (isPassed) {
-                                statusBadgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-100 text-emerald-800 border border-emerald-200">✓ ผ่านเกณฑ์ (${bestAttempt.percentage.toFixed(1)}%)</span>`;
-                            } else {
-                                statusBadgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${bestAttempt.percentage.toFixed(1)}%)</span>`;
-                            }
+                            attempts.forEach(a => {
+                                const sc = parseFloat(a.score) || 0;
+                                const tot = parseFloat(a.total) || 15;
+                                totalEarnedScore += sc;
+                                totalMaxScore += tot;
+                            });
+
+                            const overallPerc = totalMaxScore > 0 ? parseFloat(((totalEarnedScore / totalMaxScore) * 100).toFixed(1)) : 0;
+                            const isPassed = overallPerc >= 80;
+
+                            let statusBadgeHtml = isPassed 
+                                ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-100 text-emerald-800 border border-emerald-200">✓ ผ่านเกณฑ์ (${overallPerc}%)</span>`
+                                : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${overallPerc}%)</span>`;
 
                             let historyRowsHtml = attempts.map(a => `
                                 <div class="flex justify-between items-center text-[10px] text-slate-500 py-0.5 border-t border-slate-100">
-                                    <span>• สอบเมื่อ: ${a.timestamp}</span>
-                                    <span class="font-bold text-slate-700">${a.score}/${a.total} (${a.percentage.toFixed(1)}%)</span>
+                                    <span>• ประเภท: ${a.examType || 'ทั่วไป'} (สอบเมื่อ: ${a.timestamp})</span>
+                                    <span class="font-bold text-slate-700">${a.score !== '' ? a.score : '-'}/${a.total || 10} (${a.percentage !== '' ? a.percentage + '%' : 'รอตรวจ'})</span>
                                 </div>
                             `).join('');
 
@@ -3433,9 +3444,9 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     <div class="flex justify-between items-center">
                                         <div>
                                             <div class="font-bold text-slate-800">${catIdx + 1}. ${uCat}</div>
-                                            <div class="text-[10px] text-indigo-600 font-semibold">สอบไปแล้ว: ${attemptCount} ครั้ง</div>
+                                            <div class="text-[10px] text-indigo-600 font-semibold">บันทึกคะแนนแล้ว (${attempts.length} แถวรายการ)</div>
                                         </div>
-                                        ${statusBadgeHtml} <!-- 🟢 นำตัวแปรมาวางแทนแท็ก <span> เดิมตรงนี้จุดเดียวครับ -->
+                                        ${statusBadgeHtml}
                                     </div>
                                     <div class="bg-white p-2 rounded border border-slate-100 space-y-0.5">
                                         ${historyRowsHtml}
@@ -3460,72 +3471,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 });
             }
         
-            // 🟢 5. โครงสร้างการสอบวัดผลเลื่อนชั้น/ประมวลความรู้สะสมย้อนหลังแบบ Dynamic Loop
-            const termExamsToDisplay = [];
-            for (let y = 1; y <= currentYearNum; y++) {
-                if (y === currentYearNum && currentYearNum >= 3) {
-                    termExamsToDisplay.push({ title: 'การสอบประมวลความรู้ (Comprehensive Exam)', keyKeyword: 'ประมวล' });
-                } else {
-                    termExamsToDisplay.push({ title: `การสอบเลื่อนชั้นปีที่ ${y}`, keyKeyword: `เลื่อนชั้นปีที่ ${y}` });
-                }
-            }
-        
-            let termExamsHtml = '';
-            termExamsToDisplay.forEach(examConfig => {
-                const termAttempts = studentHistory.filter(r => {
-                    const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
-                    const keyword = examConfig.keyKeyword.toLowerCase();
-                    
-                    if (keyword === 'ประมวล') {
-                        return name.includes('ประมวล') || name.includes('comprehensive');
-                    }
-                    return name.includes(keyword) || (name.includes('เลื่อนชั้น') && name.includes(keyword.slice(-1)));
-                });
-        
-                if (termAttempts.length === 0) {
-                    termExamsHtml += `
-                        <div class="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100 flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-indigo-950">${examConfig.title}</div>
-                                <div class="text-[11px] text-slate-400">ยังไม่มีประวัติการเข้าสอบในระบบ</div>
-                            </div>
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                ยังไม่ได้สอบ
-                            </span>
-                        </div>
-                    `;
-                } else {
-                    const bestTerm = termAttempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, termAttempts[0]);
-                    const isTermPassed = bestTerm.percentage >= 80;
-        
-                    let termHistoryRows = termAttempts.map(a => `
-                        <div class="flex justify-between items-center text-[11px] text-slate-600 py-1 border-t border-indigo-100">
-                            <span>• สอบเมื่อ: ${a.timestamp}</span>
-                            <span class="font-bold text-indigo-950">${a.score}/${a.total} (${a.percentage.toFixed(1)}%)</span>
-                        </div>
-                    `).join('');
-        
-                    termExamsHtml += `
-                        <div class="p-3 bg-indigo-50/70 rounded-xl border border-indigo-200 space-y-2">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <div class="font-bold text-indigo-950">${examConfig.title}</div>
-                                    <div class="text-[11px] text-indigo-700 font-semibold">สอบไปแล้วทั้งหมด: ${termAttempts.length} ครั้ง</div>
-                                </div>
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${isTermPassed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}">
-                                    ${isTermPassed ? '✓ ผ่านเกณฑ์ (≥80%)' : '✕ ต้องสอบซ่อม (<80%)'}
-                                </span>
-                            </div>
-                            <div class="bg-white/90 p-2 rounded-lg space-y-0.5">
-                                <div class="font-bold text-slate-700 text-[11px]">ประวัติการสอบประเมินผล:</div>
-                                ${termHistoryRows}
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-        
-            // 🟢 6. ประกอบโครงสร้าง HTML ทั้งหมดลง Modal
             printArea.innerHTML = `
                 <div class="space-y-4">
                     <div class="p-3 bg-indigo-900 text-white rounded-xl flex justify-between items-center">
@@ -3536,15 +3481,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         <div class="text-right">
                             <div class="text-xs text-amber-300 font-bold">ใบทรานสคริปต์สมุดพก</div>
                             <div class="text-[10px] text-indigo-200">ประวัติผลการประเมินสะสม</div>
-                        </div>
-                    </div>
-        
-                    <div class="space-y-2">
-                        <h5 class="font-bold text-slate-800 flex items-center text-xs">
-                            <i class="fa-solid fa-graduation-cap text-indigo-600 mr-2"></i> ประวัติการสอบเลื่อนชั้นปี / สอบประมวลความรู้สะสม
-                        </h5>
-                        <div class="space-y-2">
-                            ${termExamsHtml}
                         </div>
                     </div>
         
@@ -4034,7 +3970,6 @@ function toggleModalUserSelection(username, isChecked) {
 
             let html = '';
             pendingExamList.forEach((item, itemIdx) => {
-                // ค้นหาว่าหน่วยการเรียนรู้นี้ตั้งค่าซ่อนชื่อไว้หรือไม่
                 const uKey = `${item.branch}__${item.examSet}__${item.category}`;
                 const uConf = unitSettings[uKey] || {};
                 const isBlindMode = uConf.blindGrading === true;
@@ -4057,22 +3992,32 @@ function toggleModalUserSelection(username, isChecked) {
                     item.essayAnswers.forEach((essay, eIdx) => {
                         const maxScore = essay.fullScore || 10;
                         html += `
-                            <div class="my-2 p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-2">
-                                <p class="font-semibold text-slate-700">ข้อที่ ${essay.questionIndex}: ${essay.questionText}</p>
-                                <p class="text-indigo-900 bg-indigo-50 p-2.5 rounded-lg border border-indigo-100">คำตอบ: ${essay.studentAnswer || '(ไม่ได้ตอบ)'}</p>
+                            <div class="my-2 p-3.5 bg-white rounded-xl border border-slate-200 text-xs space-y-3 shadow-sm">
+                                <p class="font-bold text-slate-800">ข้อที่ ${essay.questionIndex}: ${essay.questionText}</p>
+                                <div class="text-indigo-950 bg-indigo-50/70 p-3 rounded-lg border border-indigo-100 leading-relaxed">
+                                    <span class="font-bold text-indigo-700 block mb-1">คำตอบของนักเรียน:</span>
+                                    ${essay.studentAnswer || '(ไม่ได้ตอบ)'}
+                                </div>
                                 
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                                    <div class="flex items-center space-x-2">
-                                        <label class="font-bold text-slate-600">ให้คะแนน:</label>
-                                        <input type="number" min="0" max="${maxScore}" step="0.5" class="border border-slate-300 p-1 w-16 rounded-lg text-center bg-white font-bold text-indigo-700" 
-                                            id="score-input-${itemIdx}-${eIdx}" value="${essay.scoreGiven || 0}">
-                                        <span class="text-slate-500 font-bold">/ ${maxScore} คะแนน</span>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                                    <div>
+                                        <label class="block font-bold text-slate-700 mb-1">ให้คะแนน:</label>
+                                        <div class="flex items-center space-x-2">
+                                            <input type="number" min="0" max="${maxScore}" step="0.5" 
+                                                class="border border-slate-300 p-2 w-20 rounded-lg text-center bg-white font-bold text-indigo-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500" 
+                                                id="score-input-${itemIdx}-${eIdx}" 
+                                                value="${essay.scoreGiven || 0}"
+                                                oninput="validatePreceptorScore(${itemIdx}, ${eIdx}, ${maxScore})">
+                                            <span class="text-slate-600 font-bold">/ ${maxScore} คะแนน</span>
+                                        </div>
+                                        <p id="score-warn-${itemIdx}-${eIdx}" class="text-[11px] text-rose-600 font-bold mt-1 hidden">⚠️ ให้คะแนนเกินคะแนนเต็ม!</p>
                                     </div>
-                                    <div class="sm:col-span-2">
-                                        <input type="text" id="feedback-input-${itemIdx}-${eIdx}" 
-                                            value="${essay.feedback || ''}" 
-                                            placeholder="กรอกข้อเสนอแนะ/Feedback..." 
-                                            class="w-full border border-slate-300 p-1.5 rounded-lg bg-white text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                                    <!-- 🟢 [ปรับแก้จุดที่ 3] ขยายช่องใส่ข้อเสนอแนะให้กว้างและสูงขึ้น -->
+                                    <div class="md:col-span-2">
+                                        <label class="block font-bold text-slate-700 mb-1">ข้อเสนอแนะ/Feedback ให้ผู้เรียน:</label>
+                                        <textarea id="feedback-input-${itemIdx}-${eIdx}" rows="2" 
+                                            placeholder="กรอกข้อเสนอแนะคำแนะนำสำหรับข้อนี้..." 
+                                            class="w-full border border-slate-300 p-2.5 rounded-lg bg-white text-xs outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed">${essay.feedback || ''}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -4082,11 +4027,11 @@ function toggleModalUserSelection(username, isChecked) {
 
                 html += `
                         <div class="flex space-x-2 mt-2">
-                            <button onclick="saveEssayGrading(${itemIdx})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition">
-                                💾 บันทึกคะแนนข้อเขียน
+                            <button onclick="saveEssayGrading(${itemIdx})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition flex items-center space-x-1">
+                                <span>💾 บันทึกคะแนนข้อเขียน</span>
                             </button>
-                            <button onclick="deletePendingEssay(${itemIdx})" class="bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition">
-                                🗑️ ลบรายการนี้
+                            <button onclick="deletePendingEssay(${itemIdx})" class="bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition flex items-center space-x-1">
+                                <span>🗑️ ลบรายการนี้</span>
                             </button>
                         </div>
                     </div>
@@ -4693,7 +4638,23 @@ function toggleModalUserSelection(username, isChecked) {
             }
         }
 
-        // ฟังก์ชันบันทึกคะแนนข้อเขียน
+        // 🟢 [เพิ่มใหม่] ฟังก์ชันตรวจสอบคะแนนฝั่ง Preceptor ทันทีขณะพิมพ์
+        function validatePreceptorScore(itemIdx, eIdx, maxScore) {
+            const inputElem = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
+            const warnElem = document.getElementById(`score-warn-${itemIdx}-${eIdx}`);
+            if (!inputElem) return;
+
+            const val = parseFloat(inputElem.value) || 0;
+            if (val > maxScore) {
+                if (warnElem) warnElem.classList.remove('hidden');
+                inputElem.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-700');
+            } else {
+                if (warnElem) warnElem.classList.add('hidden');
+                inputElem.classList.remove('border-rose-500', 'bg-rose-50', 'text-rose-700');
+            }
+        }
+
+        // 🟢 [ปรับแก้จุดที่ 2] ตรวจสอบคะแนนก่อนบันทึก แจ้งเตือนหากเกินคะแนนเต็ม
         function saveEssayGrading(itemIdx) {
             let pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
             if (!pendingList[itemIdx]) return;
@@ -4702,6 +4663,24 @@ function toggleModalUserSelection(username, isChecked) {
             const essayAnswers = targetItem.essayAnswers || [];
             const graderName = loggedInUser ? loggedInUser.fullname : "Preceptor";
             const gradedTimestamp = new Date().toLocaleString('th-TH');
+
+            let hasError = false;
+
+            // ตรวจสอบความถูกต้องก่อน
+            essayAnswers.forEach((essay, eIdx) => {
+                const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
+                const maxScore = essay.fullScore || 10;
+                const scoreGiven = inputScore ? (parseFloat(inputScore.value) || 0) : 0;
+
+                if (scoreGiven > maxScore) {
+                    hasError = true;
+                }
+            });
+
+            if (hasError) {
+                showAlertModal('warning', 'คะแนนเกินกำหนด', 'มีข้อเขียนที่คุณให้คะแนนเกินกว่าคะแนนเต็มที่ตั้งไว้ กรุณาตรวจสอบอีกครั้งก่อนบันทึก');
+                return;
+            }
 
             essayAnswers.forEach((essay, eIdx) => {
                 const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
@@ -4712,7 +4691,6 @@ function toggleModalUserSelection(username, isChecked) {
                 const maxScore = essay.fullScore || 10;
                 const singlePercentage = parseFloat(((scoreGiven / maxScore) * 100).toFixed(2));
 
-                // 🟢 ส่งผลตรวจแยกอัปเดตตรงบรรทัดข้อของนักเรียนรายข้อบน Google Sheets
                 if (settings.webAppUrl) {
                     fetch(settings.webAppUrl, {
                         method: 'POST',
@@ -4722,7 +4700,7 @@ function toggleModalUserSelection(username, isChecked) {
                             action: "updateEssayGrading",
                             studentId: targetItem.studentId,
                             category: targetItem.category,
-                            questionIndex: essay.questionIndex, // 🟢 ส่งข้อไปค้นหาแถวให้ตรง
+                            questionIndex: essay.questionIndex,
                             scoreGiven: scoreGiven,
                             percentage: singlePercentage,
                             feedback: feedbackText || "ตรวจเรียบร้อยแล้ว",
@@ -4733,11 +4711,10 @@ function toggleModalUserSelection(username, isChecked) {
                 }
             });
 
-            // ลบรายการรอตรวจออกจากคิว
             pendingList.splice(itemIdx, 1);
             localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
 
-            showAlertModal('success', 'บันทึกการตรวจสำเร็จ', 'ระบบทำการบันทึกคะแนนข้อเขียนแยกรายข้อและส่งอัปเดตลง Google Sheets เรียบร้อยแล้ว');
+            showAlertModal('success', 'บันทึกการตรวจสำเร็จ', 'ระบบทำการบันทึกคะแนนข้อเขียนและส่งอัปเดตลง Google Sheets เรียบร้อยแล้ว');
             renderEssayGradingCards(pendingList);
         }
 
