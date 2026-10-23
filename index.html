@@ -2498,9 +2498,9 @@ async function fetchAndSyncUsers() {
             isExamActive = false;
             clearInterval(timerInterval);
 
-            let rawScore = 0;
-            let choiceCount = 0; // นับจำนวนข้อสอบประเภท choice และ media_choice
-            let essayCount = 0;  // นับจำนวนข้อสอบประเภท text และ media_text
+            let choiceScore = 0;
+            let choiceCount = 0;
+            let essayCount = 0;
             let essayList = [];
 
             activeQuestions.forEach((q, idx) => {
@@ -2518,13 +2518,12 @@ async function fetchAndSyncUsers() {
                 } else {
                     choiceCount++;
                     if (userAnswers[idx] === q.correctOriginalIndex) {
-                        rawScore++;
+                        choiceScore++;
                     }
                 }
             });
 
-            // คิด % คะแนนเต็มเฉพาะข้อสอบประเภทปรนัย (Choice + Media Choice)
-            const percentage = choiceCount > 0 ? ((rawScore / choiceCount) * 100).toFixed(2) : "0.00";
+            const choicePercentage = choiceCount > 0 ? parseFloat(((choiceScore / choiceCount) * 100).toFixed(2)) : 0;
 
             let timeSpentFormatted = "";
             if (settings.timeLimitMinutes === 0) {
@@ -2534,50 +2533,69 @@ async function fetchAndSyncUsers() {
                 const minsSpent = Math.floor(timeSpentSeconds / 60);
                 const secsSpent = timeSpentSeconds % 60;
                 timeSpentFormatted = `${minsSpent} นาที ${secsSpent} วินาที`;
-           
-            // บันทึกลง LocalStorage
-            localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
+            }
 
-            // ส่งข้อมูลไปยัง Google Sheets
-            postResultToGoogleSheets({
-                timestamp: new Date().toLocaleString('th-TH'),
-                studentId: studentData.id,
-                fname: studentData.fname,
-                lname: studentData.lname,
-                examSet: settings.selectedSet,
-                branch: studentData.branch,
-                yearLevel: studentData.yearLevel,
-                academicYear: loggedInUser?.academicYear || "",
-                category: studentData.category,
-                score: rawScore,
-                totalQuestions: choiceCount,
-                percentage: percentage,
-                essayAnswers: JSON.stringify(essayList),
-                timeSpent: timeSpentFormatted,
-                tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
-                antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
-                preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
-                autoSubmitted: isAutoSubmitted ? "สลับจอเกิน/หมดเวลา" : "ปกติ"
-            });
+            // 🟢 เตรียมชุดข้อมูลแยก 2 แถว (Payload) ส่งไปยัง Google Sheets
+            const payloadRecords = [];
+            const timestampNow = new Date().toLocaleString('th-TH');
 
-            // 🟢 ดึงข้อมูลประวัติซิงค์ใหม่ย้อนกลับจาก Sheets
-            setTimeout(() => {
-                if (typeof fetchAndSyncResults === 'function') {
-                    fetchAndSyncResults();
-                }
-            }, 2000);
-        }
+            // แถวที่ 1: ผลสอบปรนัย (ถ้ามีข้อสอบ choice)
+            if (choiceCount > 0) {
+                payloadRecords.push({
+                    timestamp: timestampNow,
+                    studentId: studentData.id,
+                    fname: studentData.fname,
+                    lname: studentData.lname,
+                    branch: studentData.branch,
+                    yearLevel: studentData.yearLevel,
+                    academicYear: loggedInUser?.academicYear || "",
+                    examSet: settings.selectedSet,
+                    category: studentData.category,
+                    score: choiceScore,
+                    totalQuestions: choiceCount,
+                    percentage: choicePercentage,
+                    examType: "ปรนัย",
+                    essayAnswers: "-",
+                    timeSpent: timeSpentFormatted,
+                    tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0
+                });
+            }
 
-            // 🟢 อัปเดตแสดงผลคะแนนเต็มเฉพาะข้อสอบ Choice
-            document.getElementById('result-score-display').textContent = `${rawScore} / ${choiceCount}`;
-            
-            // 🟢 อัปเดตข้อความเปอร์เซ็นต์ และแจ้งเตือนจำนวนข้อสอบบรรยายที่รอการตรวจ
+            // แถวที่ 2: ผลสอบอัตนัย/ข้อเขียน (ถ้ามีข้อเขียน ให้เว้นว่างคะแนนรอ Preceptor)
+            if (essayCount > 0) {
+                payloadRecords.push({
+                    timestamp: timestampNow,
+                    studentId: studentData.id,
+                    fname: studentData.fname,
+                    lname: studentData.lname,
+                    branch: studentData.branch,
+                    yearLevel: studentData.yearLevel,
+                    academicYear: loggedInUser?.academicYear || "",
+                    examSet: settings.selectedSet,
+                    category: studentData.category,
+                    score: null,             // 🟢 เว้นว่างรอ Preceptor ตรวจ
+                    totalQuestions: essayCount * 10, // คะแนนเต็มข้อเขียน (สมมติข้อละ 10 คะแนน)
+                    percentage: null,        // 🟢 เว้นว่างรอ Preceptor ตรวจ
+                    examType: "อัตนัย/ข้อเขียน",
+                    essayAnswers: JSON.stringify(essayList),
+                    graderName: "",          // 🟢 เว้นว่างรอ Preceptor
+                    gradedTimestamp: "",     // 🟢 เว้นว่างรอ Preceptor
+                    timeSpent: timeSpentFormatted,
+                    tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0
+                });
+            }
+
+            // 🟢 เรียกบันทึกข้อมูลเข้า Google Sheets เพียง "จุดเดียว" ป้องกันการบันทึกซ้ำ
+            postResultToGoogleSheets(payloadRecords);
+
+            // อัปเดตการแสดงผลหน้าสรุปคะแนนหลังสอบเสร็จ
+            document.getElementById('result-score-display').textContent = `${choiceScore} / ${choiceCount}`;
             const percentElem = document.getElementById('result-percentage');
             if (percentElem) {
                 if (essayCount > 0) {
-                    percentElem.innerHTML = `คิดเป็น <strong>${percentage}%</strong> (เฉพาะข้อสอบปรนัย)<br><span class="text-amber-600 font-bold mt-1 inline-block"><i class="fa-solid fa-clock"></i> มีข้อสอบข้อเขียนรอตรวจ ${essayCount} ข้อ</span>`;
+                    percentElem.innerHTML = `คิดเป็น <strong>${choicePercentage}%</strong> (เฉพาะปรนัย)<br><span class="text-amber-600 font-bold mt-1 inline-block"><i class="fa-solid fa-clock"></i> มีข้อสอบข้อเขียนรอตรวจ ${essayCount} ข้อ</span>`;
                 } else {
-                    percentElem.innerHTML = `คิดเป็น <strong>${percentage}%</strong>`;
+                    percentElem.innerHTML = `คิดเป็น <strong>${choicePercentage}%</strong>`;
                 }
             }
 
@@ -2591,7 +2609,7 @@ async function fetchAndSyncUsers() {
             hideAllSections();
             document.getElementById('section-result').classList.remove('hidden');
 
-            // บันทึกรายการข้อสอบบรรยายลง LocalStorage เพื่อให้อาจารย์นำไปตรวจต่อได้
+            // บันทึกรายการข้อสอบบรรยายค้างตรวจลงในเครื่อง
             if (essayList.length > 0) {
                 let currentPendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
                 currentPendingList.push({
@@ -2601,62 +2619,16 @@ async function fetchAndSyncUsers() {
                     examSet: settings.selectedSet,
                     category: studentData.category,
                     essayAnswers: essayList,
-                    submittedAt: new Date().toLocaleString('th-TH')
+                    submittedAt: timestampNow
                 });
                 localStorage.setItem('pending_essay_list', JSON.stringify(currentPendingList));
             }
-            
-            // ตรวจสอบว่ามีข้อสอบข้อเขียนหรือไม่
-            const hasEssay = essayCount > 0;
-            const gradingStatus = hasEssay ? 'pending' : 'graded';
 
-            // 🟢 บันทึกผลการสอบลงในประวัติการสอบของเครื่อง
-            const newResultRecord = {
-                timestamp: new Date().toLocaleString('th-TH'),
-                sapId: studentData.id,
-                studentId: studentData.id,
-                fullname: studentData.name,
-                examSet: settings.selectedSet || 'ชุดการเรียนรู้ทั่วไป',
-                branch: studentData.branch,
-                yearLevel: studentData.yearLevel,
-                academicYear: loggedInUser?.academicYear || "",
-                category: studentData.category,
-                choiceScore: rawScore,
-                choiceTotal: choiceCount,
-                essayScore: 0,
-                essayTotal: essayCount * 10, // สมมติคะแนนเต็มข้อเขียนข้อละ 10 คะแนน
-                score: rawScore,
-                total: choiceCount,
-                percentage: parseFloat(percentage),
-                hasEssay: hasEssay,
-                gradingStatus: gradingStatus
-            };
-
-            // อัปเดตตัวแปร Global
-            examResultsHistory.unshift(newResultRecord);
-            // บันทึกลง LocalStorage
+            // บันทึกลง LocalStorage และสั่งซิงค์ย้อนกลับ
             localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
-
-            postResultToGoogleSheets({
-                timestamp: new Date().toLocaleString('th-TH'),
-                studentId: studentData.id,
-                fname: studentData.fname,
-                lname: studentData.lname,
-                examSet: settings.selectedSet,
-                branch: studentData.branch,
-                yearLevel: studentData.yearLevel,
-                academicYear: loggedInUser?.academicYear || "",
-                category: studentData.category,
-                score: rawScore,
-                totalQuestions: choiceCount, // ส่งเฉพาะจำนวนข้อ choice
-                percentage: percentage,
-                essayAnswers: JSON.stringify(essayList),
-                timeSpent: timeSpentFormatted,
-                tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
-                antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
-                preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
-                autoSubmitted: isAutoSubmitted ? "สลับจอเกิน/หมดเวลา" : "ปกติ"
-            });
+            setTimeout(() => {
+                if (typeof fetchAndSyncResults === 'function') fetchAndSyncResults();
+            }, 2500);
         }
 
         function postResultToGoogleSheets(payload) {
@@ -2680,7 +2652,7 @@ async function fetchAndSyncUsers() {
                 syncTag.className = "font-medium text-emerald-600";
             }).catch(err => {
                 console.error(err);
-                syncTag.textContent = "ส่งเข้า Google Sheets ไม่สำเร็จ (โปรดตรวจสอบ URL)";
+                syncTag.textContent = "ส่งเข้า Google Sheets ไม่สำเร็จ";
                 syncTag.className = "font-medium text-rose-600";
             });
         }
@@ -4700,8 +4672,10 @@ function toggleModalUserSelection(username, isChecked) {
             let pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
             if (!pendingList[itemIdx]) return;
 
-            const essayAnswers = pendingList[itemIdx].essayAnswers || [];
+            const targetItem = pendingList[itemIdx];
+            const essayAnswers = targetItem.essayAnswers || [];
             let totalEssayScore = 0;
+            let feedbackText = "";
 
             essayAnswers.forEach((essay, eIdx) => {
                 const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
@@ -4713,44 +4687,39 @@ function toggleModalUserSelection(username, isChecked) {
                 }
                 if (inputFeedback) {
                     essay.feedback = inputFeedback.value.trim();
+                    if (essay.feedback) feedbackText += `ข้อ ${essay.questionIndex}: ${essay.feedback} `;
                 }
             });
 
-            pendingList[itemIdx].essayAnswers = essayAnswers;
-            
-            // 🟢 อัปเดตประวัติการสอบ (examResultsHistory) เมื่อตรวจเสร็จ
-            const studentId = pendingList[itemIdx].studentId;
-            const category = pendingList[itemIdx].category;
+            const totalEssayMaxScore = essayAnswers.length * 10;
+            const essayPercentage = parseFloat(((totalEssayScore / totalEssayMaxScore) * 100).toFixed(2));
+            const graderName = loggedInUser ? loggedInUser.fullname : "Preceptor";
+            const gradedTimestamp = new Date().toLocaleString('th-TH');
 
-            // ค้นหาประวัติการสอบโดยไม่ต้องเช็ก hasEssay เผื่อกรณีข้อมูลที่ซิงค์มาจาก CSV
-            const historyIndex = examResultsHistory.findIndex(r => (r.sapId === studentId || r.studentId === studentId) && r.category === category);
-            if (historyIndex !== -1) {
-                const targetRecord = examResultsHistory[historyIndex];
-                targetRecord.essayScore = totalEssayScore;
-                
-                const choiceScore = targetRecord.choiceScore !== undefined ? targetRecord.choiceScore : targetRecord.score;
-                const choiceTotal = targetRecord.choiceTotal !== undefined ? targetRecord.choiceTotal : targetRecord.total;
-                const essayTotal = targetRecord.essayTotal !== undefined ? targetRecord.essayTotal : (essayAnswers.length * 10);
-            
-                // รวมคะแนน Choice + Essay
-                const finalScore = choiceScore + totalEssayScore;
-                const finalTotal = choiceTotal + essayTotal;
-                
-                targetRecord.score = finalScore;
-                targetRecord.total = finalTotal;
-                targetRecord.percentage = parseFloat(((finalScore / finalTotal) * 100).toFixed(2));
-                targetRecord.gradingStatus = 'graded'; // ปรับสถานะเป็นตรวจเสร็จแล้ว
-                targetRecord.hasEssay = true;
+            // 🟢 ส่งข้อมูลผลการตรวจของ Preceptor กลับไปอัปเดตลง Google Sheets
+            if (settings.webAppUrl) {
+                fetch(settings.webAppUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: "updateEssayGrading",
+                        studentId: targetItem.studentId,
+                        category: targetItem.category,
+                        scoreGiven: totalEssayScore,
+                        percentage: essayPercentage,
+                        feedback: feedbackText.trim() || "ตรวจเรียบร้อยแล้ว",
+                        graderName: graderName,
+                        gradedTimestamp: gradedTimestamp
+                    })
+                }).catch(err => console.error("Grading update failed:", err));
             }
 
-            // บันทึกการเปลี่ยนแปลงลง LocalStorage
-            localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
-            
-            // ลบออกจากรายการรอตรวจ
+            // ลบรายการรอตรวจออก
             pendingList.splice(itemIdx, 1);
             localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
 
-            showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'บันทึกคะแนนข้อเขียนและรวมคะแนนสอบเรียบร้อยแล้ว');
+            showAlertModal('success', 'บันทึกการตรวจสำเร็จ', 'ระบบทำการบันทึกคะแนนข้อเขียนและส่งข้อมูลอัปเดตลง Google Sheets เรียบร้อยแล้ว');
             renderEssayGradingCards(pendingList);
         }
 
