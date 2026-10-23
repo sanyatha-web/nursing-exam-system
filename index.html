@@ -1414,8 +1414,13 @@ let settings = {
             userAnswers = {};
             currentQuestionIndex = 0;
             tabSwitchCount = 0;
-            
-            // 📌 บรรทัดที่ซ้ำซ้อนและเขียนทับเวลาเดิมถูกตัดออกแล้วตรงนี้
+        
+            // 🟢 ดึงการตั้งค่าของหน่วยการเรียนรู้นี้มาใช้งานจริงขณะสอบ
+            const matchedUnitConf = unitSettings[uKey];
+            if (matchedUnitConf) {
+                settings.antiCheatEnable = matchedUnitConf.antiCheatEnable === true;
+                settings.preventScreenshot = matchedUnitConf.preventScreenshot !== false;
+            }
         
             isExamActive = true;
             sessionStorage.setItem('is_exam_running', 'true');
@@ -2174,38 +2179,45 @@ async function fetchAndSyncUsers() {
             const q = activeQuestions[currentQuestionIndex];
             document.getElementById('question-number-badge').textContent = `ข้อที่ ${currentQuestionIndex + 1} / ${activeQuestions.length}`;
             document.getElementById('question-id-display').textContent = `หน่วย: ${q.category}`;
-            document.getElementById('question-text').textContent = q.question;
-
+        
+            // 🟢 1. บล็อกการคลุมดำ/คัดลอกที่ตัวโจทย์คำถาม
+            const qTextElem = document.getElementById('question-text');
+            qTextElem.textContent = q.question;
+            qTextElem.className = "text-lg sm:text-xl font-semibold text-slate-800 leading-relaxed select-none"; 
+            qTextElem.oncontextmenu = () => false; // ห้ามคลิกขวา
+        
             const optionsContainer = document.getElementById('options-container');
             optionsContainer.innerHTML = '';
-
-            // 1. ตรวจสอบและแสดงผลสื่อ (รูปภาพ / วิดีโอ)
+        
+            // แสดงสื่อประกอบ (ถ้ามี)
             const mediaUrl = q.media || q.mediaIdx;
             if (mediaUrl) {
                 let mediaHtml = '';
                 if (mediaUrl.includes('youtube') || mediaUrl.includes('embed')) {
                     const embedUrl = mediaUrl.replace('watch?v=', 'embed/');
                     mediaHtml = `
-                        <div class="my-3 aspect-video w-full max-w-2xl mx-auto overflow-hidden rounded-xl shadow border">
+                        <div class="my-3 aspect-video w-full max-w-2xl mx-auto overflow-hidden rounded-xl shadow border select-none">
                             <iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allowfullscreen></iframe>
                         </div>`;
                 } else {
                     mediaHtml = `
-                        <div class="my-3 text-center">
-                            <img src="${mediaUrl}" alt="สื่อประกอบโจทย์" class="max-h-80 mx-auto rounded-xl shadow border" />
+                        <div class="my-3 text-center select-none" oncontextmenu="return false;">
+                            <img src="${mediaUrl}" alt="สื่อประกอบโจทย์" class="max-h-80 mx-auto rounded-xl shadow border pointer-events-none" />
                         </div>`;
                 }
                 optionsContainer.innerHTML += mediaHtml;
             }
-
-            // 2. ตรวจสอบประเภทข้อสอบ (ข้อเขียน vs เลือกตอบ)
-            const qType = q.type || 'choice';
-            if (qType === 'text' || qType === 'media_text') {
+        
+            // 🟢 2. ตรวจสอบประเภทข้อสอบข้อเขียน (รองรับทั้ง text, essay, media_text, subjective)
+            const rawType = (q.type || 'choice').toString().trim().toLowerCase();
+            const isEssayType = rawType === 'text' || rawType === 'essay' || rawType === 'media_text';
+        
+            if (isEssayType) {
                 const currentAns = userAnswers[currentQuestionIndex] || '';
                 optionsContainer.innerHTML += `
                     <div class="mt-4">
-                        <label class="block text-xs font-bold text-slate-500 mb-1">พิมพ์คำตอบบรรยายของคุณที่นี่:</label>
-                        <textarea rows="4" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
+                        <label class="block text-xs font-bold text-slate-600 mb-1">พิมพ์คำตอบบรรยายของคุณที่นี่:</label>
+                        <textarea rows="5" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white text-slate-800" 
                             placeholder="กรอกคำตอบของคุณ..." 
                             oninput="saveEssayAnswer(${currentQuestionIndex}, this.value)">${currentAns}</textarea>
                     </div>
@@ -2216,12 +2228,14 @@ async function fetchAndSyncUsers() {
                     const isSelected = userAnswers[currentQuestionIndex] === opt.originalIndex;
                     const optionDiv = document.createElement('div');
                     optionDiv.onclick = () => selectOption(opt.originalIndex);
-                    optionDiv.className = `p-4 rounded-xl border-2 cursor-pointer transition flex items-center justify-between ${
+                    // 🟢 ป้องกันการคลุมดำ/คลิกขวาที่ตัวเลือก
+                    optionDiv.className = `p-4 rounded-xl border-2 cursor-pointer transition flex items-center justify-between select-none ${
                         isSelected 
                         ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-sm' 
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700'
                     }`;
-
+                    optionDiv.oncontextmenu = () => false;
+        
                     optionDiv.innerHTML = `
                         <div class="flex items-center space-x-3">
                             <span class="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center ${
@@ -2238,7 +2252,7 @@ async function fetchAndSyncUsers() {
                     optionsContainer.appendChild(optionDiv);
                 });
             }
-
+        
             document.getElementById('btn-prev-question').disabled = currentQuestionIndex === 0;
             const nextBtn = document.getElementById('btn-next-question');
             if (currentQuestionIndex === activeQuestions.length - 1) {
@@ -2248,7 +2262,7 @@ async function fetchAndSyncUsers() {
                 nextBtn.innerHTML = `<span>ข้อถัดไป</span><i class="fa-solid fa-chevron-right text-xs"></i>`;
                 nextBtn.onclick = () => navigateQuestion(1);
             }
-
+        
             renderQuestionNavGrid();
         }
 
@@ -2331,55 +2345,93 @@ async function fetchAndSyncUsers() {
         }
 
         function setupAntiCheatListeners() {
-            const handleVisibilityChange = () => {
-                if (!isExamActive || !settings.antiCheatEnable) return;
-                if (document.hidden || !document.hasFocus()) {
+        // 🟢 1. สร้าง Layer หน้าจอดำบังตาเมื่อนักเรียนกดเปิดโปรแกรมอื่นขึ้นมาซ้อน
+        if (!document.getElementById('anti-screenshot-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.id = 'anti-screenshot-overlay';
+            overlay.className = 'fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9999] hidden flex-col items-center justify-center text-white text-center p-6';
+            overlay.innerHTML = `
+                <i class="fa-solid fa-eye-slash text-5xl text-rose-500 mb-4 animate-bounce"></i>
+                <h3 class="text-xl font-bold mb-1">ซ่อนหน้าข้อสอบชั่วคราว</h3>
+                <p class="text-xs text-slate-400">ระบบทำการบดบังหน้าจอเพื่อป้องกันการจับภาพหรือเปิดโปรแกรมอื่นซ้อน</p>
+            `;
+            document.body.appendChild(overlay);
+        }
+    
+        const overlayElem = document.getElementById('anti-screenshot-overlay');
+    
+        const handleVisibilityChange = () => {
+            if (!isExamActive) return;
+    
+            // ถ้าหลุดโฟกัส ให้แสดงจอดำทันทีเพื่อป้องกัน Snipping Tool / แคปภาพ
+            if (document.hidden || !document.hasFocus()) {
+                if (overlayElem) overlayElem.classList.remove('hidden');
+    
+                if (settings.antiCheatEnable) {
                     tabSwitchCount++;
                     const countElem = document.getElementById('tab-switch-count-num');
                     if (countElem) countElem.textContent = tabSwitchCount;
-
+    
                     if (settings.autoSubmitOnCheat && tabSwitchCount >= settings.maxTabSwitches) {
                         isExamActive = false;
+                        if (overlayElem) overlayElem.classList.add('hidden');
                         showAlertModal('error', 'ถูกตัดสิทธิ์ส่งข้อสอบอัตโนมัติ', `คุณทำการสลับหน้าจอเกินกำหนด (${settings.maxTabSwitches} ครั้ง) ระบบทำการส่งข้อสอบทันที`);
                         submitExam(true);
                     } else {
                         showAlertModal('warning', 'คำเตือน: ห้ามสลับหน้าจอ!', `ระบบพบการสลับหน้าจอครั้งที่ ${tabSwitchCount} จากที่อนุญาต ${settings.maxTabSwitches} ครั้ง`);
                     }
                 }
-            };
-
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-            window.addEventListener('blur', handleVisibilityChange);
-
-            // ดักจับการกดปุ่ม PrintScreen (ปรับปรุงเพิ่ม try-catch เพื่อป้องกัน Error ในบางเบราว์เซอร์)
-            window.addEventListener('keyup', (e) => {
-                const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
-                if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
-
-                if (e.key === 'PrintScreen' || e.keyCode === 44) {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText('').catch(() => {});
-                    }
-                    showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้จับภาพหน้าจอขณะทำข้อสอบ');
-                }
-            });
-
-            // ดักจับคีย์ลัดแคปจอต่างๆ (Win+Shift+S, Cmd+Shift+3/4, Ctrl+P)
-            window.addEventListener('keydown', (e) => {
-                const currentBranchSet = (loggedInUser && branchSettings[loggedInUser.branch]) || settings;
-                if (!isExamActive || currentBranchSet.preventScreenshot === false) return;
-
+            } else {
+                // เมื่อกลับมาโฟกัสที่หน้าจอเดิม ให้ปิดจอดำ
+                if (overlayElem) overlayElem.classList.add('hidden');
+            }
+        };
+    
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('blur', handleVisibilityChange);
+        window.addEventListener('focus', () => {
+            if (overlayElem) overlayElem.classList.add('hidden');
+        });
+    
+        // 🟢 2. บล็อกคลิกขวา บล็อกการ Copy, Cut, Paste ในหน้าสอบ
+        const sectionExam = document.getElementById('section-exam');
+        if (sectionExam) {
+            sectionExam.addEventListener('contextmenu', e => { if (isExamActive) e.preventDefault(); });
+            sectionExam.addEventListener('copy', e => { if (isExamActive) e.preventDefault(); });
+            sectionExam.addEventListener('cut', e => { if (isExamActive) e.preventDefault(); });
+        }
+    
+        // 🟢 3. บล็อกคีย์ลัดแคปจอ และคีย์ลัดคัดลอก (PrtScn, Win+Shift+S, Ctrl+C, Ctrl+P)
+        window.addEventListener('keydown', (e) => {
+            if (!isExamActive) return;
+    
+            const isPreventing = settings.preventScreenshot !== false;
+    
+            // บล็อก Ctrl+C, Cmd+C (คัดลอก)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+                e.preventDefault();
+                showAlertModal('warning', 'เตือนการคัดลอก', 'ไม่อนุญาตให้คัดลอกข้อความในแบบทดสอบ');
+                return;
+            }
+    
+            // บล็อกคีย์ลัดจับภาพหน้าจอ
+            if (isPreventing) {
                 if (
-                    (e.key === 'PrintScreen') ||
+                    e.key === 'PrintScreen' || 
+                    e.keyCode === 44 ||
                     (e.ctrlKey && e.key === 'p') ||
                     (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) ||
-                    (e.key === 'Meta' && e.shiftKey && e.key === 'S')
+                    (e.key === 'S' && e.shiftKey && (e.metaKey || e.key === 'Meta'))
                 ) {
                     e.preventDefault();
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText('').catch(() => {}); // ล้างคลิปบอร์ด
+                    }
                     showAlertModal('warning', 'เตือนการจับภาพหน้าจอ', 'ไม่อนุญาตให้ใช้คีย์ลัดจับภาพหน้าจอขณะทำข้อสอบ');
                 }
-            });
-        }
+            }
+        });
+    }
 
         function confirmSubmitExam() {
             const unanswered = activeQuestions.length - Object.keys(userAnswers).length;
