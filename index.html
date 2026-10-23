@@ -1571,7 +1571,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (ปรับปรุงการค้นหาคอลัมน์ยืดหยุ่น)
+        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (ปรับปรุงให้กรองรายการซ้ำ และซิงค์การลบจาก Google Sheets)
         function parseCSVToResults(csvText) {
             if (!csvText || csvText.trim() === '') return;
             if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
@@ -1614,7 +1614,7 @@ async function fetchAndSyncUsers() {
             const percentIdx = headerCols.findIndex(h => h.includes('percentage') || h.includes('เปอร์เซ็นต์') || h.includes('%'));
 
             const parsedResults = [];
-            const uniqueKeys = new Set(); // ตัวแปรสำหรับเช็กและตัดรายการซ้ำ
+            const uniqueKeys = new Set(); // ตัวแปรสำหรับตรวจจับและตัดแถวรายการซ้ำ
 
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
@@ -1629,7 +1629,7 @@ async function fetchAndSyncUsers() {
                 // 🟢 สร้าง Key พิเศษสำหรับตรวจจับรายการซ้ำ (SAP-ID + หน่วยการเรียนรู้ + เวลาสอบ)
                 const uniqueKey = `${sapId.trim()}__${category.trim()}__${timestamp.trim()}`;
                 if (uniqueKeys.has(uniqueKey)) {
-                    continue; // ข้ามแถวซ้ำ (เช่น แถวข้อสอบข้อเขียนข้อที่ 2, 3...) ไม่ให้นำมาแสดงซ้ำในประวัติ
+                    continue; // ข้ามแถวซ้ำ (กรณีข้อสอบข้อเขียนบันทึกแยกหลายแถว) ไม่ให้นำมาแสดงซ้ำในประวัติ
                 }
                 uniqueKeys.add(uniqueKey);
 
@@ -1659,7 +1659,7 @@ async function fetchAndSyncUsers() {
                 });
             }
 
-            // 🟢 ยึดข้อมูลล่าสุดจาก Google Sheets เป็นหลัก และอัปเดตลง LocalStorage
+            // 🟢 ยึดข้อมูลล่าสุดจาก Google Sheets เป็นหลัก และอัปเดตลง LocalStorage (ทำให้เมื่อลบใน Sheets หน้าเว็บจะถูกลบตาม)
             examResultsHistory = parsedResults.reverse();
             localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
         }
@@ -2519,19 +2519,39 @@ async function fetchAndSyncUsers() {
                 const minsSpent = Math.floor(timeSpentSeconds / 60);
                 const secsSpent = timeSpentSeconds % 60;
                 timeSpentFormatted = `${minsSpent} นาที ${secsSpent} วินาที`;
+           
             // บันทึกลง LocalStorage
             localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
 
             // ส่งข้อมูลไปยัง Google Sheets
-            postResultToGoogleSheets({ ... });
+            postResultToGoogleSheets({
+                timestamp: new Date().toLocaleString('th-TH'),
+                studentId: studentData.id,
+                fname: studentData.fname,
+                lname: studentData.lname,
+                examSet: settings.selectedSet,
+                branch: studentData.branch,
+                yearLevel: studentData.yearLevel,
+                academicYear: loggedInUser?.academicYear || "",
+                category: studentData.category,
+                score: rawScore,
+                totalQuestions: choiceCount,
+                percentage: percentage,
+                essayAnswers: JSON.stringify(essayList),
+                timeSpent: timeSpentFormatted,
+                tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
+                antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
+                preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
+                autoSubmitted: isAutoSubmitted ? "สลับจอเกิน/หมดเวลา" : "ปกติ"
+            });
 
-            // 🟢 เพิ่มคำสั่งดึงข้อมูลย้อนหลังกลับมาจาก Sheets ทันทีหลังส่งเสร็จเพื่อความแม่นยำ
+            // 🟢 ดึงข้อมูลประวัติซิงค์ใหม่ย้อนกลับจาก Sheets
             setTimeout(() => {
                 if (typeof fetchAndSyncResults === 'function') {
                     fetchAndSyncResults();
                 }
-            }, 1500);
-            }
+            }, 2000);
+        }
 
             // 🟢 อัปเดตแสดงผลคะแนนเต็มเฉพาะข้อสอบ Choice
             document.getElementById('result-score-display').textContent = `${rawScore} / ${choiceCount}`;
@@ -4716,6 +4736,18 @@ function toggleModalUserSelection(username, isChecked) {
             localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
 
             showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'บันทึกคะแนนข้อเขียนและรวมคะแนนสอบเรียบร้อยแล้ว');
+            renderEssayGradingCards(pendingList);
+        }
+
+        // ฟังก์ชันลบรายการตรวจข้อเขียนที่ค้างออกจากระบบ
+        function deletePendingEssay(itemIdx) {
+            if (!confirm('คุณต้องการลบรายการตรวจข้อเขียนนี้ออกจากระบบใช่หรือไม่?')) return;
+            
+            let pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
+            pendingList.splice(itemIdx, 1);
+            localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
+            
+            showAlertModal('success', 'ลบรายการสำเร็จ', 'ลบรายการตรวจข้อเขียนออกจากระบบเรียบร้อยแล้ว');
             renderEssayGradingCards(pendingList);
         }
         
