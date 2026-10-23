@@ -1634,6 +1634,27 @@ async function fetchAndSyncUsers() {
                 const total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 15 : 15;
                 const percentage = percentIdx !== -1 ? parseFloat(cols[percentIdx]) || ((score / total) * 100) : ((score / total) * 100);
 
+                const isEssay = cols.some(c => c && c.includes('studentAnswer')); // หรือเช็กประเภทข้อสอบ
+                parsedResults.push({
+                    timestamp,
+                    sapId: sapId,
+                    studentId: sapId,
+                    fullname: `${fname} ${lname}`.trim(),
+                    examSet,
+                    branch,
+                    yearLevel,
+                    academicYear,
+                    category,
+                    choiceScore: score,
+                    choiceTotal: total,
+                    essayScore: 0,
+                    essayTotal: 0,
+                    score,
+                    total,
+                    percentage,
+                    hasEssay: isEssay,
+                    gradingStatus: isEssay ? 'pending' : 'graded'
+                });
                 parsedResults.push({
                     timestamp,
                     sapId: sapId,
@@ -4027,9 +4048,14 @@ function toggleModalUserSelection(username, isChecked) {
                 }
 
                 html += `
-                        <button onclick="saveEssayGrading(${itemIdx})" class="mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition">
-                            💾 บันทึกคะแนนข้อเขียน
-                        </button>
+                        <div class="flex space-x-2 mt-2">
+                            <button onclick="saveEssayGrading(${itemIdx})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition">
+                                💾 บันทึกคะแนนข้อเขียน
+                            </button>
+                            <button onclick="deletePendingEssay(${itemIdx})" class="bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow transition">
+                                🗑️ ลบรายการนี้
+                            </button>
+                        </div>
                     </div>
                 `;
             });
@@ -4661,19 +4687,25 @@ function toggleModalUserSelection(username, isChecked) {
             const studentId = pendingList[itemIdx].studentId;
             const category = pendingList[itemIdx].category;
 
-            const historyIndex = examResultsHistory.findIndex(r => r.sapId === studentId && r.category === category && r.hasEssay);
+            // ค้นหาประวัติการสอบโดยไม่ต้องเช็ก hasEssay เผื่อกรณีข้อมูลที่ซิงค์มาจาก CSV
+            const historyIndex = examResultsHistory.findIndex(r => (r.sapId === studentId || r.studentId === studentId) && r.category === category);
             if (historyIndex !== -1) {
                 const targetRecord = examResultsHistory[historyIndex];
                 targetRecord.essayScore = totalEssayScore;
                 
+                const choiceScore = targetRecord.choiceScore !== undefined ? targetRecord.choiceScore : targetRecord.score;
+                const choiceTotal = targetRecord.choiceTotal !== undefined ? targetRecord.choiceTotal : targetRecord.total;
+                const essayTotal = targetRecord.essayTotal !== undefined ? targetRecord.essayTotal : (essayAnswers.length * 10);
+            
                 // รวมคะแนน Choice + Essay
-                const finalScore = (targetRecord.choiceScore || targetRecord.score || 0) + totalEssayScore;
-                const finalTotal = (targetRecord.choiceTotal || targetRecord.total || 15) + (essayAnswers.length * 10);
+                const finalScore = choiceScore + totalEssayScore;
+                const finalTotal = choiceTotal + essayTotal;
                 
                 targetRecord.score = finalScore;
                 targetRecord.total = finalTotal;
                 targetRecord.percentage = parseFloat(((finalScore / finalTotal) * 100).toFixed(2));
                 targetRecord.gradingStatus = 'graded'; // ปรับสถานะเป็นตรวจเสร็จแล้ว
+                targetRecord.hasEssay = true;
             }
 
             // บันทึกการเปลี่ยนแปลงลง LocalStorage
