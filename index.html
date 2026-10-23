@@ -1610,8 +1610,8 @@ async function fetchAndSyncUsers() {
             const yearIdx = headerCols.findIndex(h => h.includes('yearlevel') || h.includes('ชั้นปี') || h.includes('ปี'));
             const academicYearIdx = headerCols.findIndex(h => h.includes('academicyear') || h.includes('ปีการศึกษา'));
             const catIdx = headerCols.findIndex(h => h.includes('category') || h.includes('หมวดหมู่') || h.includes('หน่วย'));
-            const scoreIdx = headerCols.findIndex(h => h.includes('score') || h.includes('คะแนน'));
-            const totalIdx = headerCols.findIndex(h => h.includes('totalquestions') || h.includes('ข้อเต็ม') || h.includes('จำนวนข้อ'));
+            const scoreIdx = headerCols.findIndex(h => h.includes('score') || h.includes('คะแนนที่ได้'));
+            const totalIdx = headerCols.findIndex(h => h.includes('คะแนนเต็ม') || h.includes('fullscore') || h.includes('totalquestions'));
             const percentIdx = headerCols.findIndex(h => h.includes('percentage') || h.includes('เปอร์เซ็นต์') || h.includes('%'));
 
             const parsedResults = [];
