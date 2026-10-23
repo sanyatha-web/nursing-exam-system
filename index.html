@@ -1575,7 +1575,7 @@ async function fetchAndSyncUsers() {
         function parseCSVToResults(csvText) {
             if (!csvText || csvText.trim() === '') return;
             if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
-        
+
             function parseCSVLine(text) {
                 let p = '', c = '', r = [];
                 let q = false;
@@ -1594,10 +1594,10 @@ async function fetchAndSyncUsers() {
                 r.push(p.trim());
                 return r;
             }
-        
+
             const lines = csvText.split(/\r\n|\n/).filter(l => l.trim() !== '');
             if (lines.length < 2) return;
-        
+
             const headerCols = parseCSVLine(lines[0]).map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
             
             const timeIdx = headerCols.findIndex(h => h.includes('timestamp') || h.includes('เวลา') || h.includes('วันที่'));
@@ -1612,9 +1612,10 @@ async function fetchAndSyncUsers() {
             const scoreIdx = headerCols.findIndex(h => h.includes('score') || h.includes('คะแนน'));
             const totalIdx = headerCols.findIndex(h => h.includes('totalquestions') || h.includes('ข้อเต็ม') || h.includes('จำนวนข้อ'));
             const percentIdx = headerCols.findIndex(h => h.includes('percentage') || h.includes('เปอร์เซ็นต์') || h.includes('%'));
-        
+
             const parsedResults = [];
-        
+            const uniqueKeys = new Set(); // ตัวแปรสำหรับเช็กและตัดรายการซ้ำ
+
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
                 if (cols.length < 2) continue;
@@ -1623,42 +1624,29 @@ async function fetchAndSyncUsers() {
                 if (!sapId) continue;
 
                 const timestamp = timeIdx !== -1 ? cols[timeIdx] : '-';
+                const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
+
+                // 🟢 สร้าง Key พิเศษสำหรับตรวจจับรายการซ้ำ (SAP-ID + หน่วยการเรียนรู้ + เวลาสอบ)
+                const uniqueKey = `${sapId.trim()}__${category.trim()}__${timestamp.trim()}`;
+                if (uniqueKeys.has(uniqueKey)) {
+                    continue; // ข้ามแถวซ้ำ (เช่น แถวข้อสอบข้อเขียนข้อที่ 2, 3...) ไม่ให้นำมาแสดงซ้ำในประวัติ
+                }
+                uniqueKeys.add(uniqueKey);
+
                 const fname = fnameIdx !== -1 ? cols[fnameIdx] : '';
                 const lname = lnameIdx !== -1 ? cols[lnameIdx] : '';
                 const examSet = setIdx !== -1 ? cols[setIdx] : 'ชุดการเรียนรู้ทั่วไป';
                 const branch = branchIdx !== -1 ? cols[branchIdx] : '';
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
                 const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : '';
-                const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
                 const score = scoreIdx !== -1 ? parseFloat(cols[scoreIdx]) || 0 : 0;
                 const total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 15 : 15;
                 const percentage = percentIdx !== -1 ? parseFloat(cols[percentIdx]) || ((score / total) * 100) : ((score / total) * 100);
 
-                const isEssay = cols.some(c => c && c.includes('studentAnswer')); // หรือเช็กประเภทข้อสอบ
                 parsedResults.push({
                     timestamp,
                     sapId: sapId,
                     studentId: sapId,
-                    fullname: `${fname} ${lname}`.trim(),
-                    examSet,
-                    branch,
-                    yearLevel,
-                    academicYear,
-                    category,
-                    choiceScore: score,
-                    choiceTotal: total,
-                    essayScore: 0,
-                    essayTotal: 0,
-                    score,
-                    total,
-                    percentage,
-                    hasEssay: isEssay,
-                    gradingStatus: isEssay ? 'pending' : 'graded'
-                });
-                parsedResults.push({
-                    timestamp,
-                    sapId: sapId,
-                    studentId: sapId, // 🟢 รองรับทั้ง sapId และ studentId
                     fullname: `${fname} ${lname}`.trim(),
                     examSet,
                     branch,
@@ -1670,8 +1658,8 @@ async function fetchAndSyncUsers() {
                     percentage
                 });
             }
-        
-            // เรียงลำดับจากรายการ ล่าสุด -> เก่าสุด
+
+            // 🟢 ยึดข้อมูลล่าสุดจาก Google Sheets เป็นหลัก และอัปเดตลง LocalStorage
             examResultsHistory = parsedResults.reverse();
             localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
         }
@@ -2531,6 +2519,18 @@ async function fetchAndSyncUsers() {
                 const minsSpent = Math.floor(timeSpentSeconds / 60);
                 const secsSpent = timeSpentSeconds % 60;
                 timeSpentFormatted = `${minsSpent} นาที ${secsSpent} วินาที`;
+            // บันทึกลง LocalStorage
+            localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
+
+            // ส่งข้อมูลไปยัง Google Sheets
+            postResultToGoogleSheets({ ... });
+
+            // 🟢 เพิ่มคำสั่งดึงข้อมูลย้อนหลังกลับมาจาก Sheets ทันทีหลังส่งเสร็จเพื่อความแม่นยำ
+            setTimeout(() => {
+                if (typeof fetchAndSyncResults === 'function') {
+                    fetchAndSyncResults();
+                }
+            }, 1500);
             }
 
             // 🟢 อัปเดตแสดงผลคะแนนเต็มเฉพาะข้อสอบ Choice
