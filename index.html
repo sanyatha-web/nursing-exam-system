@@ -2549,22 +2549,31 @@ async function fetchAndSyncUsers() {
                 });
                 localStorage.setItem('pending_essay_list', JSON.stringify(currentPendingList));
             }
+            
+            // ตรวจสอบว่ามีข้อสอบข้อเขียนหรือไม่
+            const hasEssay = essayCount > 0;
+            const gradingStatus = hasEssay ? 'pending' : 'graded';
 
-            // 🟢 บันทึกผลการสอบลงในประวัติการสอบของเครื่องทันที (เพื่อให้หน้ารายงานอัปเดตทันที)
-            // 🟢 บันทึกผลการสอบลงในประวัติการสอบของเครื่องทันที (เพื่อให้หน้ารายงานและสมุดพกอัปเดตทันที)
+            // 🟢 บันทึกผลการสอบลงในประวัติการสอบของเครื่อง
             const newResultRecord = {
                 timestamp: new Date().toLocaleString('th-TH'),
                 sapId: studentData.id,
-                studentId: studentData.id, // 🟢 ใส่ฟิลด์ studentId ควบคู่
+                studentId: studentData.id,
                 fullname: studentData.name,
                 examSet: settings.selectedSet || 'ชุดการเรียนรู้ทั่วไป',
                 branch: studentData.branch,
                 yearLevel: studentData.yearLevel,
                 academicYear: loggedInUser?.academicYear || "",
                 category: studentData.category,
+                choiceScore: rawScore,
+                choiceTotal: choiceCount,
+                essayScore: 0,
+                essayTotal: essayCount * 10, // สมมติคะแนนเต็มข้อเขียนข้อละ 10 คะแนน
                 score: rawScore,
                 total: choiceCount,
-                percentage: parseFloat(percentage)
+                percentage: parseFloat(percentage),
+                hasEssay: hasEssay,
+                gradingStatus: gradingStatus
             };
 
             // อัปเดตตัวแปร Global
@@ -3345,7 +3354,20 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             `;
                         } else {
                             const bestAttempt = attempts.reduce((max, curr) => curr.percentage > max.percentage ? curr : max, attempts[0]);
+
+                            // เช็กสถานะรอ Preceptor ตรวจข้อเขียน
+                            const isPendingEssay = bestAttempt.hasEssay && bestAttempt.gradingStatus === 'pending';
                             const isPassed = bestAttempt.percentage >= 80;
+                            
+                            // กำหนดป้าย Badge และข้อความแสดงสถานะ
+                            let statusBadgeHtml = '';
+                            if (isPendingEssay) {
+                                statusBadgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-amber-100 text-amber-800 border border-amber-200">⏳ รอ Preceptor ตรวจข้อเขียน</span>`;
+                            } else if (isPassed) {
+                                statusBadgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-100 text-emerald-800 border border-emerald-200">✓ ผ่านเกณฑ์ (${bestAttempt.percentage.toFixed(1)}%)</span>`;
+                            } else {
+                                statusBadgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${bestAttempt.percentage.toFixed(1)}%)</span>`;
+                            }
 
                             let historyRowsHtml = attempts.map(a => `
                                 <div class="flex justify-between items-center text-[10px] text-slate-500 py-0.5 border-t border-slate-100">
@@ -3361,9 +3383,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                             <div class="font-bold text-slate-800">${catIdx + 1}. ${uCat}</div>
                                             <div class="text-[10px] text-indigo-600 font-semibold">สอบไปแล้ว: ${attemptCount} ครั้ง</div>
                                         </div>
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${isPassed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}">
-                                            ${isPassed ? '✓ ผ่านเกณฑ์' : '✕ ต้องสอบซ่อม'}
-                                        </span>
+                                        ${statusBadgeHtml} <!-- 🟢 นำตัวแปรมาวางแทนแท็ก <span> เดิมตรงนี้จุดเดียวครับ -->
                                     </div>
                                     <div class="bg-white p-2 rounded border border-slate-100 space-y-0.5">
                                         ${historyRowsHtml}
@@ -4620,11 +4640,15 @@ function toggleModalUserSelection(username, isChecked) {
             if (!pendingList[itemIdx]) return;
 
             const essayAnswers = pendingList[itemIdx].essayAnswers || [];
+            let totalEssayScore = 0;
+
             essayAnswers.forEach((essay, eIdx) => {
                 const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
                 const inputFeedback = document.getElementById(`feedback-input-${itemIdx}-${eIdx}`);
                 if (inputScore) {
-                    essay.scoreGiven = parseFloat(inputScore.value) || 0;
+                    const score = parseFloat(inputScore.value) || 0;
+                    essay.scoreGiven = score;
+                    totalEssayScore += score;
                 }
                 if (inputFeedback) {
                     essay.feedback = inputFeedback.value.trim();
@@ -4632,25 +4656,34 @@ function toggleModalUserSelection(username, isChecked) {
             });
 
             pendingList[itemIdx].essayAnswers = essayAnswers;
-            localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
+            
+            // 🟢 อัปเดตประวัติการสอบ (examResultsHistory) เมื่อตรวจเสร็จ
+            const studentId = pendingList[itemIdx].studentId;
+            const category = pendingList[itemIdx].category;
 
-            if (settings.webAppUrl) {
-                fetch(settings.webAppUrl, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: "updateEssayGrading",
-                        studentId: pendingList[itemIdx].studentId,
-                        category: pendingList[itemIdx].category,
-                        essayAnswers: JSON.stringify(essayAnswers),
-                        gradedBy: loggedInUser ? loggedInUser.fullname : 'Preceptor',
-                        gradedAt: new Date().toLocaleString('th-TH')
-                    })
-                }).catch(err => console.error(err));
+            const historyIndex = examResultsHistory.findIndex(r => r.sapId === studentId && r.category === category && r.hasEssay);
+            if (historyIndex !== -1) {
+                const targetRecord = examResultsHistory[historyIndex];
+                targetRecord.essayScore = totalEssayScore;
+                
+                // รวมคะแนน Choice + Essay
+                const finalScore = (targetRecord.choiceScore || targetRecord.score || 0) + totalEssayScore;
+                const finalTotal = (targetRecord.choiceTotal || targetRecord.total || 15) + (essayAnswers.length * 10);
+                
+                targetRecord.score = finalScore;
+                targetRecord.total = finalTotal;
+                targetRecord.percentage = parseFloat(((finalScore / finalTotal) * 100).toFixed(2));
+                targetRecord.gradingStatus = 'graded'; // ปรับสถานะเป็นตรวจเสร็จแล้ว
             }
 
-            showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'บันทึกคะแนนและ Feedback ข้อสอบข้อเขียนเรียบร้อยแล้ว');
+            // บันทึกการเปลี่ยนแปลงลง LocalStorage
+            localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
+            
+            // ลบออกจากรายการรอตรวจ
+            pendingList.splice(itemIdx, 1);
+            localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
+
+            showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'บันทึกคะแนนข้อเขียนและรวมคะแนนสอบเรียบร้อยแล้ว');
             renderEssayGradingCards(pendingList);
         }
         
