@@ -2567,6 +2567,7 @@ async function fetchAndSyncUsers() {
                     category: studentData.category,
                     examType: "ปรนัย",
                     score: choiceScore,
+                    totalQuestions: choiceCount, // 🟢 ส่งจำนวนข้อปรนัยจริง (เช่น 2 ข้อ) ไปเป็นคะแนนเต็ม
                     percentage: choicePercentage,
                     essayAnswers: "-",
                     timeSpent: timeSpentFormatted,
@@ -3415,12 +3416,14 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                             `;
                         } else {
                             // 🟢 [ปรับแก้จุดที่ 4] คำนวณคะแนนรวมสะสม (ปรนัย + อัตนัย) จากประวัติสอบใน Sheets
+                            // 🟢 คำนวณคะแนนรวมสะสม ดึงคะแนนเต็มจริงจากตาราง (a.totalQuestions หรือ a.total)
                             let totalEarnedScore = 0;
                             let totalMaxScore = 0;
 
                             attempts.forEach(a => {
                                 const sc = parseFloat(a.score) || 0;
-                                const tot = parseFloat(a.total) || 15;
+                                // 🟢 ดึงคะแนนเต็มจริงที่บันทึกไว้ ถ้านไม่มีให้ใช้จำนวนข้อสอบของหน่วยนั้นๆ
+                                const tot = parseFloat(a.totalQuestions || a.total) || 1; 
                                 totalEarnedScore += sc;
                                 totalMaxScore += tot;
                             });
@@ -3432,12 +3435,15 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-100 text-emerald-800 border border-emerald-200">✓ ผ่านเกณฑ์ (${overallPerc}%)</span>`
                                 : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${overallPerc}%)</span>`;
 
-                            let historyRowsHtml = attempts.map(a => `
-                                <div class="flex justify-between items-center text-[10px] text-slate-500 py-0.5 border-t border-slate-100">
-                                    <span>• ประเภท: ${a.examType || 'ทั่วไป'} (สอบเมื่อ: ${a.timestamp})</span>
-                                    <span class="font-bold text-slate-700">${a.score !== '' ? a.score : '-'}/${a.total || 10} (${a.percentage !== '' ? a.percentage + '%' : 'รอตรวจ'})</span>
-                                </div>
-                            `).join('');
+                            let historyRowsHtml = attempts.map(a => {
+                                const maxSc = a.totalQuestions || a.total || 1;
+                                return `
+                                    <div class="flex justify-between items-center text-[10px] text-slate-500 py-0.5 border-t border-slate-100">
+                                        <span>• ประเภท: ${a.examType || 'ทั่วไป'} (สอบเมื่อ: ${a.timestamp})</span>
+                                        <span class="font-bold text-slate-700">${a.score !== '' && a.score !== null ? a.score : '-'}/${maxSc} (${a.percentage !== '' && a.percentage !== null ? a.percentage + '%' : 'รอตรวจ'})</span>
+                                    </div>
+                                `;
+                            }).join('');
 
                             subUnitsHtml += `
                                 <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5 text-xs">
