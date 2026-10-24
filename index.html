@@ -1250,12 +1250,15 @@ let settings = {
         
             const studentYear = (loggedInUser.yearLevel || 'ไม่ระบุชั้นปี').trim();
             const studentBranch = (loggedInUser.branch || '').trim();
-            const studentId = (loggedInUser.username || '').trim();
+            const studentId = (loggedInUser.username || loggedInUser.sapId || '').trim().toLowerCase();
         
-            // 1. ดึงประวัติการสอบของผู้เรียนรายนี้
-            const studentHistory = examResultsHistory.filter(r => (r.sapId || '').trim() === studentId);
+            // 1. ดึงประวัติการสอบของผู้เรียนรายนี้ (เปรียบเทียบรหัสแบบยืดหยุ่นและตัดช่องว่าง)
+            const studentHistory = examResultsHistory.filter(r => {
+                const idInRecord = (r.sapId || r.studentId || '').trim().toLowerCase();
+                return idInRecord === studentId;
+            });
         
-            // 2. ค้นหาชื่อหน่วยการเรียนรู้ที่มีข้อสอบข้อเขียนที่ "รอตรวจ" (ยังไม่มีคะแนน/score เป็น null หรือ empty)
+            // 2. ค้นหาหมวดหมู่ที่มีข้อสอบข้อเขียนที่ "รอตรวจ" (score เป็น null, undefined หรือ '')
             const pendingCategories = new Set(
                 studentHistory
                     .filter(r => {
@@ -1267,7 +1270,7 @@ let settings = {
                     .map(r => (r.category || '').trim().toLowerCase())
             );
         
-            // 3. ค้นหาชื่อหน่วยการเรียนรู้ที่ "สอบผ่านแล้ว" (คะแนน >= 80%)
+            // 3. ค้นหาหมวดหมู่ที่ "สอบผ่านแล้ว" (คะแนน >= 80%)
             const passedCategories = new Set(
                 studentHistory
                     .filter(r => (r.percentage || 0) >= 80)
@@ -1292,7 +1295,7 @@ let settings = {
                 const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
                 if (!cat) return;
         
-                // 🟢 ตรวจสอบว่าหน่วยการเรียนรู้นี้ไม่ได้ถูกล็อก (ยังไม่ผ่าน และ ไม่มีข้อเขียนรอตรวจ)
+                // ตรวจสอบว่าหน่วยการเรียนรู้นี้ไม่ได้ถูกล็อก
                 if (!lockedCategories.has(catLower)) {
                     const possibleKeys = [
                         `${studentBranch}__${setGrp}__${cat}`,
@@ -1312,7 +1315,7 @@ let settings = {
         
                     if (isEnabled) {
                         const isAllAccess = !conf || !conf.accessMode || conf.accessMode === 'all';
-                        const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(studentId);
+                        const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
         
                         if ((isAllAccess || isUserAllowed) && !availableCategories.includes(cat)) {
                             availableCategories.push(cat);
@@ -2644,6 +2647,28 @@ async function fetchAndSyncUsers() {
             }
 
             postResultToGoogleSheets(payloadRecords);
+            // เพิ่มโค้ดส่วนนี้ต่อท้าย postResultToGoogleSheets(payloadRecords);
+            if (payloadRecords && payloadRecords.length > 0) {
+                payloadRecords.forEach(rec => {
+                    examResultsHistory.unshift({
+                        timestamp: rec.timestamp,
+                        sapId: rec.studentId,
+                        studentId: rec.studentId,
+                        fullname: `${rec.fname} ${rec.lname}`.trim(),
+                        examSet: rec.examSet,
+                        branch: rec.branch,
+                        yearLevel: rec.yearLevel,
+                        academicYear: rec.academicYear,
+                        category: rec.category,
+                        examType: rec.examType,
+                        score: rec.score, // เป็น null สำหรับอัตนัยรอตรวจ
+                        total: rec.totalQuestions,
+                        percentage: rec.percentage,
+                        essayAnswers: rec.essayAnswers
+                    });
+                });
+                localStorage.setItem('cached_exam_results_history', JSON.stringify(examResultsHistory));
+            }
 
             // อัปเดตการแสดงผลหน้าสรุปคะแนนหลังสอบเสร็จ
             document.getElementById('result-score-display').textContent = `${choiceScore} / ${choiceCount}`;
@@ -2739,26 +2764,30 @@ async function fetchAndSyncUsers() {
         }
 
         function restartSystem() {
-            window.location.reload();
+            if (loggedInUser && !hasRole(loggedInUser, 'admin') && !hasRole(loggedInUser, 'manager') && !hasRole(loggedInUser, 'superadmin')) {
+                showStudentDashboard();
+            } else {
+                window.location.reload();
+            }
         }
         
         // ฟังก์ชัน เปิด-ปิด การแสดงรหัสผ่าน (Toggle Password Visibility)
-function togglePasswordVisibility(inputId, eyeIconId) {
-    const inputElem = document.getElementById(inputId);
-    const eyeIcon = document.getElementById(eyeIconId);
-
-    if (inputElem && eyeIcon) {
-        if (inputElem.type === 'password') {
-            inputElem.type = 'text';
-            eyeIcon.classList.remove('fa-eye');
-            eyeIcon.classList.add('fa-eye-slash'); // เปลี่ยนไอคอนเป็นตาขีดฆ่า
-        } else {
-            inputElem.type = 'password';
-            eyeIcon.classList.remove('fa-eye-slash');
-            eyeIcon.classList.add('fa-eye'); // เปลี่ยนไอคอนกลับเป็นลูกตาปกติ
+        function togglePasswordVisibility(inputId, eyeIconId) {
+            const inputElem = document.getElementById(inputId);
+            const eyeIcon = document.getElementById(eyeIconId);
+        
+            if (inputElem && eyeIcon) {
+                if (inputElem.type === 'password') {
+                    inputElem.type = 'text';
+                    eyeIcon.classList.remove('fa-eye');
+                    eyeIcon.classList.add('fa-eye-slash'); // เปลี่ยนไอคอนเป็นตาขีดฆ่า
+                } else {
+                    inputElem.type = 'password';
+                    eyeIcon.classList.remove('fa-eye-slash');
+                    eyeIcon.classList.add('fa-eye'); // เปลี่ยนไอคอนกลับเป็นลูกตาปกติ
+                }
+            }
         }
-    }
-}
     
         // -------------------------------------------------------------
         // ระบบจัดการหน้า Dashboard ของอาจารย์ และภาพรวมการตั้งค่า (Home)
