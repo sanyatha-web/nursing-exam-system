@@ -4661,7 +4661,7 @@ function toggleModalUserSelection(username, isChecked) {
             renderManagerDashboard();
         }
 
-        // ✅ ฟังก์ชันเรนเดอร์ Accordion บทเรียนปกติ (ปรับปรุง Progress Bar ทั้ง 2 มุมมองให้อิงอัตราการสอบผ่านแบบเดียวกับการ์ดที่ 3)
+        // ✅ ฟังก์ชันเรนเดอร์ Accordion บทเรียนปกติ (แก้ไข Bug Progress Bar ตามชุดการเรียนรู้ไม่ตรงกับตามชั้นปี)
         function renderNormalUnitsAccordion(studentsList, normalResults, availableQuestions) {
             const container = document.getElementById('manager-sets-accordion-container');
             if (!container) return;
@@ -4725,9 +4725,8 @@ function toggleModalUserSelection(username, isChecked) {
                 const unitsMap = setsStructure[groupName];
                 const unitNames = Object.keys(unitsMap);
         
-                // ตัวแปรสะสมเพื่อคำนวณ Progress Bar รวมของกลุ่มใหญ่ (Header)
-                let totalGroupTargetPassedCount = 0; // เป้าหมายหน่วยที่สอบผ่านรวม
-                let actualGroupPassedCount = 0;      // จำนวนคนที่สอบผ่านหน่วยย่อยต่างๆ รวมกันจริง
+                let totalGroupTargetPassedCount = 0;
+                let actualGroupPassedCount = 0;
         
                 let subUnitsHtml = '';
         
@@ -4736,25 +4735,24 @@ function toggleModalUserSelection(username, isChecked) {
                     const failedList = [];
                     const unattemptedList = [];
         
-                    const sampleQ = availableQuestions.find(q => 
-                        (currentManagerViewMode === 'set' ? (q.setGroup || '').trim() === groupName : (q.yearLevel || '').trim() === groupName) &&
-                        (q.category || '').trim() === catName
-                    );
-                    const targetYearLevel = (sampleQ?.yearLevel || '').trim();
-        
-                    const filteredStudentsList = studentsList.filter(st => {
-                        if (targetYearLevel && targetYearLevel !== 'ทุกชั้นปี' && selectedYear === 'ทั้งหมด') {
-                            const stYear = (st.yearLevel || '').trim();
-                            return !stYear || stYear === 'ทุกชั้นปี' || stYear === targetYearLevel;
-                        }
-                        return true;
-                    });
+                    // 🟢 [จุดที่แก้ไข Bug] ใช้นักเรียนจาก studentsList ตาม Filter หลักโดยตรง 
+                    // ไม่ใช้การตัดเงื่อนไขความย้อนย้อนของ targetYearLevel เพื่อให้จำนวนนักเรียนตรงกันทั้ง 2 มุมมอง
+                    const filteredStudentsList = studentsList;
         
                     // จำแนกสถานะนักเรียนรายบุคคลในหน่วยนี้
                     filteredStudentsList.forEach(st => {
                         const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
+                        
+                        // ค้นหาประวัติการสอบแบบยืดหยุ่น (เช็กทั้ง Key ตรงกลุ่ม หรือค้นหาตาม Category อย่างเดียว)
                         const lookupKey = `${groupName}__${catName}__${stId}`;
-                        const stAttempts = resultsIndex.get(lookupKey) || [];
+                        let stAttempts = resultsIndex.get(lookupKey) || [];
+        
+                        if (stAttempts.length === 0) {
+                            stAttempts = normalResults.filter(r => 
+                                (r.sapId || r.studentId || '').toString().trim().toLowerCase() === stId &&
+                                (r.category || '').trim().toLowerCase() === catName.toLowerCase()
+                            );
+                        }
         
                         if (stAttempts.length === 0) {
                             unattemptedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
@@ -4771,13 +4769,12 @@ function toggleModalUserSelection(username, isChecked) {
                         }
                     });
         
-                    // 🟢 คำนวณ % ความก้าวหน้าของหน่วยย่อยนี้ (จำนวนคนสอบผ่าน / จำนวนนักศึกษาทั้งหมดในกลุ่ม)
+                    // คำนวณ % ความก้าวหน้า
                     const unitStudentCount = filteredStudentsList.length;
                     const unitPassedCount = passedList.length;
                     const uRate = unitStudentCount > 0 ? ((unitPassedCount / unitStudentCount) * 100).toFixed(1) : "0.0";
                     const uBarColor = uRate >= 80 ? 'bg-emerald-500' : (uRate >= 50 ? 'bg-amber-500' : 'bg-rose-500');
         
-                    // สะสมตัวเลขเพื่อไปคิด Progress Bar ของ Header ใหญ่
                     totalGroupTargetPassedCount += unitStudentCount;
                     actualGroupPassedCount += unitPassedCount;
         
@@ -4811,7 +4808,6 @@ function toggleModalUserSelection(username, isChecked) {
                     `;
                 });
         
-                // 🟢 คำนวณ % ความก้าวหน้ารวมของกลุ่มใหญ่ (Header)
                 const groupRate = totalGroupTargetPassedCount > 0 ? ((actualGroupPassedCount / totalGroupTargetPassedCount) * 100).toFixed(1) : "0.0";
                 const groupBarColor = groupRate >= 80 ? 'bg-emerald-500' : (groupRate >= 50 ? 'bg-amber-500' : 'bg-rose-500');
                 const groupIcon = currentManagerViewMode === 'set' ? 'fa-folder-open' : 'fa-graduation-cap';
