@@ -1252,13 +1252,13 @@ let settings = {
             const studentBranch = (loggedInUser.branch || '').trim();
             const studentId = (loggedInUser.username || loggedInUser.sapId || '').trim().toLowerCase();
         
-            // 1. ดึงประวัติการสอบของผู้เรียนรายนี้
+            // 1. ดึงประวัติการสอบทั้งหมดของผู้เรียนรายนี้เฉพาะบุคคล (Per-User)
             const studentHistory = examResultsHistory.filter(r => {
                 const idInRecord = (r.sapId || r.studentId || '').trim().toLowerCase();
                 return idInRecord === studentId;
             });
         
-            // 2. ค้นหาชื่อหมวดหมู่ (category) และชื่อชุด (examSet) ที่ "อยู่ระหว่างรอตรวจข้อเขียน"
+            // 2. ค้นหาชื่อหน่วยการเรียนรู้ (category) และชื่อชุด (examSet) ที่ "อยู่ระหว่างรอตรวจข้อเขียน"
             const pendingCategories = new Set();
             studentHistory.forEach(r => {
                 const exType = (r.examType || '').trim().toLowerCase();
@@ -1271,7 +1271,7 @@ let settings = {
                 }
             });
         
-            // 3. ค้นหาชื่อหมวดหมู่ (category) และชื่อชุด (examSet) ที่ "สอบผ่านแล้ว" (คะแนน >= 80%)
+            // 3. ค้นหาชื่อหน่วยการเรียนรู้ (category) และชื่อชุด (examSet) ที่ผู้สอบคนนี้ "สอบผ่านแล้ว" (คะแนน >= 80%)
             const passedCategories = new Set();
             studentHistory.forEach(r => {
                 if ((r.percentage || 0) >= 80) {
@@ -1280,10 +1280,10 @@ let settings = {
                 }
             });
         
-            // 4. รวมหน่วย/ชุดการเรียนรู้ที่ต้องบล็อก (สอบผ่านแล้ว OR อยู่ระหว่างรอตรวจ)
+            // 4. รวมรายการที่ต้องซ่อนออกจาก Dropdown (สอบผ่านแล้ว OR อยู่ระหว่างรอตรวจข้อเขียน)
             const lockedCategories = new Set([...passedCategories, ...pendingCategories]);
         
-            // 5. กรองข้อสอบเฉพาะ สาขา และ ชั้นปี ของนักศึกษา
+            // 5. กรองคลังข้อสอบเฉพาะ สาขา และ ชั้นปี ของนักเรียน
             let userPool = masterQuestions.filter(q => {
                 const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch.trim() === studentBranch;
                 const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel.trim() === studentYear;
@@ -1300,7 +1300,7 @@ let settings = {
         
                 if (!cat) return;
         
-                // 🟢 ตรวจสอบว่าทั้งชื่อหน่วยการเรียนรู้ (category) และชื่อชุด (setGroup) ยังไม่โดนล็อก
+                // 🔒 ตรวจสอบว่าถ้าชื่อหน่วยเรียนรู้ หรือ ชื่อชุดการเรียนรู้ เคยสอบผ่านแล้ว ให้ข้าม (ซ่อน) ไปเลย
                 const isCatLocked = lockedCategories.has(catLower);
                 const isSetLocked = lockedCategories.has(setGrpLower);
         
@@ -1325,6 +1325,7 @@ let settings = {
                         const isAllAccess = !conf || !conf.accessMode || conf.accessMode === 'all';
                         const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
         
+                        // เติมเฉพาะหน่วยที่ยังไม่ได้สอบผ่านลงในรายการเลือก
                         if ((isAllAccess || isUserAllowed) && !availableCategories.includes(cat)) {
                             availableCategories.push(cat);
                         }
@@ -1332,7 +1333,7 @@ let settings = {
                 }
             });
         
-            // 6. แสดงผลข้อความสถานะด้านบน
+            // 6. อัปเดตการแสดงผลป้ายสถานะ (Badge)
             const badgeElem = document.getElementById('dashboard-active-set-badge');
             if (badgeElem) {
                 if (availableCategories.length === 0) {
@@ -1340,7 +1341,7 @@ let settings = {
                         badgeElem.textContent = `⏳ มีหน่วยการเรียนรู้ที่อยู่ระหว่างรอ Preceptor ตรวจข้อเขียน`;
                         badgeElem.className = "font-bold text-amber-600";
                     } else {
-                        badgeElem.textContent = `🎉 คุณสอบผ่านครบทุกหน่วยของ ${studentYear} แล้ว`;
+                        badgeElem.textContent = `🎉 คุณสอบผ่านครบทุกหน่วยการเรียนรู้ของ ${studentYear} แล้ว`;
                         badgeElem.className = "font-bold text-emerald-600";
                     }
                 } else {
@@ -1349,7 +1350,7 @@ let settings = {
                 }
             }
         
-            // 7. อัปเดต Dropdown เลือกแบบทดสอบ
+            // 7. อัปเดตรายการใน Dropdown (ถ้าสอบผ่านหมดแล้วจะล็อก Dropdown ทันที)
             const selectElem = document.getElementById('dashboard-category-select');
             if (selectElem) {
                 selectElem.onchange = renderInitialSetupNotice;
