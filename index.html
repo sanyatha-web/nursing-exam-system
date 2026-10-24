@@ -1572,7 +1572,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (แก้ไขการคำนวณ % ผิดพลาด 3333%)
+        // 🟢 [แก้ไขสมบูรณ์] ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (ดึงข้อเขียนและคงค่าว่างของคะแนนไว้)
         function parseCSVToResults(csvText) {
             if (!csvText || csvText.trim() === '') return;
             if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
@@ -1610,9 +1610,11 @@ async function fetchAndSyncUsers() {
             const yearIdx = headerCols.findIndex(h => h.includes('yearlevel') || h.includes('ชั้นปี') || h.includes('ปี'));
             const academicYearIdx = headerCols.findIndex(h => h.includes('academicyear') || h.includes('ปีการศึกษา'));
             const catIdx = headerCols.findIndex(h => h.includes('category') || h.includes('หมวดหมู่') || h.includes('หน่วย'));
+            const typeIdx = headerCols.findIndex(h => h.includes('examtype') || h.includes('ประเภทข้อสอบ') || h.includes('ประเภท'));
             const scoreIdx = headerCols.findIndex(h => h.includes('score') || h.includes('คะแนนที่ได้'));
             const totalIdx = headerCols.findIndex(h => h.includes('คะแนนเต็ม') || h.includes('fullscore') || h.includes('totalquestions'));
             const percentIdx = headerCols.findIndex(h => h.includes('percentage') || h.includes('เปอร์เซ็นต์') || h.includes('%'));
+            const essayAnsIdx = headerCols.findIndex(h => h.includes('essayanswers') || h.includes('คำตอบข้อเขียน') || h.includes('คำตอบบรรยาย'));
 
             const parsedResults = [];
             const uniqueKeys = new Set();
@@ -1626,8 +1628,10 @@ async function fetchAndSyncUsers() {
 
                 const timestamp = timeIdx !== -1 ? cols[timeIdx] : '-';
                 const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
+                const examType = typeIdx !== -1 ? cols[typeIdx] : '';
+                const essayAnswers = essayAnsIdx !== -1 ? cols[essayAnsIdx] : '';
 
-                const uniqueKey = `${sapId.trim()}__${category.trim()}__${timestamp.trim()}`;
+                const uniqueKey = `${sapId.trim()}__${category.trim()}__${examType.trim()}__${timestamp.trim()}`;
                 if (uniqueKeys.has(uniqueKey)) {
                     continue;
                 }
@@ -1640,24 +1644,26 @@ async function fetchAndSyncUsers() {
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
                 const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : '';
                 
-                // 🟢 คำนวณคะแนนและเปอร์เซ็นต์อย่างรัดกุม
-                let score = scoreIdx !== -1 ? parseFloat(cols[scoreIdx]) || 0 : 0;
-                let total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 15 : 15;
-                if (total <= 0) total = 15; // ป้องกันการหารด้วย 0
+                // 🟢 จัดการค่าคะแนน: ถ้าใน CSV เป็นค่าว่างให้คงเป็น null ไว้ (ห้ามแปลงเป็น 0)
+                const rawScoreStr = scoreIdx !== -1 ? cols[scoreIdx].trim() : '';
+                let score = (rawScoreStr !== '' && !isNaN(parseFloat(rawScoreStr))) ? parseFloat(rawScoreStr) : null;
+                
+                let total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 10 : 10;
+                if (total <= 0) total = 10;
 
                 let rawPercent = percentIdx !== -1 ? parseFloat(cols[percentIdx]) : NaN;
+                let percentage = null;
 
-                let percentage = 0;
-                if (!isNaN(rawPercent)) {
-                    // ถ้าค่าใน CSV คำนวณมาเป็นสัดส่วน (เช่น 0.33) ให้คูณ 100 แต่ถ้าเกิน 100 ให้ยึดตามคะแนนจริง
-                    percentage = rawPercent <= 1 ? rawPercent * 100 : rawPercent;
-                } else {
-                    percentage = (score / total) * 100;
-                }
-
-                // 🟢 ดักทางกรณีเปอร์เซ็นต์ถูกคำนวณมาผิดพลาดใน Google Sheets ให้คิดคำนวณใหม่จาก (score / total) * 100
-                if (percentage > 100 || isNaN(percentage)) {
-                    percentage = (score / total) * 100;
+                if (score !== null) {
+                    if (!isNaN(rawPercent)) {
+                        percentage = rawPercent <= 1 ? rawPercent * 100 : rawPercent;
+                    } else {
+                        percentage = (score / total) * 100;
+                    }
+                    if (percentage > 100 || isNaN(percentage)) {
+                        percentage = (score / total) * 100;
+                    }
+                    percentage = parseFloat(percentage.toFixed(2));
                 }
 
                 parsedResults.push({
@@ -1670,9 +1676,11 @@ async function fetchAndSyncUsers() {
                     yearLevel,
                     academicYear,
                     category,
-                    score,
+                    examType,
+                    score, // 🟢 คงค่า null เมื่อยังไม่ได้ตรวจ
                     total,
-                    percentage: parseFloat(percentage.toFixed(2))
+                    percentage,
+                    essayAnswers // 🟢 ดึงข้อมูลข้อความคำตอบบรรยายเข้ามาเก็บไว้
                 });
             }
 
@@ -3420,14 +3428,13 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 rowsInAttempt.forEach(r => {
                                     const exType = (r.examType || '').trim().toLowerCase();
                                     
-                                    // 🟢 ตรวจสอบเงื่อนไขข้อสอบอัตนัย/ข้อเขียน และ ข้อสอบปรนัย ให้ชัดเจน
+                                    // 🟢 เช็กเงื่อนไขว่าเป็นข้อเขียนหรือไม่
                                     const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
-                                    const isChoice = exType.includes('ปรนัย') || exType === 'choice' || (!isEssay && (exType === '' || exType === 'choice'));
-
+                                
                                     const rawScore = r.score;
                                     const sc = parseFloat(rawScore);
-                                    const tot = parseFloat(r.totalQuestions || r.total) || (isChoice ? 3 : 10);
-
+                                    const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 3);
+                                
                                     if (isEssay) {
                                         // 📝 กรณีเป็นข้อสอบข้อเขียน (อัตนัย)
                                         if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
@@ -3441,6 +3448,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                                 </div>
                                             `;
                                         } else {
+                                            // ⏳ กรณียังไม่ลงคะแนน หรือคะแนนเป็น null
                                             isAttemptPending = true;
                                             hasAnyPendingEssay = true;
                                             essayRowsHtml += `
@@ -3452,7 +3460,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                         }
                                     } else {
                                         // 🔹 กรณีเป็นข้อสอบตัวเลือก (ปรนัย)
-                                        if (!isNaN(sc)) {
+                                        if (!isNaN(sc) && sc !== null) {
                                             attemptEarnedScore += sc;
                                             attemptMaxScore += tot;
                                             const choicePerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
