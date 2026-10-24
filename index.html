@@ -1698,7 +1698,7 @@ async function fetchAndSyncUsers() {
                 const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
                 const examType = typeIdx !== -1 ? cols[typeIdx] : '';
                 const essayAnswers = essayAnsIdx !== -1 ? cols[essayAnsIdx] : '';
-ำ
+                
                 const uniqueKey = `${sapId.trim().toLowerCase()}__${category.trim().toLowerCase()}__${examType.trim().toLowerCase()}__${timestamp.trim()}`;
                 if (uniqueKeys.has(uniqueKey)) {
                     continue;
