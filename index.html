@@ -2988,8 +2988,23 @@ async function fetchAndSyncUsers() {
             } else if (tabName === 'essay-grading') {
                 if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 document.getElementById('tab-admin-essay-grading')?.classList.remove('hidden');
-                const pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
+            
+                // ดึงประวัติผลสอบจาก Google Sheets ที่เป็นข้อเขียนและยังไม่มีคะแนน (Score เป็น null หรือว่าง)
+                const pendingList = examResultsHistory.filter(r => {
+                    const exType = (r.examType || '').trim().toLowerCase();
+                    const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType.includes('essay') || exType.includes('text') || (r.essayAnswers && r.essayAnswers.trim() !== '' && r.essayAnswers.trim() !== '-');
+                    const isUnscored = r.score === null || r.score === undefined || r.score === '';
+                    
+                    // ถ้าเป็น Preceptor ทั่วไป ให้กรองเฉพาะสาขาของตนเอง
+                    const matchBranch = (loggedInUser && hasRole(loggedInUser, 'preceptor') && !hasRole(loggedInUser, 'superadmin'))
+                        ? r.branch === loggedInUser.branch
+                        : true;
+            
+                    return isEssay && isUnscored && matchBranch;
+                });
+            
                 renderEssayGradingCards(pendingList);
+            }
 
             } else if (tabName === 'data-sources') {
                 document.getElementById('tab-admin-data-sources')?.classList.remove('hidden');
@@ -4555,6 +4570,57 @@ function toggleModalUserSelection(username, isChecked) {
                     </div>
                 </div>
             `;
+        }
+
+        function saveEssayGrade(index) {
+            const item = window.currentEssayList[index];
+            if (!item) return;
+        
+            const scoreInput = document.getElementById(`inputScore_${index}`);
+            const feedbackInput = document.getElementById(`inputFeedback_${index}`);
+        
+            const scoreGiven = scoreInput ? parseFloat(scoreInput.value) || 0 : 0;
+            const feedbackText = feedbackInput ? feedbackInput.value.trim() : '';
+            const maxScore = item.total || item.maxScore || 10;
+        
+            if (scoreGiven > maxScore) {
+                showAlertModal('warning', 'คะแนนเกินกำหนด', `คะแนนที่คุณกรอก (${scoreGiven}) เกินกว่าคะแนนเต็ม (${maxScore})`);
+                return;
+            }
+        
+            const percentage = parseFloat(((scoreGiven / maxScore) * 100).toFixed(2));
+            const graderName = loggedInUser ? loggedInUser.fullname : "Preceptor";
+            const gradedTimestamp = new Date().toLocaleString('th-TH');
+        
+            if (settings.webAppUrl) {
+                fetch(settings.webAppUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: "updateEssayGrading",
+                        studentId: item.sapId || item.studentId,
+                        category: item.category,
+                        timestamp: item.timestamp,
+                        scoreGiven: scoreGiven,
+                        percentage: percentage,
+                        feedback: feedbackText || "ตรวจเรียบร้อยแล้ว",
+                        graderName: graderName,
+                        gradedTimestamp: gradedTimestamp
+                    })
+                }).then(() => {
+                    showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'ส่งผลการตรวจข้อเขียนเข้า Google Sheets เรียบร้อยแล้ว');
+                    // รีเฟรชข้อมูลประวัติและหน้าตรวจ
+                    fetchAndSyncResults().then(() => {
+                        switchAdminTab('essay-grading');
+                    });
+                }).catch(err => {
+                    console.error("Grading update failed:", err);
+                    showAlertModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลไปยัง Google Sheets ได้');
+                });
+            } else {
+                showAlertModal('warning', 'ไม่ได้ตั้งค่า WebApp', 'กรุณาตั้งค่า Google Sheets Web App URL ในเมนูแหล่งข้อมูลก่อน');
+            }
         }
 
         // Global Store เก็บข้อมูล Modal
