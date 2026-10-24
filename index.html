@@ -4404,7 +4404,7 @@ function toggleModalUserSelection(username, isChecked) {
 
         // ฟังก์ชันแสดงผลรายการตรวจข้อเขียนสำหรับอาจารย์ (รองรับ Blind Grading)
         function renderEssayGradingCards(essayList) {
-            const container = document.getElementById('essayGradingContainer'); // หรือ ID คอนเทนเนอร์ตรวจข้อเขียนของคุณ
+            const container = document.getElementById('essay-pending-list'); // หรือ ID คอนเทนเนอร์ตรวจข้อเขียนของคุณ
             if (!container) return;
         
             if (!essayList || essayList.length === 0) {
@@ -5433,72 +5433,6 @@ function toggleModalUserSelection(username, isChecked) {
                 if (warnElem) warnElem.classList.add('hidden');
                 inputElem.classList.remove('border-rose-500', 'bg-rose-50', 'text-rose-700');
             }
-        }
-
-        // 🟢 [ปรับแก้จุดที่ 2] ตรวจสอบคะแนนก่อนบันทึก และส่งอัปเดตข้อเขียนลง Google Sheets รายข้อถูกต้อง
-        function saveEssayGrading(itemIdx) {
-            let pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
-            if (!pendingList[itemIdx]) return;
-
-            const targetItem = pendingList[itemIdx];
-            const essayAnswers = targetItem.essayAnswers || [];
-            const graderName = loggedInUser ? loggedInUser.fullname : "Preceptor";
-            const gradedTimestamp = new Date().toLocaleString('th-TH');
-
-            let hasError = false;
-
-            // ตรวจสอบความถูกต้องของคะแนนก่อน
-            essayAnswers.forEach((essay, eIdx) => {
-                const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
-                const maxScore = essay.fullScore || 10;
-                const scoreGiven = inputScore ? (parseFloat(inputScore.value) || 0) : 0;
-
-                if (scoreGiven > maxScore) {
-                    hasError = true;
-                }
-            });
-
-            if (hasError) {
-                showAlertModal('warning', 'คะแนนเกินกำหนด', 'มีข้อเขียนที่คุณให้คะแนนเกินกว่าคะแนนเต็มที่ตั้งไว้ กรุณาตรวจสอบอีกครั้งก่อนบันทึก');
-                return;
-            }
-
-            // ส่งคะแนนและข้อเสนอแนะทีละข้อลง Google Sheets
-            essayAnswers.forEach((essay, eIdx) => {
-                const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
-                const inputFeedback = document.getElementById(`feedback-input-${itemIdx}-${eIdx}`);
-                
-                const scoreGiven = inputScore ? (parseFloat(inputScore.value) || 0) : 0;
-                const feedbackText = inputFeedback ? inputFeedback.value.trim() : "";
-                const maxScore = essay.fullScore || 10;
-                const singlePercentage = parseFloat(((scoreGiven / maxScore) * 100).toFixed(2));
-
-                if (settings.webAppUrl) {
-                    fetch(settings.webAppUrl, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: "updateEssayGrading",
-                            studentId: targetItem.studentId,
-                            category: targetItem.category,
-                            questionIndex: essay.questionIndex, // 🟢 ส่ง questionIndex ไปจับคู่แถวใน Sheet
-                            scoreGiven: scoreGiven,
-                            percentage: singlePercentage,
-                            feedback: feedbackText || "ตรวจเรียบร้อยแล้ว",
-                            graderName: graderName,
-                            gradedTimestamp: gradedTimestamp
-                        })
-                    }).catch(err => console.error("Grading update failed:", err));
-                }
-            });
-
-            // ลบรายการออกจากคิวตรวจค้างในเครื่อง
-            pendingList.splice(itemIdx, 1);
-            localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
-
-            showAlertModal('success', 'บันทึกการตรวจสำเร็จ', 'ระบบทำการบันทึกคะแนนข้อเขียนและส่งอัปเดตลง Google Sheets เรียบร้อยแล้ว');
-            renderEssayGradingCards(pendingList);
         }
 
         // ฟังก์ชันลบรายการตรวจข้อเขียนที่ค้างออกจากระบบ
