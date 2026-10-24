@@ -4508,69 +4508,99 @@ function toggleModalUserSelection(username, isChecked) {
             document.querySelectorAll('.essay-sidebar-item').forEach(el => el.classList.remove('bg-blue-100', 'font-bold'));
             document.getElementById(`essay-item-${index}`)?.classList.add('bg-blue-100', 'font-bold');
         
+            // 🟢 การแสดงผลชื่อ-สกุล / รหัสอ้างอิง ตามโหมดซ่อนชื่อ (Blind Grading)
+            const fullName = item.fullname || item.studentName || `${item.fname || ''} ${item.lname || ''}`.trim() || 'ไม่ระบุชื่อ';
+            const sapId = item.sapId || item.studentId || '-';
+        
+            // 🔒 หากเปิดโหมดซ่อนชื่อ แสดงเฉพาะรหัสอ้างอิงลับเท่านั้น (ไม่แสดงรหัส SAP-ID จริง)
+            // 🔓 หากปิดโหมดซ่อนชื่อ แสดงชื่อ-นามสกุล และรหัส SAP-ID ปกติ
             const displayName = isBlindGrading 
-                ? `ผู้สอบ #ANON-${String(index + 1).padStart(4, '0')}`
-                : `${item.studentName} (รหัส: ${item.sapId})`;
+                ? `รหัสผู้สอบ: #ANON-${String(index + 1).padStart(4, '0')}`
+                : `ชื่อ-สกุล: ${fullName} (รหัส SAP-ID: ${sapId})`;
+        
+            const maxScore = item.total || item.maxScore || item.fullScore || 10;
         
             workspace.innerHTML = `
                 <div class="space-y-4">
                     <!-- Header ข้อมูลผู้สอบ -->
                     <div class="border-b pb-3 flex justify-between items-center">
                         <div>
-                            <h3 class="font-bold text-lg text-gray-800">${displayName}</h3>
-                            <p class="text-sm text-gray-500">วิชา/หน่วยการเรียน: ${item.category || '-'}</p>
+                            <h3 class="font-bold text-lg text-slate-800">${displayName}</h3>
+                            <p class="text-xs text-slate-500 mt-1">หน่วยการเรียนรู้/วิชา: <span class="font-semibold text-slate-700">${item.category || '-'}</span></p>
                         </div>
-                        ${isBlindGrading ? '<span class="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">🔒 เปิดโหมดซ่อนชื่อ</span>' : ''}
+                        ${isBlindGrading ? '<span class="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold"><i class="fa-solid fa-user-ninja mr-1"></i> เปิดโหมดซ่อนชื่อ</span>' : ''}
                     </div>
         
                     <!-- คำตอบนักเรียน -->
-                    <div class="bg-gray-50 p-4 rounded-lg border">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">คำตอบของผู้สอบ:</label>
-                        <div class="text-gray-800 whitespace-pre-wrap leading-relaxed">${item.essayAnswers || item.answer || 'ไม่มีคำตอบ'}</div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">คำตอบของผู้สอบ:</label>
+                        <div class="text-slate-800 text-sm whitespace-pre-wrap leading-relaxed">${item.essayAnswers || item.answer || 'ไม่มีคำตอบ'}</div>
                     </div>
         
                     <!-- ช่องให้คะแนน -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-1">คะแนนที่ได้:</label>
-                            <input type="number" id="inputScore_${index}" value="${item.score || ''}" max="${item.maxScore || 10}" 
-                                   class="w-full border rounded-lg p-2 text-lg font-bold text-blue-600 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="0">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-semibold text-slate-700">คะแนนที่ได้ <span class="text-rose-500">*</span>:</label>
+                                <span id="score-warn_${index}" class="text-[11px] font-bold text-rose-600 hidden">⚠️ คะแนนเกินเต็ม!</span>
+                            </div>
+                            <input type="number" id="inputScore_${index}" value="${item.score !== null && item.score !== undefined ? item.score : ''}" max="${maxScore}" min="0" step="0.5"
+                                   oninput="checkScoreLimit(${index}, ${maxScore})"
+                                   class="w-full border border-slate-300 rounded-xl p-2.5 text-lg font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="0">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-1">คะแนนเต็ม:</label>
-                            <input type="text" value="${item.maxScore || 10}" disabled class="w-full border rounded-lg p-2 bg-gray-100 text-gray-500">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">คะแนนเต็ม:</label>
+                            <input type="text" value="${maxScore}" disabled class="w-full border border-slate-200 rounded-xl p-2.5 bg-slate-100 text-slate-500 font-bold">
                         </div>
                     </div>
         
-                    <!-- ช่องใส่ Feedback พร้อม Rich Text Toolbar -->
+                    <!-- ช่องใส่ Feedback -->
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">ข้อเสนอแนะ / Feedback (สำหรับ Preceptor):</label>
-                        
-                        <!-- แถบเครื่องมือจัดการข้อความแบบง่าย -->
-                        <div class="flex gap-1 mb-1 p-1 bg-gray-100 border border-b-0 rounded-t-lg">
-                            <button type="button" onclick="applyFormatToFeedback('inputFeedback_${index}', 'bold')" class="px-2 py-1 bg-white border rounded hover:bg-gray-200 text-xs font-bold" title="ตัวหนา">B</button>
-                            <button type="button" onclick="applyFormatToFeedback('inputFeedback_${index}', 'italic')" class="px-2 py-1 bg-white border rounded hover:bg-gray-200 text-xs italic" title="ตัวเอียง">I</button>
-                            <button type="button" onclick="applyFormatToFeedback('inputFeedback_${index}', 'underline')" class="px-2 py-1 bg-white border rounded hover:bg-gray-200 text-xs underline" title="ขีดเส้นใต้">U</button>
-                            <button type="button" onclick="applyFormatToFeedback('inputFeedback_${index}', 'red')" class="px-2 py-1 bg-white border text-red-600 rounded hover:bg-gray-200 text-xs font-bold" title="ตัวหนังสือสีแดง">Color</button>
-                            <button type="button" onclick="applyFormatToFeedback('inputFeedback_${index}', 'bullet')" class="px-2 py-1 bg-white border rounded hover:bg-gray-200 text-xs" title="หัวข้อสัญลักษณ์">• List</button>
-                        </div>
-        
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ข้อเสนอแนะ / Feedback (สำหรับ Preceptor):</label>
                         <textarea id="inputFeedback_${index}" rows="4" 
-                                  class="w-full border rounded-b-lg p-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" 
-                                  placeholder="พิมพ์ข้อเสนอแนะเพิ่มเติม...">${item.feedback || ''}</textarea>
+                                  class="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition text-slate-800" 
+                                  placeholder="พิมพ์ข้อเสนอแนะเพิ่มเติมที่นี่...">${item.feedback || ''}</textarea>
                     </div>
         
                     <!-- ปุ่มบันทึก -->
                     <div class="pt-2 flex justify-end">
-                        <button type="button" onclick="saveEssayGrade(${index})" 
-                                class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2.5 rounded-lg shadow-md transition">
-                            💾 บันทึกคะแนน
+                        <button type="button" id="btnSaveGrade_${index}" onclick="saveEssayGrade(${index})" 
+                                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition flex items-center space-x-2">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>บันทึกคะแนน</span>
                         </button>
                     </div>
                 </div>
             `;
         }
-
+        
+        // 🟢 เพิ่มฟังก์ชันเช็กคะแนน Real-time (ข้อ 2)
+        function checkScoreLimit(index, maxScore) {
+            const scoreInput = document.getElementById(`inputScore_${index}`);
+            const warnElem = document.getElementById(`score-warn_${index}`);
+            const saveBtn = document.getElementById(`btnSaveGrade_${index}`);
+            if (!scoreInput) return;
+        
+            const scoreGiven = parseFloat(scoreInput.value) || 0;
+        
+            if (scoreGiven > maxScore) {
+                if (warnElem) warnElem.classList.remove('hidden');
+                scoreInput.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-700');
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            } else {
+                if (warnElem) warnElem.classList.add('hidden');
+                scoreInput.classList.remove('border-rose-500', 'bg-rose-50', 'text-rose-700');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+        
+        // 2. ปรับปรุงฟังก์ชันการบันทึกคะแนน (ข้อ 2)
         function saveEssayGrade(index) {
             const item = window.currentEssayList[index];
             if (!item) return;
@@ -4578,12 +4608,23 @@ function toggleModalUserSelection(username, isChecked) {
             const scoreInput = document.getElementById(`inputScore_${index}`);
             const feedbackInput = document.getElementById(`inputFeedback_${index}`);
         
-            const scoreGiven = scoreInput ? parseFloat(scoreInput.value) || 0 : 0;
+            const scoreGiven = scoreInput ? parseFloat(scoreInput.value) : NaN;
             const feedbackText = feedbackInput ? feedbackInput.value.trim() : '';
-            const maxScore = item.total || item.maxScore || 10;
+            const maxScore = item.total || item.maxScore || item.fullScore || 10;
+        
+            // 🟢 ข้อ 2: ดักจับและแสดงเตือนหากยังไม่ได้กรอก หรือ กรอกเกินคะแนนเต็ม
+            if (isNaN(scoreGiven)) {
+                showAlertModal('warning', 'กรุณากรอกคะแนน', 'กรุณาระบุคะแนนที่ได้ก่อนทำการบันทึก');
+                return;
+            }
         
             if (scoreGiven > maxScore) {
-                showAlertModal('warning', 'คะแนนเกินกำหนด', `คะแนนที่คุณกรอก (${scoreGiven}) เกินกว่าคะแนนเต็ม (${maxScore})`);
+                showAlertModal('error', 'ไม่สามารถบันทึกได้', `คะแนนที่คุณกรอก (${scoreGiven}) เกินกว่าคะแนนเต็มที่ตั้งไว้ (${maxScore}) กรุณาแก้ไขก่อนบันทึก`);
+                return;
+            }
+        
+            if (scoreGiven < 0) {
+                showAlertModal('warning', 'คะแนนไม่ถูกต้อง', 'คะแนนไม่สามารถติดลบได้');
                 return;
             }
         
@@ -4609,7 +4650,6 @@ function toggleModalUserSelection(username, isChecked) {
                     })
                 }).then(() => {
                     showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'ส่งผลการตรวจข้อเขียนเข้า Google Sheets เรียบร้อยแล้ว');
-                    // รีเฟรชข้อมูลประวัติและหน้าตรวจ
                     fetchAndSyncResults().then(() => {
                         switchAdminTab('essay-grading');
                     });
