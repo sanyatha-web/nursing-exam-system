@@ -1252,32 +1252,35 @@ let settings = {
             const studentBranch = (loggedInUser.branch || '').trim();
             const studentId = (loggedInUser.username || loggedInUser.sapId || '').trim().toLowerCase();
         
-            // 1. ดึงประวัติการสอบของผู้เรียนรายนี้ (เปรียบเทียบรหัสแบบยืดหยุ่นและตัดช่องว่าง)
+            // 1. ดึงประวัติการสอบของผู้เรียนรายนี้
             const studentHistory = examResultsHistory.filter(r => {
                 const idInRecord = (r.sapId || r.studentId || '').trim().toLowerCase();
                 return idInRecord === studentId;
             });
         
-            // 2. ค้นหาหมวดหมู่ที่มีข้อสอบข้อเขียนที่ "รอตรวจ" (score เป็น null, undefined หรือ '')
-            const pendingCategories = new Set(
-                studentHistory
-                    .filter(r => {
-                        const exType = (r.examType || '').trim().toLowerCase();
-                        const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
-                        const isUnscored = r.score === null || r.score === undefined || r.score === '';
-                        return isEssay && isUnscored;
-                    })
-                    .map(r => (r.category || '').trim().toLowerCase())
-            );
+            // 2. ค้นหาชื่อหมวดหมู่ (category) และชื่อชุด (examSet) ที่ "อยู่ระหว่างรอตรวจข้อเขียน"
+            const pendingCategories = new Set();
+            studentHistory.forEach(r => {
+                const exType = (r.examType || '').trim().toLowerCase();
+                const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
+                const isUnscored = r.score === null || r.score === undefined || r.score === '';
         
-            // 3. ค้นหาหมวดหมู่ที่ "สอบผ่านแล้ว" (คะแนน >= 80%)
-            const passedCategories = new Set(
-                studentHistory
-                    .filter(r => (r.percentage || 0) >= 80)
-                    .map(r => (r.category || '').trim().toLowerCase())
-            );
+                if (isEssay && isUnscored) {
+                    if (r.category) pendingCategories.add(r.category.trim().toLowerCase());
+                    if (r.examSet) pendingCategories.add(r.examSet.trim().toLowerCase());
+                }
+            });
         
-            // 4. รวมหน่วยการเรียนรู้ที่ต้องบล็อก (สอบผ่านแล้ว OR อยู่ระหว่างรอตรวจ)
+            // 3. ค้นหาชื่อหมวดหมู่ (category) และชื่อชุด (examSet) ที่ "สอบผ่านแล้ว" (คะแนน >= 80%)
+            const passedCategories = new Set();
+            studentHistory.forEach(r => {
+                if ((r.percentage || 0) >= 80) {
+                    if (r.category) passedCategories.add(r.category.trim().toLowerCase());
+                    if (r.examSet) passedCategories.add(r.examSet.trim().toLowerCase());
+                }
+            });
+        
+            // 4. รวมหน่วย/ชุดการเรียนรู้ที่ต้องบล็อก (สอบผ่านแล้ว OR อยู่ระหว่างรอตรวจ)
             const lockedCategories = new Set([...passedCategories, ...pendingCategories]);
         
             // 5. กรองข้อสอบเฉพาะ สาขา และ ชั้นปี ของนักศึกษา
@@ -1292,11 +1295,16 @@ let settings = {
             userPool.forEach(q => {
                 const cat = (q.category || '').trim();
                 const catLower = cat.toLowerCase();
-                const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                const setGrp = (q.setGroup || 'ชุดการเรียนรู้ทั่วไป').trim();
+                const setGrpLower = setGrp.toLowerCase();
+        
                 if (!cat) return;
         
-                // ตรวจสอบว่าหน่วยการเรียนรู้นี้ไม่ได้ถูกล็อก
-                if (!lockedCategories.has(catLower)) {
+                // 🟢 ตรวจสอบว่าทั้งชื่อหน่วยการเรียนรู้ (category) และชื่อชุด (setGroup) ยังไม่โดนล็อก
+                const isCatLocked = lockedCategories.has(catLower);
+                const isSetLocked = lockedCategories.has(setGrpLower);
+        
+                if (!isCatLocked && !isSetLocked) {
                     const possibleKeys = [
                         `${studentBranch}__${setGrp}__${cat}`,
                         `${studentBranch}__${settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)'}__${cat}`,
@@ -1371,9 +1379,25 @@ let settings = {
                 return;
             }
         
+            // ให้เพิ่มโค้ดส่วนนี้ไว้ที่บรรทัดแรกๆ ของฟังก์ชัน startExamFromDashboard()
             const selectedCategory = document.getElementById('dashboard-category-select').value;
             if (!selectedCategory) {
                 showAlertModal('warning', 'ไม่พบแบบทดสอบ', 'ขณะนี้ยังไม่มีแบบทดสอบเปิดให้ทำสำหรับสาขาของคุณ');
+                return;
+            }
+            
+            // 🟢 เพิ่มการดักตรวจประวัติการสอบก่อนอนุญาตให้เริ่มข้อสอบ
+            const studentId = (loggedInUser.username || loggedInUser.sapId || '').trim().toLowerCase();
+            const studentHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === studentId);
+            
+            const isAlreadyPassed = studentHistory.some(r => {
+                const matchCat = (r.category || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase();
+                const matchSet = (r.examSet || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase();
+                return (matchCat || matchSet) && (r.percentage || 0) >= 80;
+            });
+            
+            if (isAlreadyPassed) {
+                showAlertModal('warning', 'ไม่อนุญาตให้ทำซ้ำ', 'คุณสอบผ่านหน่วยการเรียนรู้นี้เรียบร้อยแล้ว (คะแนน >= 80%)');
                 return;
             }
         
