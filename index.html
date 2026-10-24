@@ -3441,7 +3441,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ✅ 1. ฟังก์ชันเปิด Modal สมุดพก (เพิ่มการ์ดสอบเลื่อนชั้น/ประมวลไว้ด้านบนสุด + รองรับการหุบ/ขยาย)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพก (ปรับโครงสร้างประวัติการสอบเลื่อนชั้น/ประมวลความรู้ ให้เหมือนกับหน่วยการเรียนรู้ย่อย)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3458,7 +3458,7 @@ async function fetchAndSyncUsers() {
             const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
         
             // ==========================================
-            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (แสดงไว้บนสุด)
+            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (โครงสร้างเหมือนหน่วยเรียนรู้ย่อย)
             // ==========================================
             const termExamsConfig = [];
             for (let y = 1; y <= currentYearNum; y++) {
@@ -3481,33 +3481,74 @@ async function fetchAndSyncUsers() {
         
                 if (matchedAttempts.length === 0) {
                     termExamsHtml += `
-                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
-                            <div class="font-bold text-slate-800">📌 ${idx + 1}. ${termItem.name}</div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-400 border border-slate-200">
+                        <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
+                            <div class="font-semibold text-slate-700">${idx + 1}. ${termItem.name}</div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-400 border border-slate-200 whitespace-nowrap">
                                 ยังไม่ได้เข้าสอบ
                             </span>
                         </div>
                     `;
                 } else {
-                    let best = matchedAttempts[0];
-                    matchedAttempts.forEach(r => {
-                        if ((r.percentage || 0) > (best.percentage || 0)) best = r;
+                    // จัดกลุ่มผลสอบตามการสอบแต่ละครั้ง (Timestamp)
+                    const attemptsMap = {};
+                    matchedAttempts.forEach(row => {
+                        const tKey = row.timestamp || 'ไม่ระบุเวลา';
+                        if (!attemptsMap[tKey]) attemptsMap[tKey] = [];
+                        attemptsMap[tKey].push(row);
                     });
         
-                    const isPassed = (best.percentage || 0) >= 80;
-                    const badgeClass = isPassed ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-rose-100 text-rose-800 border-rose-200';
-                    const badgeText = isPassed ? `✓ ผ่านเกณฑ์ (${best.percentage}%)` : `✕ ต้องสอบซ่อม (${best.percentage}%)`;
+                    const sortedTimestamps = Object.keys(attemptsMap).sort((a, b) => new Date(b) - new Date(a));
+                    const totalAttemptsCount = sortedTimestamps.length;
+                    let overallBestPerc = 0;
+        
+                    let attemptsDetailHtml = sortedTimestamps.map((tKey, timeIdx) => {
+                        const rowsInAttempt = attemptsMap[tKey];
+                        const attemptNum = totalAttemptsCount - timeIdx;
+                        const isLatest = timeIdx === 0;
+        
+                        let attemptEarnedScore = 0;
+                        let attemptMaxScore = 0;
+        
+                        rowsInAttempt.forEach(r => {
+                            const sc = parseFloat(r.score) || 0;
+                            const tot = parseFloat(r.totalQuestions || r.total) || 100;
+                            attemptEarnedScore += sc;
+                            attemptMaxScore += tot;
+                        });
+        
+                        const attemptPerc = attemptMaxScore > 0 ? parseFloat(((attemptEarnedScore / attemptMaxScore) * 100).toFixed(1)) : 0;
+                        if (attemptPerc > overallBestPerc) overallBestPerc = attemptPerc;
+        
+                        const displayEarnedScore = Math.round(attemptEarnedScore);
+                        const displayMaxScore = Math.round(attemptMaxScore);
+                        const displayPerc = attemptPerc.toFixed(2);
+        
+                        return `
+                            <div class="space-y-1 ${timeIdx > 0 ? 'border-t border-slate-100 pt-1.5' : ''}">
+                                <div class="flex justify-between items-center text-xs font-bold text-slate-800">
+                                    <span>📅 ครั้งที่ ${attemptNum} ${isLatest ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded font-normal ml-1">ล่าสุด</span>' : ''} <span class="text-[10px] text-slate-400 font-normal">(${tKey})</span></span>
+                                    <div class="text-right">
+                                        <span class="text-[10px] text-slate-400 font-normal mr-1">คะแนนรวม:</span>
+                                        <span class="font-mono font-bold text-indigo-900">${displayEarnedScore}/${displayMaxScore} (${displayPerc}%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+        
+                    const isPassed = overallBestPerc >= 80;
+                    const statusBadgeHtml = isPassed 
+                        ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-100 text-emerald-800 border border-emerald-200">✓ ผ่านเกณฑ์ (${overallBestPerc}%)</span>`
+                        : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${overallBestPerc}%)</span>`;
         
                     termExamsHtml += `
-                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1 text-xs">
-                            <div class="flex justify-between items-center">
-                                <div class="font-bold text-slate-800">📌 ${idx + 1}. ${termItem.name}</div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">
-                                    ${badgeText}
-                                </span>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
+                            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                                <div class="font-bold text-slate-800 text-xs">${idx + 1}. ${termItem.name}</div>
+                                ${statusBadgeHtml}
                             </div>
-                            <div class="text-[11px] text-slate-500 font-mono">
-                                เข้าสอบแล้ว ${matchedAttempts.length} ครั้ง | คะแนนสูงสุด: ${best.score}/${best.total || 100} (${best.percentage}%)
+                            <div class="bg-white p-2.5 rounded-lg border border-slate-100 space-y-2">
+                                ${attemptsDetailHtml}
                             </div>
                         </div>
                     `;
