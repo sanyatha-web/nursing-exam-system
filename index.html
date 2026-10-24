@@ -1252,8 +1252,28 @@ let settings = {
             const studentBranch = (loggedInUser.branch || '').trim();
             const studentId = (loggedInUser.username || loggedInUser.sapId || '').trim().toLowerCase();
         
+            // 🟢 0. อ่านประวัติผลสอบจาก LocalStorage มาผสมร่วมด้วย เพื่อให้ทำงานได้ทันทีแม้ Refresh หน้าจอ
+            let combinedHistory = [...examResultsHistory];
+            const cachedHistoryStr = localStorage.getItem('cached_exam_results_history');
+            if (cachedHistoryStr) {
+                try {
+                    const cachedHistory = JSON.parse(cachedHistoryStr);
+                    if (Array.isArray(cachedHistory)) {
+                        // รวมประวัติสอบโดยไม่ให้ซ้ำกัน
+                        cachedHistory.forEach(cItem => {
+                            const exists = combinedHistory.some(r => 
+                                (r.sapId || r.studentId || '').trim().toLowerCase() === (cItem.sapId || cItem.studentId || '').trim().toLowerCase() &&
+                                (r.category || '').trim().toLowerCase() === (cItem.category || '').trim().toLowerCase() &&
+                                r.timestamp === cItem.timestamp
+                            );
+                            if (!exists) combinedHistory.push(cItem);
+                        });
+                    }
+                } catch(e) { console.error("Error parsing cached history:", e); }
+            }
+        
             // 1. ดึงประวัติการสอบทั้งหมดของผู้เรียนรายนี้เฉพาะบุคคล (Per-User)
-            const studentHistory = examResultsHistory.filter(r => {
+            const studentHistory = combinedHistory.filter(r => {
                 const idInRecord = (r.sapId || r.studentId || '').trim().toLowerCase();
                 return idInRecord === studentId;
             });
@@ -1300,7 +1320,7 @@ let settings = {
         
                 if (!cat) return;
         
-                // 🔒 ตรวจสอบว่าถ้าชื่อหน่วยเรียนรู้ หรือ ชื่อชุดการเรียนรู้ เคยสอบผ่านแล้ว ให้ข้าม (ซ่อน) ไปเลย
+                // 🔒 ตรวจสอบว่าถ้าชื่อหน่วยเรียนรู้ หรือ ชื่อชุดการเรียนรู้ เคยสอบผ่านแล้ว ให้ข้าม (ซ่อน) ออกจาก Dropdown
                 const isCatLocked = lockedCategories.has(catLower);
                 const isSetLocked = lockedCategories.has(setGrpLower);
         
