@@ -4712,7 +4712,7 @@ function toggleModalUserSelection(username, isChecked) {
             }
         }
 
-        // 🟢 [ปรับแก้จุดที่ 2] ตรวจสอบคะแนนก่อนบันทึก แจ้งเตือนหากเกินคะแนนเต็ม
+        // 🟢 [ปรับแก้จุดที่ 2] ตรวจสอบคะแนนก่อนบันทึก และส่งอัปเดตข้อเขียนลง Google Sheets รายข้อถูกต้อง
         function saveEssayGrading(itemIdx) {
             let pendingList = JSON.parse(localStorage.getItem('pending_essay_list') || '[]');
             if (!pendingList[itemIdx]) return;
@@ -4724,7 +4724,7 @@ function toggleModalUserSelection(username, isChecked) {
 
             let hasError = false;
 
-            // ตรวจสอบความถูกต้องก่อน
+            // ตรวจสอบความถูกต้องของคะแนนก่อน
             essayAnswers.forEach((essay, eIdx) => {
                 const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
                 const maxScore = essay.fullScore || 10;
@@ -4740,6 +4740,7 @@ function toggleModalUserSelection(username, isChecked) {
                 return;
             }
 
+            // ส่งคะแนนและข้อเสนอแนะทีละข้อลง Google Sheets
             essayAnswers.forEach((essay, eIdx) => {
                 const inputScore = document.getElementById(`score-input-${itemIdx}-${eIdx}`);
                 const inputFeedback = document.getElementById(`feedback-input-${itemIdx}-${eIdx}`);
@@ -4758,7 +4759,7 @@ function toggleModalUserSelection(username, isChecked) {
                             action: "updateEssayGrading",
                             studentId: targetItem.studentId,
                             category: targetItem.category,
-                            questionIndex: essay.questionIndex,
+                            questionIndex: essay.questionIndex, // 🟢 ส่ง questionIndex ไปจับคู่แถวใน Sheet
                             scoreGiven: scoreGiven,
                             percentage: singlePercentage,
                             feedback: feedbackText || "ตรวจเรียบร้อยแล้ว",
@@ -4769,6 +4770,7 @@ function toggleModalUserSelection(username, isChecked) {
                 }
             });
 
+            // ลบรายการออกจากคิวตรวจค้างในเครื่อง
             pendingList.splice(itemIdx, 1);
             localStorage.setItem('pending_essay_list', JSON.stringify(pendingList));
 
