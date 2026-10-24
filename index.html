@@ -3441,7 +3441,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ✅ ฟังก์ชันเปิด Modal สมุดพก (ปรับโครงสร้างประวัติการสอบเลื่อนชั้น/ประมวลความรู้ ให้เหมือนกับหน่วยการเรียนรู้ย่อย)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพก (ปรับโครงสร้างประวัติการสอบเลื่อนชั้น/ประมวลความรู้ ให้แสดงแยกข้อปรนัย/ข้อเขียน และรอตรวจ เหมือนหน่วยย่อย)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3458,7 +3458,7 @@ async function fetchAndSyncUsers() {
             const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
         
             // ==========================================
-            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (โครงสร้างเหมือนหน่วยเรียนรู้ย่อย)
+            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (แยกปรนัย/ข้อเขียน/รอตรวจ เหมือนหน่วยย่อย)
             // ==========================================
             const termExamsConfig = [];
             for (let y = 1; y <= currentYearNum; y++) {
@@ -3499,7 +3499,9 @@ async function fetchAndSyncUsers() {
         
                     const sortedTimestamps = Object.keys(attemptsMap).sort((a, b) => new Date(b) - new Date(a));
                     const totalAttemptsCount = sortedTimestamps.length;
+                    
                     let overallBestPerc = 0;
+                    let hasAnyPendingEssay = false;
         
                     let attemptsDetailHtml = sortedTimestamps.map((tKey, timeIdx) => {
                         const rowsInAttempt = attemptsMap[tKey];
@@ -3508,20 +3510,80 @@ async function fetchAndSyncUsers() {
         
                         let attemptEarnedScore = 0;
                         let attemptMaxScore = 0;
+                        let isAttemptPending = false;
         
-                        rowsInAttempt.forEach(r => {
-                            const sc = parseFloat(r.score) || 0;
-                            const tot = parseFloat(r.totalQuestions || r.total) || 100;
-                            attemptEarnedScore += sc;
-                            attemptMaxScore += tot;
+                        let choiceRowHtml = '';
+                        let essayRowsHtml = '';
+        
+                        rowsInAttempt.forEach((r) => {
+                            const exType = (r.examType || '').trim().toLowerCase();
+                            const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
+        
+                            const rawScore = r.score;
+                            const sc = parseFloat(rawScore);
+                            const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 3);
+        
+                            if (isEssay) {
+                                let essayLabel = `ข้อเขียน`;
+                                if (r.essayAnswers && r.essayAnswers !== '-') {
+                                    const matchQ = r.essayAnswers.match(/^ข้อ\s*(\d+)/i);
+                                    if (matchQ) {
+                                        essayLabel = `ข้อเขียน ข้อที่ ${matchQ[1]}`;
+                                    } else {
+                                        essayLabel = `ข้อเขียน (${r.essayAnswers.substring(0, 15)}...)`;
+                                    }
+                                }
+        
+                                if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
+                                    attemptEarnedScore += sc;
+                                    attemptMaxScore += tot;
+                                    const essayPerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
+                                    essayRowsHtml += `
+                                        <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
+                                            <span>• 📝 ${essayLabel} (ตรวจแล้ว)</span>
+                                            <span class="font-semibold text-slate-700 font-mono">${sc}/${tot} (${essayPerc}%)</span>
+                                        </div>
+                                    `;
+                                } else {
+                                    attemptMaxScore += tot;
+                                    isAttemptPending = true;
+                                    hasAnyPendingEssay = true;
+                                    essayRowsHtml += `
+                                        <div class="flex justify-between items-center text-[11px] text-amber-700 pl-4 py-0.5">
+                                            <span>• 📝 ${essayLabel} <span class="text-[10px] text-slate-400 font-normal">(เต็ม ${tot} คะแนน)</span></span>
+                                            <span class="font-bold text-amber-600">⏳ รอ Preceptor ตรวจ</span>
+                                        </div>
+                                    `;
+                                }
+                            } else {
+                                if (!isNaN(sc) && sc !== null) {
+                                    attemptEarnedScore += sc;
+                                    attemptMaxScore += tot;
+                                    const choicePerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
+                                    choiceRowHtml = `
+                                        <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
+                                            <span>• 🔹 ข้อตัวเลือก (ปรนัย)</span>
+                                            <span class="font-semibold text-slate-700 font-mono">${sc}/${tot} (${choicePerc}%)</span>
+                                        </div>
+                                    `;
+                                }
+                            }
                         });
         
                         const attemptPerc = attemptMaxScore > 0 ? parseFloat(((attemptEarnedScore / attemptMaxScore) * 100).toFixed(1)) : 0;
-                        if (attemptPerc > overallBestPerc) overallBestPerc = attemptPerc;
+                        if (!isAttemptPending && attemptPerc > overallBestPerc) {
+                            overallBestPerc = attemptPerc;
+                        }
         
-                        const displayEarnedScore = Math.round(attemptEarnedScore);
-                        const displayMaxScore = Math.round(attemptMaxScore);
-                        const displayPerc = attemptPerc.toFixed(2);
+                        let attemptSummaryText = "";
+                        if (isAttemptPending) {
+                            attemptSummaryText = `<span class="text-amber-600 font-bold">รอตรวจข้อเขียน</span>`;
+                        } else {
+                            const displayEarnedScore = Math.round(attemptEarnedScore);
+                            const displayMaxScore = Math.round(attemptMaxScore);
+                            const displayPerc = attemptPerc.toFixed(2);
+                            attemptSummaryText = `<span class="font-mono font-bold text-indigo-900">${displayEarnedScore}/${displayMaxScore} (${displayPerc}%)</span>`;
+                        }
         
                         return `
                             <div class="space-y-1 ${timeIdx > 0 ? 'border-t border-slate-100 pt-1.5' : ''}">
@@ -3529,17 +3591,25 @@ async function fetchAndSyncUsers() {
                                     <span>📅 ครั้งที่ ${attemptNum} ${isLatest ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded font-normal ml-1">ล่าสุด</span>' : ''} <span class="text-[10px] text-slate-400 font-normal">(${tKey})</span></span>
                                     <div class="text-right">
                                         <span class="text-[10px] text-slate-400 font-normal mr-1">คะแนนรวม:</span>
-                                        <span class="font-mono font-bold text-indigo-900">${displayEarnedScore}/${displayMaxScore} (${displayPerc}%)</span>
+                                        ${attemptSummaryText}
                                     </div>
                                 </div>
+                                ${choiceRowHtml}
+                                ${essayRowsHtml}
                             </div>
                         `;
                     }).join('');
         
                     const isPassed = overallBestPerc >= 80;
-                    const statusBadgeHtml = isPassed 
-                        ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-100 text-emerald-800 border border-emerald-200">✓ ผ่านเกณฑ์ (${overallBestPerc}%)</span>`
-                        : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${overallBestPerc}%)</span>`;
+                    let statusBadgeHtml = "";
+        
+                    if (hasAnyPendingEssay) {
+                        statusBadgeHtml = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-amber-100 text-amber-800 border border-amber-300">⏳ รอ Preceptor ตรวจข้อเขียน</span>`;
+                    } else if (isPassed) {
+                        statusBadgeHtml = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-100 text-emerald-800 border border-emerald-200">✓ ผ่านเกณฑ์ (${overallBestPerc}%)</span>`;
+                    } else {
+                        statusBadgeHtml = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${overallBestPerc}%)</span>`;
+                    }
         
                     termExamsHtml += `
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
