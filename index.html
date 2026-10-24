@@ -5648,7 +5648,7 @@ function toggleModalUserSelection(username, isChecked) {
         
             const targetYearText = `ชั้นปีที่ ${activePromotionYear}`;
             
-            // ดึงเฉพาะนักเรียนในสาขาที่ตรงกับชั้นปีที่เลือก
+            // 1. ดึงนักเรียนในชั้นปี และสาขาของ Manager
             const eligibleStudents = userDatabase.filter(u => {
                 const isStudent = hasRole(u, 'student');
                 const matchYear = u.yearLevel === targetYearText;
@@ -5658,38 +5658,70 @@ function toggleModalUserSelection(username, isChecked) {
                 return isStudent && matchYear && matchBranch;
             });
         
-            // กรองเฉพาะคนที่ผ่านเกณฑ์ครบทุกชุด + ข้อสอบเลื่อนชั้น/ประมวลความรู้
+            // 2. กรองเฉพาะคนที่ผ่านครบ "ทุกเกณฑ์ 100%" (AND Logic)
             const qualifiedStudents = eligibleStudents.filter(student => {
-                const sapId = student.username || student.sapId;
-                const studentHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === sapId.toLowerCase());
+                const sapId = (student.username || student.sapId || '').trim().toLowerCase();
+                const studentHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === sapId);
                 
-                // เช็กข้อสอบบทเรียนปกติผ่านเกณฑ์ >= 80% ครบหรือไม่
-                const passedUnits = new Set(studentHistory.filter(r => (r.percentage || 0) >= 80).map(r => r.category));
+                // 🟢 เกณฑ์ที่ 1: เช็กการสอบเก็บหน่วยการเรียนรู้ปกติ
+                const passedUnits = new Set(
+                    studentHistory
+                        .filter(r => (r.percentage || 0) >= 80)
+                        .map(r => (r.category || '').trim().toLowerCase())
+                );
                 
-                // ค้นหาชุดบทเรียนปกติของชั้นปีนี้
-                const totalCourseUnits = new Set(
-                    masterQuestions.filter(q => (!q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === targetYearText) && (!q.branch || q.branch === student.branch))
-                    .map(q => q.category)
+                const totalCourseUnitsSet = new Set(
+                    masterQuestions
+                        .filter(q => {
+                            const qYear = (q.yearLevel || '').trim();
+                            const qBranch = (q.branch || '').trim();
+                            const catName = (q.category || '').toLowerCase();
+                            const setName = (q.setGroup || '').toLowerCase();
+
+                            const isYearMatch = !qYear || qYear === 'ทุกชั้นปี' || qYear === targetYearText;
+                            const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === student.branch;
+                            const isNormalLesson = !catName.includes('เลื่อนชั้น') && !catName.includes('ประมวล') && !setName.includes('เลื่อนชั้น') && !setName.includes('ประมวล');
+
+                            return isYearMatch && isBranchMatch && isNormalLesson;
+                        })
+                        .map(q => (q.category || '').trim().toLowerCase())
                 );
         
-                const isNormalPassed = totalCourseUnits.size > 0 && passedUnits.size >= totalCourseUnits.size;
+                const isNormalPassed = totalCourseUnitsSet.size > 0 && passedUnits.size >= totalCourseUnitsSet.size;
         
-                // เช็กการสอบเลื่อนชั้น/จบการศึกษา
-                const isTermPassed = studentHistory.some(r => {
+                // 🟢 เกณฑ์ที่ 2: เช็กการสอบเลื่อนชั้นปี (สำหรับ ปี 1 และ ปี 2)
+                const isPromotionPassed = studentHistory.some(r => {
                     const cat = (r.category || '').toLowerCase();
                     const set = (r.examSet || '').toLowerCase();
-                    const isTermKey = cat.includes('เลื่อนชั้น') || cat.includes('ประมวล') || set.includes('เลื่อนชั้น') || set.includes('ประมวล');
-                    return isTermKey && (r.percentage || 0) >= 80;
+                    const isPromoKey = cat.includes('เลื่อนชั้น') || set.includes('เลื่อนชั้น') || cat.includes('ปลายภาค') || set.includes('ปลายภาค');
+                    return isPromoKey && (r.percentage || 0) >= 80;
                 });
-        
-                return isNormalPassed || isTermPassed; // แสดงรายชื่อที่สอบผ่านครบเกณฑ์
+
+                // 🟢 เกณฑ์ที่ 3: เช็กการสอบประมวลความรู้ (สำหรับ ปี 3)
+                const isComprehensivePassed = studentHistory.some(r => {
+                    const cat = (r.category || '').toLowerCase();
+                    const set = (r.examSet || '').toLowerCase();
+                    const isCompKey = cat.includes('ประมวล') || set.includes('ประมวล') || cat.includes('comprehensive') || set.includes('comprehensive');
+                    return isCompKey && (r.percentage || 0) >= 80;
+                });
+
+                // 🎯 บังคับเช็กเงื่อนไขตามชั้นปีด้วยตัวเชื่อม && (AND)
+                if (activePromotionYear === '1' || activePromotionYear === '2') {
+                    // ปี 1 และ ปี 2: ต้องผ่านหน่วยการเรียนรู้ครบ + สอบเลื่อนชั้นผ่าน
+                    return isNormalPassed && isPromotionPassed;
+                } else if (activePromotionYear === '3') {
+                    // ปี 3: ต้องผ่านหน่วยการเรียนรู้ครบ + สอบประมวลความรู้ผ่าน
+                    return isNormalPassed && isComprehensivePassed;
+                }
+
+                return false;
             });
         
-            // อัปเดตตัวเลขนับจำนวน
+            // อัปเดตตัวเลขนับจำนวนผู้ผ่านเกณฑ์พร้อมอนุมัติ
             document.getElementById(`promo-count-y${activePromotionYear}`).textContent = qualifiedStudents.length;
         
             if (qualifiedStudents.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-xs text-slate-400">🎉 ไม่มีรายการผู้สอบที่รอการอนุมัติในชั้นปีนี้</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-xs text-slate-400">🎉 ไม่พบรายชื่อผู้สอบที่ผ่านเกณฑ์ครบถ้วนในชั้นปีนี้</td></tr>`;
                 return;
             }
         
@@ -5707,7 +5739,7 @@ function toggleModalUserSelection(username, isChecked) {
                         <td class="p-3.5 text-slate-600">${st.branch}</td>
                         <td class="p-3.5 text-center">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                ✓ ผ่านเกณฑ์ครบถ้วน
+                                ✓ ผ่านเกณฑ์ครบถ้วน 100%
                             </span>
                         </td>
                         <td class="p-3.5 text-center">
