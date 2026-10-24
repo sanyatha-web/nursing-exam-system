@@ -4529,27 +4529,39 @@ function toggleModalUserSelection(username, isChecked) {
             document.getElementById('kpi-total-students').textContent = `${branchStudents.length} คน`;
             document.getElementById('kpi-students-subtext').textContent = selectedYear === 'ทั้งหมด' ? 'นักศึกษาปี 1-3 รวมกัน' : selectedYear;
         
-            // 🟢 1. กรองคลังข้อสอบเฉพาะบทเรียนปกติ + ตรงกับสาขา และ ชั้นปี ที่เลือกอยู่ขณะนั้น
+            // 🟢 1. กรองคลังข้อสอบเฉพาะบทเรียนปกติ + ตรงกับสาขา และ ชั้นปี ที่เลือกอยู่ขณะนั้น (ปรับปรุงการจับคู่ชั้นปียืดหยุ่นขึ้น)
             const availableNormalQuestions = masterQuestions.filter(q => {
                 const qBranch = (q.branch || '').trim();
-                const qYear = (q.yearLevel || '').trim();
+                const qYear = (q.yearLevel || '').trim().toLowerCase();
                 const nameCheck = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
         
-                // เช็กสาขา
+                // 1.1 เช็กสาขา
                 const matchBranch = selectedBranch === 'ทั้งหมด' || !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === selectedBranch;
                 
-                // เช็กชั้นปี (ถ้าเลือกปี 1 จะดึงเฉพาะข้อสอบที่เป็นปี 1 หรือ ทุกชั้นปี เท่านั้น)
-                const matchYear = selectedYear === 'ทั้งหมด' || !qYear || qYear === 'ทุกชั้นปี' || qYear === selectedYear;
+                // 1.2 เช็กชั้นปีแบบยืดหยุ่น (ดึงตัวเลขจาก selectedYear เช่น 'ชั้นปีที่ 1' -> '1')
+                let matchYear = false;
+                if (selectedYear === 'ทั้งหมด') {
+                    matchYear = true;
+                } else {
+                    const yearNumMatch = selectedYear.match(/\d+/);
+                    const targetNum = yearNumMatch ? yearNumMatch[0] : '';
         
-                // ตัดข้อสอบ กลางภาค/ปลายภาค/เลื่อนชั้นปี/ประมวลความรู้ ออกทั้งหมด
+                    const isAllYears = !qYear || qYear.includes('ทุก') || qYear === 'all';
+                    const isExactMatch = qYear === selectedYear.toLowerCase();
+                    const isNumMatch = targetNum && (qYear.includes(`ปีที่ ${targetNum}`) || qYear.includes(`ปี ${targetNum}`) || qYear.includes(`ชั้นปีที่ ${targetNum}`) || qYear === targetNum);
+        
+                    matchYear = isAllYears || isExactMatch || isNumMatch;
+                }
+        
+                // 1.3 ตัดข้อสอบ กลางภาค/ปลายภาค/เลื่อนชั้นปี/ประมวลความรู้ ออกทั้งหมด
                 const isNotTermExam = !nameCheck.includes('กลางภาค') && !nameCheck.includes('ปลายภาค') && !nameCheck.includes('เลื่อนชั้น') && !nameCheck.includes('ประมวล');
         
                 return matchBranch && matchYear && isNotTermExam;
             });
         
-            // 🟢 2. ดึงจำนวนชุดและหน่วยเรียนย่อยเฉพาะของชั้นปีที่เลือกจริงๆ
-            const setNames = Array.from(new Set(availableNormalQuestions.map(q => q.setGroup || 'ชุดการเรียนรู้ทั่วไป')));
-            const unitNames = Array.from(new Set(availableNormalQuestions.map(q => q.category || 'หน่วยการเรียนรู้ทั่วไป')));
+            // 🟢 2. ดึงจำนวนชุดและหน่วยเรียนย่อยเฉพาะของชั้นปีที่เลือกจริง
+            const setNames = Array.from(new Set(availableNormalQuestions.map(q => (q.setGroup || 'ชุดการเรียนรู้ทั่วไป').trim()))).filter(Boolean);
+            const unitNames = Array.from(new Set(availableNormalQuestions.map(q => (q.category || 'หน่วยการเรียนรู้ทั่วไป').trim()))).filter(Boolean);
         
             // 🟢 การ์ดที่ 3: คำนวณ %ความก้าวหน้าภาพรวม (สูตรใหม่: หน่วยที่ผ่านรวม / (หน่วยทั้งหมด * นักเรียนทั้งหมด))
             const totalStudentsCount = branchStudents.length;
