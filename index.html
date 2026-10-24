@@ -3054,13 +3054,7 @@ async function fetchAndSyncUsers() {
                 if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 document.getElementById('tab-admin-essay-grading')?.classList.remove('hidden');
 
-            } else if (tabName === 'promotion') {
-                if (btnPromo) btnPromo.classList.add('bg-white/20', 'text-white', 'shadow-inner');
-                document.getElementById('tab-admin-promotion')?.classList.remove('hidden');
-                renderPromotionDashboard();
-            }
-            
-                // 🟢 กรองเฉพาะรายการที่ "ยังไม่ได้ตรวจ" (score เป็น null, undefined, หรือ String ว่าง)
+                // กรองรายการข้อเขียนที่ยังไม่ได้ตรวจ
                 const pendingList = examResultsHistory.filter(r => {
                     const exType = (r.examType || '').trim().toLowerCase();
                     const isEssay = exType.includes('อัตนัย') || 
@@ -3069,10 +3063,8 @@ async function fetchAndSyncUsers() {
                                     exType.includes('text') || 
                                     (r.essayAnswers && r.essayAnswers.trim() !== '' && r.essayAnswers.trim() !== '-');
                                     
-                    // 🟢 เช็กว่ายังไม่มีคะแนนจริงๆ (ถ้าใส่คะแนนแล้วแม้แต่ 0 จะถือว่าตรวจแล้ว)
                     const isUnscored = (r.score === null || r.score === undefined || String(r.score).trim() === '');
                     
-                    // กรองสาขาเฉพาะ Preceptor
                     const matchBranch = (loggedInUser && hasRole(loggedInUser, 'preceptor') && !hasRole(loggedInUser, 'superadmin'))
                         ? r.branch === loggedInUser.branch
                         : true;
@@ -3081,7 +3073,12 @@ async function fetchAndSyncUsers() {
                 });
             
                 renderEssayGradingCards(pendingList);
-                
+
+            } else if (tabName === 'promotion') {
+                if (btnPromo) btnPromo.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                document.getElementById('tab-admin-promotion')?.classList.remove('hidden');
+                renderPromotionDashboard();
+
             } else if (tabName === 'data-sources') {
                 document.getElementById('tab-admin-data-sources')?.classList.remove('hidden');
             }
