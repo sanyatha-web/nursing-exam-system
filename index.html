@@ -4724,7 +4724,7 @@ function toggleModalUserSelection(username, isChecked) {
                 }
 
                 // 6. ประกอบแถวข้อมูลลง CSV
-                csvContent += `"${st.username}","${st.prefix || ''}","${st.fname || ''}","${st.lname || ''}","${st.branch || ''}","${st.yearLevel || ''}","${st.academicYear || '-'}","${passedUnits.size}/${totalCourseUnits}","${progressPercent}%","${milestoneStatusText}","${totalAttempts}","${overallStatus}","${riskLevel}"\n`;
+                csvContent += `"${st.username}","${st.prefix || ''}","${st.fname || ''}","${st.lname || ''}","${st.branch || ''}","${st.yearLevel || ''}","${st.academicYear || '-'}","${passedUnits.size}","${progressPercent}%","${milestoneStatusText}","${totalAttempts}","${overallStatus}","${riskLevel}"\n`;
             });
         
             // 7. สร้างไฟล์ดาวน์โหลด
