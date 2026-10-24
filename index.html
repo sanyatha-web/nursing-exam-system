@@ -4633,39 +4633,108 @@ function toggleModalUserSelection(username, isChecked) {
         }
 
         // 🟢 ฟังก์ชันส่งออกรายงานภาพรวมสาขา (QA Report) เป็น CSV
+        function exportManagerReportCSV() // 🟢 ฟังก์ชันส่งออกรายงานภาพรวมสาขาสำหรับประธานหลักสูตร (Manager / QA Report)
         function exportManagerReportCSV() {
             if (!userDatabase || userDatabase.length === 0) {
                 showAlertModal('warning', 'ไม่พบข้อมูล', 'ไม่มีข้อมูลสำหรับการส่งออก');
                 return;
             }
         
-            let csvContent = "\uFEFF"; // ใส่ UTF-8 BOM เพื่อให้อ่านภาษาไทยใน Excel ได้ถูกต้อง
-            csvContent += "SAP-ID,ชื่อ-นามสกุล,สาขาวิชา,ชั้นปี,ปีการศึกษา,จำนวนบทเรียนที่สอบผ่าน,สถานะภาพรวม\n";
+            let csvContent = "\uFEFF"; // UTF-8 BOM สำหรับอ่านภาษาไทยใน Excel ให้ถูกต้อง
+            
+            // 🟢 1. ตั้งหัวข้อคอลัมน์ (Header) สำหรับมุมมองเชิงบริหาร
+            csvContent += "SAP-ID,คำนำหน้า,ชื่อ,นามสกุล,สาขาวิชา,ชั้นปี,ปีการศึกษา,จำนวนบทเรียนที่ผ่าน (หน่วย),ความก้าวหน้าบทเรียน (%),ผลสอบเลื่อนชั้นปี/ประมวลความรู้ (ล่าสุด),จำนวนรอบสอบรวม (ครั้ง),สถานะภาพรวม,ระดับความเสี่ยงผู้เรียน\n";
         
             const selectedBranch = document.getElementById('manager-branch-filter')?.value || 'ทั้งหมด';
             const selectedYear = document.getElementById('manager-year-filter')?.value || 'ทั้งหมด';
+            const selectedAcademicYear = document.getElementById('manager-academic-year-filter')?.value || 'ทั้งหมด';
         
+            // กรองนักเรียนเฉพาะบทบาท Student ตาม Filter ที่เลือก
             const students = userDatabase.filter(u => {
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor');
                 const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
                 const matchYear = selectedYear === 'ทั้งหมด' || u.yearLevel === selectedYear;
-                return isStudent && matchBranch && matchYear;
+                const matchAcadYear = selectedAcademicYear === 'ทั้งหมด' || u.academicYear === selectedAcademicYear;
+                return isStudent && matchBranch && matchYear && matchAcadYear;
             });
+
+            if (students.length === 0) {
+                showAlertModal('warning', 'ไม่พบข้อมูล', 'ไม่มีรายชื่อนักศึกษาตามเงื่อนไขที่เลือก');
+                return;
+            }
         
             students.forEach(st => {
-                const stHistory = examResultsHistory.filter(r => r.sapId === st.username);
-                const passedUnits = new Set(stHistory.filter(r => r.percentage >= 80).map(r => r.category));
+                const stId = (st.username || st.sapId || '').trim().toLowerCase();
+                const stHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === stId);
                 
-                const status = passedUnits.size > 0 ? `ผ่าน ${passedUnits.size} หน่วย` : "ยังไม่ได้เข้าสอบ/ยังไม่ผ่านเกณฑ์";
+                // 🟢 2. คำนวณความก้าวหน้าบทเรียนปกติ
+                const normalHistory = stHistory.filter(r => {
+                    const name = ((r.examSet || '') + ' ' + (r.category || '')).toLowerCase();
+                    return !name.includes('กลางภาค') && !name.includes('ปลายภาค') && !name.includes('เลื่อนชั้น') && !name.includes('ประมวล');
+                });
+
+                const passedUnits = new Set(normalHistory.filter(r => (r.percentage || 0) >= 80).map(r => r.category));
                 
-                csvContent += `"${st.username}","${st.fullname}","${st.branch}","${st.yearLevel}","${st.academicYear || '-'}","${passedUnits.size}","${status}"\n`;
+                // ดึงจำนวนหน่วยการเรียนรู้ทั้งหมดในคลังเฉพาะสาขาและชั้นปีของนักศึกษาคนนี้
+                const stYear = (st.yearLevel || '').trim();
+                const stBranch = (st.branch || '').trim();
+                const totalCourseUnits = new Set(
+                    masterQuestions
+                        .filter(q => (!q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === stBranch) && (!q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === stYear))
+                        .map(q => q.category)
+                ).size || 1;
+
+                const progressPercent = Math.min(100, Math.round((passedUnits.size / totalCourseUnits) * 100));
+
+                // 🟢 3. ดึงผลการสอบเลื่อนชั้นปี / สอบประมวลความรู้ (Milestone / Exit Exam)
+                const milestoneHistory = stHistory.filter(r => {
+                    const name = ((r.examSet || '') + ' ' + (r.category || '')).toLowerCase();
+                    return name.includes('เลื่อนชั้น') || name.includes('ประมวล') || name.includes('comprehensive');
+                });
+
+                let milestoneStatusText = "ยังไม่ได้เข้าสอบ";
+                if (milestoneHistory.length > 0) {
+                    // ดึงคะแนนครั้งล่าสุด
+                    const latestMilestone = milestoneHistory[0]; 
+                    if (latestMilestone.percentage !== null && latestMilestone.percentage !== undefined) {
+                        const isPass = latestMilestone.percentage >= 80;
+                        milestoneStatusText = `${isPass ? 'ผ่านเกณฑ์' : 'ตก/ซ่อม'} (${latestMilestone.percentage}%)`;
+                    } else {
+                        milestoneStatusText = "รอ Preceptor ตรวจข้อเขียน";
+                    }
+                }
+
+                // 🟢 4. คำนวณจำนวนรอบการเข้าสอบรวม (นับตาม Timestamp เพื่อไม่ให้รอบสอบซ้ำ)
+                const totalAttempts = new Set(stHistory.map(r => r.timestamp)).size;
+
+                // 🟢 5. ประเมินสถานะภาพรวม และระดับความเสี่ยง (At-Risk Assessment)
+                let overallStatus = "อยู่ระหว่างศึกษา";
+                let riskLevel = "ปกติ (Normal)";
+
+                if (passedUnits.size === totalCourseUnits && totalCourseUnits > 0) {
+                    overallStatus = "ผ่านครบตามเกณฑ์";
+                    riskLevel = "ผ่านเกณฑ์สมบูรณ์";
+                } else if (totalAttempts === 0) {
+                    overallStatus = "ยังไม่เริ่มเข้าสอบ";
+                    riskLevel = "⚠️ กลุ่มเสี่ยงสูง (ยังไม่เคยทำแบบทดสอบ)";
+                } else if (totalAttempts >= 5 && passedUnits.size < totalCourseUnits) {
+                    overallStatus = "ต้องติดตามใกล้ชิด";
+                    riskLevel = "⚡ กลุ่มเสี่ยงสูง (สอบซ่อมเกิน 5 ครั้ง)";
+                } else if (passedUnits.size < (totalCourseUnits / 2)) {
+                    overallStatus = "ความก้าวหน้าล่าช้า";
+                    riskLevel = "🟡 กลุ่มต้องเฝ้าระวัง (ผ่านไม่ถึง 50%)";
+                }
+
+                // 🟢 6. ประกอบแถวข้อมูลลง CSV
+                csvContent += `"${st.username}","${st.prefix || ''}","${st.fname || ''}","${st.lname || ''}","${st.branch || ''}","${st.yearLevel || ''}","${st.academicYear || '-'}","${passedUnits.size}/${totalCourseUnits}","${progressPercent}%","${milestoneStatusText}","${totalAttempts}","${overallStatus}","${riskLevel}"\n`;
             });
         
+            // 🟢 7. สร้างไฟล์ดาวน์โหลด
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.setAttribute("href", url);
-            link.setAttribute("download", `รายงานสรุปผลสัมฤทธิ์_${selectedBranch}_${new Date().toISOString().slice(0,10)}.csv`);
+            link.setAttribute("download", `รายงานผู้บริหาร_ผลสัมฤทธิ์หลักสูตร_${selectedBranch}_${new Date().toISOString().slice(0,10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
