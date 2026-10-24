@@ -59,9 +59,9 @@
                         <span class="hidden md:inline">หน้าแรก</span>
                     </button>
 
-                    <!-- ปุ่มการเลื่อนชั้น/จบการศึกษา (เพิ่มใหม่) -->
+                    <!-- ปุ่มการเลื่อนชั้น/จบการศึกษา (เพิ่มใหม่ - เพิ่ม class hidden เพื่อซ่อนเป็นค่าเริ่มต้น) -->
                     <button id="nav-btn-promotion" onclick="switchAdminTab('promotion')" title="การเลื่อนชั้น/จบการศึกษา"
-                        class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 hover:bg-white/10 text-indigo-100">
+                        class="hidden px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 hover:bg-white/10 text-indigo-100">
                         <i class="fa-solid fa-user-graduate text-sm text-amber-300"></i>
                         <span class="hidden md:inline">การเลื่อนชั้น/จบการศึกษา</span>
                     </button>
@@ -2934,11 +2934,19 @@ async function fetchAndSyncUsers() {
             const btnExam = document.getElementById('nav-btn-exam-settings');
             const btnTracker = document.getElementById('nav-btn-student-tracker');
             const btnEssay = document.getElementById('nav-btn-essay-grading');
+            const btnPromo = document.getElementById('nav-btn-promotion');
 
             // จัดการซ่อน/แสดงปุ่มเมนูสำหรับสิทธิ์ Preceptor
             if (btnHome) btnHome.classList.toggle('hidden', isPreceptor);
             if (btnExam) btnExam.classList.toggle('hidden', isPreceptor || (isManager && !isAdmin));
             if (btnTracker) btnTracker.classList.toggle('hidden', isPreceptor);
+            if (btnPromo) {
+                if (isSuper || isManager) {
+                    btnPromo.classList.remove('hidden');
+                } else {
+                    btnPromo.classList.add('hidden');
+                }
+            }
 
             // จัดการปุ่มตรวจข้อสอบข้อเขียน
             if (btnEssay) {
@@ -2983,6 +2991,11 @@ async function fetchAndSyncUsers() {
             const isManager = hasRole(loggedInUser, 'manager');
             const isPreceptor = hasRole(loggedInUser, 'preceptor');
 
+            if (tabName === 'promotion' && !isSuperAdmin && !isManager) {
+                showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูการเลื่อนชั้น/จบการศึกษา อนุญาตเฉพาะผู้บริหาร (Manager) เท่านั้น');
+                return;
+            }
+        
             if (tabName === 'data-sources' && !isSuperAdmin) {
                 showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูนี้อนุญาตเฉพาะผู้ดูแลระบบสูงสุด (Superadmin) เท่านั้น');
                 return;
