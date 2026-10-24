@@ -3241,13 +3241,10 @@ async function fetchAndSyncUsers() {
             const yearFilter = document.getElementById('tracker-year-filter')?.value || 'ทั้งหมด';
             if (!container) return;
         
-            // 🟢 1. ประกาศตัวแปร branchSelect ก่อนนำไปใช้งาน
+            // 1. จัดการ Filter สาขา
             const branchSelect = document.getElementById('tracker-branch-filter');
-        
             if (branchSelect) {
-                // เช็กสิทธิ์ล็อก Filter สำหรับ Admin และ Manager
                 const isRestrictedRole = (hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager')) && !hasRole(loggedInUser, 'superadmin');
-        
                 if (isRestrictedRole && loggedInUser && loggedInUser.branch) {
                     branchSelect.innerHTML = `<option value="${loggedInUser.branch}">${loggedInUser.branch}</option>`;
                     branchSelect.disabled = true;
@@ -3261,10 +3258,9 @@ async function fetchAndSyncUsers() {
                 }
             }
         
-            // 🟢 2. ดึงค่าสาขาที่กำลังเลือก
             const selectedBranch = branchSelect ? branchSelect.value : 'ทั้งหมด';
         
-            // 3. เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown
+            // 2. จัดการ Filter ปีการศึกษา
             const acadYearSelect = document.getElementById('tracker-academic-year-filter');
             if (acadYearSelect) {
                 const studentUsers = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor'));
@@ -3276,8 +3272,8 @@ async function fetchAndSyncUsers() {
             }
         
             const selectedAcadYear = acadYearSelect ? acadYearSelect.value : 'ทั้งหมด';
-
-            // 🟢 3. กรองรายชื่อนักศึกษา
+        
+            // 3. กรองรายชื่อนักศึกษา
             const students = userDatabase.filter(u => {
                 if (!u) return false;
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin') && !hasRole(u, 'preceptor');
@@ -3286,7 +3282,7 @@ async function fetchAndSyncUsers() {
                 const matchAcadYear = selectedAcadYear === 'ทั้งหมด' || u.academicYear === selectedAcadYear;
                 return isStudent && matchBranch && matchYear && matchAcadYear;
             });
-
+        
             if (students.length === 0) {
                 container.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบข้อมูลผู้เรียนตามเงื่อนไขที่กรอง</div>`;
                 return;
@@ -3301,7 +3297,7 @@ async function fetchAndSyncUsers() {
                 const matchSearch = sapId.toLowerCase().includes(searchVal) || fullname.toLowerCase().includes(searchVal);
                 if (!matchSearch) return;
         
-                const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
+                const studentHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === sapId.toLowerCase());
                 const yearLevel = student.yearLevel || 'ชั้นปีที่ 1';
                 const studentBranch = student.branch || '';
         
@@ -3314,77 +3310,75 @@ async function fetchAndSyncUsers() {
                     allowedYears.push(`ปี ${y}`);
                 }
         
+                // กรองคลังข้อสอบเฉพาะบทเรียนปกติ (ตัดการสอบเลื่อนชั้น/สอบประมวลผลออกทั้งหมด)
                 const matchQuestions = masterQuestions.filter(q => {
                     const qYear = (q.yearLevel || '').trim();
                     const qBranch = (q.branch || '').trim();
+                    const catName = (q.category || '').toLowerCase();
+                    const setName = (q.setGroup || '').toLowerCase();
+                    
                     const isYearMatch = !qYear || allowedYears.includes(qYear);
                     const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === studentBranch;
-                    return isYearMatch && isBranchMatch;
+                    const isNormalLesson = !catName.includes('เลื่อนชั้น') && !catName.includes('ประมวล') && !setName.includes('เลื่อนชั้น') && !setName.includes('ประมวล');
+                    
+                    return isYearMatch && isBranchMatch && isNormalLesson;
                 });
         
-                const availableSets = Array.from(new Set(
-                    matchQuestions
-                        .map(q => q.setGroup || 'ชุดการเรียนรู้ทั่วไป')
-                        .filter(setName => {
-                            const name = setName.toLowerCase();
-                            return !name.includes('เลื่อนชั้น') && !name.includes('ประมวล') && !name.includes('ปลายภาค');
-                        })
-                ));
-
-                let targetExamList = [];
-
-                availableSets.forEach(setName => {
-                    targetExamList.push({ name: setName, isSet: true, setName: setName });
+                // จัดกลุ่ม "ชุดการเรียนรู้ใหญ่" และ "หน่วยการเรียนรู้ย่อย"
+                const setGroupMap = {}; // { 'ชื่อชุด': ['หน่วย1', 'หน่วย2'] }
+                matchQuestions.forEach(q => {
+                    const setName = (q.setGroup || 'ชุดการเรียนรู้ทั่วไป').trim();
+                    const catName = (q.category || 'หน่วยการเรียนรู้ทั่วไป').trim();
+                    if (!setGroupMap[setName]) setGroupMap[setName] = new Set();
+                    setGroupMap[setName].add(catName);
                 });
-
-                for (let y = 1; y <= currentYearNum; y++) {
-                    if (y === currentYearNum && currentYearNum >= 3) {
-                        targetExamList.push({ name: 'การสอบประมวลความรู้ (Comprehensive Exam)', isSet: false, keyword: 'ประมวล' });
-                    } else {
-                        targetExamList.push({ name: `การสอบเลื่อนชั้นปีที่ ${y}`, isSet: false, keyword: `เลื่อนชั้นปีที่ ${y}` });
-                    }
-                }
-
-                const totalPartsCount = targetExamList.length;
-                let passedPartsCount = 0;
         
-                // โค้ดใหม่: ตัดช่องว่าง (.trim()) และแปลงเป็นตัวพิมพ์เล็ก (.toLowerCase()) ก่อนเปรียบเทียบ
-                targetExamList.forEach(item => {
-                    if (item.isSet) {
-                        const matchedAttempts = studentHistory.filter(r => {
-                            const rSet = (r.examSet || '').trim().toLowerCase();
+                const totalSetsCount = Object.keys(setGroupMap).length;
+                let totalUnitsCount = 0;
+                let passedUnitsCount = 0;
+                let passedSetsCount = 0;
+        
+                // คำนวณรายหน่วยย่อย และรายชุดใหญ่
+                Object.keys(setGroupMap).forEach(setName => {
+                    const unitSet = setGroupMap[setName];
+                    totalUnitsCount += unitSet.size;
+        
+                    let passedUnitsInThisSet = 0;
+        
+                    unitSet.forEach(catName => {
+                        const isPassed = studentHistory.some(r => {
                             const rCat = (r.category || '').trim().toLowerCase();
-                            const targetSet = item.setName.trim().toLowerCase();
-                            const isNotTermExam = !rCat.includes('เลื่อนชั้น') && !rCat.includes('ประมวล') && !rCat.includes('comprehensive');
-                            return isNotTermExam && (rSet === targetSet || rCat === targetSet);
+                            const rSet = (r.examSet || '').trim().toLowerCase();
+                            const targetCat = catName.toLowerCase();
+                            const targetSet = setName.toLowerCase();
+        
+                            const matchUnit = rCat === targetCat || (rSet === targetSet && rCat === targetCat);
+                            return matchUnit && (r.percentage || 0) >= 80;
                         });
-                        if (matchedAttempts.some(a => (a.percentage || 0) >= 80)) {
-                            passedPartsCount++;
+        
+                        if (isPassed) {
+                            passedUnitsCount++;
+                            passedUnitsInThisSet++;
                         }
-                    } else {
-                        const matchedAttempts = studentHistory.filter(r => {
-                            const name = ((r.category || '') + ' ' + (r.examSet || '')).trim().toLowerCase();
-                            if (item.keyword === 'ประมวล') {
-                                return name.includes('ประมวล') || name.includes('comprehensive');
-                            }
-                            return name.includes(item.keyword.trim().toLowerCase());
-                        });
-                        if (matchedAttempts.some(a => (a.percentage || 0) >= 80)) {
-                            passedPartsCount++;
-                        }
+                    });
+        
+                    // ถ้าสอบผ่านครบทุกหน่วยย่อยในชุดนี้ นับเป็นผ่าน 1 ชุดใหญ่
+                    if (passedUnitsInThisSet === unitSet.size && unitSet.size > 0) {
+                        passedSetsCount++;
                     }
                 });
         
-                const progressPercent = totalPartsCount > 0 ? Math.min(100, Math.round((passedPartsCount / totalPartsCount) * 100)) : 0;
-                const isFullyCompleted = passedPartsCount === totalPartsCount && totalPartsCount > 0;
+                // คำนวณ % ความก้าวหน้าจากหน่วยย่อยโดยตรง
+                const progressPercent = totalUnitsCount > 0 ? Math.min(100, Math.round((passedUnitsCount / totalUnitsCount) * 100)) : 0;
+                const isFullyCompleted = passedUnitsCount === totalUnitsCount && totalUnitsCount > 0;
         
                 const badgeColor = isFullyCompleted 
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                    : (passedPartsCount > 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
+                    : (passedUnitsCount > 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200');
         
                 const badgeText = isFullyCompleted 
                     ? '✓ ครบตามเกณฑ์ชั้นปี' 
-                    : (passedPartsCount > 0 ? `⚠️ ผ่าน ${passedPartsCount}/${totalPartsCount} ส่วน` : '🔴 ยังไม่ได้เข้าสอบ');
+                    : (passedUnitsCount > 0 ? `⚠️ ผ่าน ${passedSetsCount}/${totalSetsCount} ชุด` : '🔴 ยังไม่ได้เข้าสอบ');
         
                 cardsHtml += `
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 hover:border-indigo-300 transition flex flex-col justify-between">
@@ -3412,8 +3406,8 @@ async function fetchAndSyncUsers() {
         
                             <div class="mt-3 space-y-1">
                                 <div class="flex justify-between text-xs font-bold">
-                                    <span class="text-slate-500">ความก้าวหน้าสะสม (${yearLevel}):</span>
-                                    <span class="text-indigo-900">${passedPartsCount}/${totalPartsCount} ส่วน (${progressPercent}%)</span>
+                                    <span class="text-slate-500">ความก้าวหน้าสะสมบทเรียน:</span>
+                                    <span class="text-indigo-900">${passedUnitsCount}/${totalUnitsCount} หน่วย (${progressPercent}%)</span>
                                 </div>
                                 <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                                     <div class="${progressPercent >= 100 ? 'bg-emerald-500' : 'bg-indigo-600'} h-2.5 rounded-full transition-all duration-300" style="width: ${progressPercent}%"></div>
