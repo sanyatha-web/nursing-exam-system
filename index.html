@@ -1697,9 +1697,11 @@ async function fetchAndSyncUsers() {
                 const timestamp = timeIdx !== -1 ? cols[timeIdx] : '-';
                 const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
                 const examType = typeIdx !== -1 ? cols[typeIdx] : '';
+                
                 const essayAnswers = essayAnsIdx !== -1 ? cols[essayAnsIdx] : '';
                 
-                const uniqueKey = `${sapId.trim().toLowerCase()}__${category.trim().toLowerCase()}__${examType.trim().toLowerCase()}__${timestamp.trim()}`;
+                // 🟢 ปรับ uniqueKey ให้รวมเนื้อหาคำตอบข้อเขียน เพื่อไม่ให้ข้อที่ 2 โดนกรองทิ้งเป็น Duplicate
+                const uniqueKey = `${sapId.trim().toLowerCase()}__${category.trim().toLowerCase()}__${examType.trim().toLowerCase()}__${timestamp.trim()}__${essayAnswers.trim().substring(0, 15)}`;
                 if (uniqueKeys.has(uniqueKey)) {
                     continue;
                 }
@@ -2989,13 +2991,18 @@ async function fetchAndSyncUsers() {
                 if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 document.getElementById('tab-admin-essay-grading')?.classList.remove('hidden');
             
-                // ดึงประวัติผลสอบจาก Google Sheets ที่เป็นข้อเขียนและยังไม่มีคะแนน (Score เป็น null หรือว่าง)
+                // 🟢 ดึงประวัติข้อเขียนทั้งหมดที่ยังไม่มีคะแนน ( score === null || score === '' )
                 const pendingList = examResultsHistory.filter(r => {
                     const exType = (r.examType || '').trim().toLowerCase();
-                    const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType.includes('essay') || exType.includes('text') || (r.essayAnswers && r.essayAnswers.trim() !== '' && r.essayAnswers.trim() !== '-');
+                    const isEssay = exType.includes('อัตนัย') || 
+                                    exType.includes('ข้อเขียน') || 
+                                    exType.includes('essay') || 
+                                    exType.includes('text') || 
+                                    (r.essayAnswers && r.essayAnswers.trim() !== '' && r.essayAnswers.trim() !== '-');
+                                    
                     const isUnscored = r.score === null || r.score === undefined || r.score === '';
                     
-                    // ถ้าเป็น Preceptor ทั่วไป ให้กรองเฉพาะสาขาของตนเอง
+                    // กรองสาขาเฉพาะ Preceptor
                     const matchBranch = (loggedInUser && hasRole(loggedInUser, 'preceptor') && !hasRole(loggedInUser, 'superadmin'))
                         ? r.branch === loggedInUser.branch
                         : true;
@@ -3004,7 +3011,6 @@ async function fetchAndSyncUsers() {
                 });
             
                 renderEssayGradingCards(pendingList);
-
             } else if (tabName === 'data-sources') {
                 document.getElementById('tab-admin-data-sources')?.classList.remove('hidden');
             }
@@ -4446,15 +4452,20 @@ function toggleModalUserSelection(username, isChecked) {
                         <div id="year-group-${yIdx}" class="divide-y divide-slate-100">
                 `;
         
+                // ในฟังก์ชัน renderEssayGradingCards ตรงลูปสร้างรายการฝั่งซ้าย:
                 items.forEach((item) => {
                     const fullName = item.fullname || item.studentName || `${item.fname || ''} ${item.lname || ''}`.trim() || 'ไม่ระบุชื่อ';
                     const sapId = item.sapId || item.studentId || '-';
-        
-                    // 🟢 ข้อ 3: เปิดโหมดซ่อนชื่อ ขึ้นเฉพาะรหัสอ้างอิง #ANON-xxxx เท่านั้น
+                
+                    // ดึงหมายเลขข้อคำถามจากเนื้อหาข้อเขียน (ถ้ามี)
+                    const qLabel = item.essayAnswers && item.essayAnswers.startsWith('ข้อ') 
+                        ? item.essayAnswers.split(':')[0] 
+                        : `ข้อที่ ${item.originalIndex + 1}`;
+                
                     const displayName = isBlindGrading 
-                        ? `#ANON-${String(item.originalIndex + 1).padStart(4, '0')}`
-                        : `${fullName} (${sapId})`;
-        
+                        ? `#ANON-${String(item.originalIndex + 1).padStart(4, '0')} (${qLabel})`
+                        : `${fullName} - ${qLabel}`;
+                
                     layoutHtml += `
                         <div onclick="selectEssayForGrading(${item.originalIndex})" 
                              id="essay-item-${item.originalIndex}"
