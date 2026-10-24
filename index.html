@@ -5336,7 +5336,28 @@ function toggleModalUserSelection(username, isChecked) {
         }
 
         // ✅ ฟังก์ชันเรนเดอร์การ์ดสอบเลื่อนชั้น (ปี 1-2) และสอบประมวลความรู้ (ปี 3)
-        function renderTermExamsTracker(studentsList, termResults) {
+        function renderTermExamsTracker(branchStudents, termExamResults, normalResults, availableNormalQuestions) {
+            // 🟢 1. หาจำนวนหน่วยการเรียนรู้ทั้งหมดที่มีในชั้นปีนั้น
+            const totalRequiredUnits = Array.from(new Set(availableNormalQuestions.map(q => (q.category || '').trim()))).filter(Boolean).length;
+        
+            // 🟢 2. กรองเฉพาะนักเรียนที่สอบผ่านหน่วยการเรียนรู้ครบทุกหน่วยแล้วเท่านั้น
+            const eligibleStudents = branchStudents.filter(st => {
+                const stHistory = normalResults.filter(r => (r.sapId || r.studentId) === st.username);
+                
+                // นับจำนวนหน่วยการเรียนรู้ที่สอบผ่าน (คะแนน >= 80% หรือสถานะ ผ่าน)
+                const passedUnitsSet = new Set();
+                stHistory.forEach(r => {
+                    if ((r.percentage || 0) >= 80 || r.status === 'Passed' || r.status === 'ผ่าน') {
+                        if (r.category) passedUnitsSet.add(r.category.trim());
+                    }
+                });
+        
+                // 🎯 เงื่อนไขสำคัญ: ต้องผ่านหน่วยการเรียนรู้ครบตามจำนวนทั้งหมดก่อน (และต้องมีอย่างน้อย 1 หน่วย)
+                const isModulesComplete = totalRequiredUnits > 0 && passedUnitsSet.size >= totalRequiredUnits;
+        
+                return isModulesComplete;
+            });
+        
             const container = document.getElementById('manager-term-exams-container');
             if (!container) return 0;
         
@@ -5351,7 +5372,7 @@ function toggleModalUserSelection(username, isChecked) {
         
             // ⚡ พรีประมวลผลผลสอบจับคู่ SAP-ID ใส่ Map ก่อนลูป
             const termResultsByStudent = new Map();
-            termResults.forEach(r => {
+            (termExamResults || []).forEach(r => {
                 const stId = (r.sapId || '').toString().trim().toLowerCase();
                 if (!termResultsByStudent.has(stId)) {
                     termResultsByStudent.set(stId, []);
@@ -5363,7 +5384,8 @@ function toggleModalUserSelection(username, isChecked) {
                 let yearBreakdownHtml = '';
         
                 config.targetYears.forEach((yearName, yIdx) => {
-                    const yearStudents = studentsList.filter(s => s.yearLevel === yearName);
+                    // 🟢 จุดแก้ไขสำคัญ: กรองรายชื่อจาก eligibleStudents แทน studentsList
+                    const yearStudents = eligibleStudents.filter(s => s.yearLevel === yearName);
                     if (yearStudents.length === 0) return;
         
                     const passedList = [];
@@ -5440,7 +5462,7 @@ function toggleModalUserSelection(username, isChecked) {
         
             container.innerHTML = html || '<p class="text-xs text-slate-400 italic text-center py-4">ไม่พบข้อมูลการสอบตามชั้นปี</p>';
             return remedialStudentIds.size;
-        }
+}
 
         // ฟังก์ชันเปิด Modal จาก Cache
         function openManagerDetailModalFromCache(cacheKey) {
