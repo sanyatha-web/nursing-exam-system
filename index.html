@@ -4443,7 +4443,7 @@ function toggleModalUserSelection(username, isChecked) {
         // Cache เก็บข้อมูลชั่วคราวสำหรับ Modal ป้องกันปัญหา Stringify Error
         let managerModalCache = {};
 
-        // 1. ฟังก์ชันหลักสำหรับเรนเดอร์ Manager Dashboard
+        // ✅ ฟังก์ชันเรนเดอร์ Manager Dashboard (ปรับปรุงสูตร %ความก้าวหน้า และเปลี่ยนการ์ดสอบซ่อมเป็น อัตราการเข้าสอบ)
         function renderManagerDashboard() {
             // 1. อ่านข้อมูลจาก LocalStorage ก่อนเพื่อความรวดเร็ว
             if ((!examResultsHistory || examResultsHistory.length === 0) && localStorage.getItem('cached_exam_results_history')) {
@@ -4454,10 +4454,10 @@ function toggleModalUserSelection(username, isChecked) {
             
             const branchSelect = document.getElementById('manager-branch-filter');
             const yearSelect = document.getElementById('manager-year-filter');
-            const academicYearSelect = document.getElementById('manager-academic-year-filter'); // 🟢 เพิ่มเติม
+            const academicYearSelect = document.getElementById('manager-academic-year-filter');
             if (!branchSelect) return;
-
-            // 🟢 เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown อัตโนมัติ
+        
+            // เติมตัวเลือกปีการศึกษา พ.ศ. เข้า Dropdown อัตโนมัติ
             if (academicYearSelect) {
                 const studentUsers = userDatabase.filter(u => hasRole(u, 'student') && !hasRole(u, 'superadmin') && !hasRole(u, 'manager') && !hasRole(u, 'admin') && !hasRole(u, 'preceptor'));
                 const allAcademicYears = Array.from(new Set(studentUsers.map(u => u.academicYear).filter(Boolean))).sort();
@@ -4466,12 +4466,12 @@ function toggleModalUserSelection(username, isChecked) {
                     allAcademicYears.map(y => `<option value="${y}">${y}</option>`).join('');
                 if (allAcademicYears.includes(currentVal)) academicYearSelect.value = currentVal;
             }
-
+        
             const selectedBranch = branchSelect.value || (loggedInUser ? loggedInUser.branch : 'ทั้งหมด');
             const selectedYear = yearSelect ? yearSelect.value : 'ทั้งหมด';
-            const selectedAcademicYear = academicYearSelect ? academicYearSelect.value : 'ทั้งหมด'; // 🟢 ดึงค่าที่เลือก
-
-            // กรองนักเรียนโดยเช็กปีการศึกษา พ.ศ.
+            const selectedAcademicYear = academicYearSelect ? academicYearSelect.value : 'ทั้งหมด';
+        
+            // กรองนักเรียนตามเงื่อนไข สาขา / ชั้นปี / ปีการศึกษา
             const branchStudents = userDatabase.filter(u => {
                 const isStudent = hasRole(u, 'student') && !hasRole(u, 'admin') && !hasRole(u, 'manager') && !hasRole(u, 'superadmin');
                 const matchBranch = selectedBranch === 'ทั้งหมด' || u.branch === selectedBranch;
@@ -4479,15 +4479,13 @@ function toggleModalUserSelection(username, isChecked) {
                 const validYears = ["ชั้นปีที่ 1", "ชั้นปีที่ 2", "ชั้นปีที่ 3"];
                 const isYear1To3 = validYears.includes(u.yearLevel);
                 const matchYear = selectedYear === 'ทั้งหมด' ? isYear1To3 : u.yearLevel === selectedYear;
-                const matchAcademicYear = selectedAcademicYear === 'ทั้งหมด' || u.academicYear === selectedAcademicYear; // 🟢 กรองปีการศึกษา
-
+                const matchAcademicYear = selectedAcademicYear === 'ทั้งหมด' || u.academicYear === selectedAcademicYear;
+        
                 return isStudent && matchBranch && matchYear && matchAcademicYear;
             });
         
             // 1.1 จัดการ Filter สาขา
             const allBranches = Array.from(new Set(userDatabase.map(u => u.branch).filter(b => b && b !== 'อาจารย์ผู้สอน' && b !== 'ทั่วไป')));
-            
-            // 🟢 ล็อก Filter สาขาสำหรับทั้ง Manager และ Admin (ยกเว้น Superadmin)
             const isRestrictedRole = (hasRole(loggedInUser, 'admin') || hasRole(loggedInUser, 'manager')) && !hasRole(loggedInUser, 'superadmin');
             
             if (isRestrictedRole && loggedInUser.branch) {
@@ -4503,7 +4501,7 @@ function toggleModalUserSelection(username, isChecked) {
                
             const studentIds = branchStudents.map(s => s.username);
         
-            // 1.3 กรองผลสอบ
+            // 1.3 กรองผลสอบทั้งหมด
             const branchResults = examResultsHistory.filter(r => {
                 const matchBranch = selectedBranch === 'ทั้งหมด' || r.branch === selectedBranch;
                 const matchStudent = studentIds.includes(r.sapId);
@@ -4516,40 +4514,90 @@ function toggleModalUserSelection(username, isChecked) {
         
             branchResults.forEach(r => {
                 const nameCheck = ((r.examSet || '') + ' ' + (r.category || '')).toLowerCase();
-                if (nameCheck.includes('กลางภาค') || nameCheck.includes('ปลายภาค') || nameCheck.includes('midterm') || nameCheck.includes('final')) {
+                if (nameCheck.includes('กลางภาค') || nameCheck.includes('ปลายภาค') || nameCheck.includes('เลื่อนชั้น') || nameCheck.includes('ประมวล')) {
                     termExamResults.push(r);
                 } else {
                     normalResults.push(r);
                 }
             });
         
-            // 1.5 คำนวณข้อมูลการ์ดสรุปยอด (KPIs)
+            // =========================================================
+            // 📊 1.5 คำนวณข้อมูลการ์ดสรุปยอดทั้ง 4 ใบ (KPIs Summary)
+            // =========================================================
+            
+            // การ์ดที่ 1: จำนวนนักเรียนทั้งหมด
             document.getElementById('kpi-total-students').textContent = `${branchStudents.length} คน`;
             document.getElementById('kpi-students-subtext').textContent = selectedYear === 'ทั้งหมด' ? 'นักศึกษาปี 1-3 รวมกัน' : selectedYear;
         
+            // กรองคลังข้อสอบเฉพาะบทเรียนปกติ
             const availableNormalQuestions = masterQuestions.filter(q => {
                 const matchBranch = selectedBranch === 'ทั้งหมด' || q.branch === selectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง';
                 const nameCheck = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
-                return matchBranch && !nameCheck.includes('กลางภาค') && !nameCheck.includes('ปลายภาค');
+                return matchBranch && !nameCheck.includes('กลางภาค') && !nameCheck.includes('ปลายภาค') && !nameCheck.includes('เลื่อนชั้น') && !nameCheck.includes('ประมวล');
             });
         
             const setNames = Array.from(new Set(availableNormalQuestions.map(q => q.setGroup || 'ชุดการเรียนรู้ทั่วไป')));
             const unitNames = Array.from(new Set(availableNormalQuestions.map(q => q.category || 'หน่วยการเรียนรู้ทั่วไป')));
         
+            // การ์ดที่ 2: จำนวนชุดการเรียนรู้
             document.getElementById('kpi-total-sets').textContent = `${setNames.length} ชุด`;
             document.getElementById('kpi-sets-subtext').textContent = `รวม ${unitNames.length} หน่วยการเรียนรู้`;
         
-            let totalPercentageSum = 0;
-            normalResults.forEach(r => totalPercentageSum += (r.percentage || 0));
-            const overallProgress = normalResults.length > 0 ? (totalPercentageSum / normalResults.length).toFixed(1) : "0.0";
-            document.getElementById('kpi-overall-progress').textContent = `${overallProgress}%`;
+            // 🟢 การ์ดที่ 3: คำนวณ %ความก้าวหน้าภาพรวม (สูตรใหม่: หน่วยที่ผ่านรวม / (หน่วยทั้งหมด * นักเรียนทั้งหมด))
+            const totalStudentsCount = branchStudents.length;
+            const totalUnitsCount = unitNames.length;
+            const maxTargetPassedCount = totalUnitsCount * totalStudentsCount; // เป้าหมายหน่วยที่ทุกคนต้องผ่านรวมกัน
+        
+            let totalPassedUnitsSum = 0;
+            branchStudents.forEach(st => {
+                const stHistory = normalResults.filter(r => (r.sapId || r.studentId) === st.username);
+                // นับเฉพาะหน่วยการเรียนรู้ที่นักศึกษาคนนี้สอบผ่าน (คะแนน >= 80%) แบบไม่นับหน่วยซ้ำ
+                const passedUnitsSet = new Set();
+                stHistory.forEach(r => {
+                    if ((r.percentage || 0) >= 80) {
+                        passedUnitsSet.add(r.category);
+                    }
+                });
+                totalPassedUnitsSum += passedUnitsSet.size;
+            });
+        
+            const overallProgressPerc = maxTargetPassedCount > 0 
+                ? ((totalPassedUnitsSum / maxTargetPassedCount) * 100).toFixed(1) 
+                : "0.0";
+        
+            const kpiProgressElem = document.getElementById('kpi-overall-progress');
+            if (kpiProgressElem) kpiProgressElem.textContent = `${overallProgressPerc}%`;
+            
+            // อัปเดตข้อความย่อยใตการ์ดที่ 3
+            const kpiProgressSub = kpiProgressElem?.nextElementSibling;
+            if (kpiProgressSub) kpiProgressSub.textContent = `ผ่านสะสม ${totalPassedUnitsSum}/${maxTargetPassedCount} หน่วยเรียน`;
+        
+            // 🟢 การ์ดที่ 4: คำนวณ "อัตราการเข้าสอบภาพรวม" (นับจำนวนนักเรียนที่เคยเข้าสอบอย่างน้อย 1 ครั้ง)
+            const activeStudentIds = new Set(branchResults.map(r => r.sapId || r.studentId));
+            const attemptedStudentsCount = branchStudents.filter(st => activeStudentIds.has(st.username)).length;
+            
+            const attendanceRate = totalStudentsCount > 0 
+                ? ((attemptedStudentsCount / totalStudentsCount) * 100).toFixed(1) 
+                : "0.0";
+        
+            // ปรับเปลี่ยนหัวข้อ และตัวเลขของการ์ดที่ 4 ใน HTML Dynamic
+            const kpi4TitleElem = document.getElementById('kpi-remedial-count')?.parentElement?.firstElementChild?.firstElementChild;
+            if (kpi4TitleElem) kpi4TitleElem.textContent = "อัตราการเข้าสอบภาพรวม";
+        
+            const kpi4Elem = document.getElementById('kpi-remedial-count');
+            if (kpi4Elem) {
+                kpi4Elem.textContent = `${attendanceRate}%`;
+                kpi4Elem.className = "text-2xl font-extrabold text-indigo-600"; // เปลี่ยนสีเป็นสีน้ำเงิน Indigo ให้ดูเป็นเชิงบวก
+            }
+        
+            const kpi4Sub = kpi4Elem?.nextElementSibling;
+            if (kpi4Sub) kpi4Sub.textContent = `เข้าทำแบบทดสอบแล้ว ${attemptedStudentsCount}/${totalStudentsCount} คน`;
         
             // 1.6 เรนเดอร์ Accordion บทเรียนปกติ
             renderNormalUnitsAccordion(branchStudents, normalResults, availableNormalQuestions);
         
-            // 1.7 เรนเดอร์การ์ดกลางภาค/ปลายภาค และคำนวณนับยอดผู้ต้องสอบซ่อมแบบไม่ซ้ำคน (Unique Count)
-            const remedialCount = renderTermExamsTracker(branchStudents, termExamResults, normalResults, availableNormalQuestions);
-            document.getElementById('kpi-remedial-count').textContent = `${remedialCount} คน`;
+            // 1.7 เรนเดอร์การ์ดกลางภาค/ปลายภาค
+            renderTermExamsTracker(branchStudents, termExamResults, normalResults, availableNormalQuestions);
         }
 
         // 🟢 ฟังก์ชันส่งออกรายงานภาพรวมสาขา (QA Report) เป็น CSV
