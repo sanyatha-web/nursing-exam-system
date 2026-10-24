@@ -4626,58 +4626,59 @@ function toggleModalUserSelection(username, isChecked) {
             }
         
             const percentage = parseFloat(((scoreGiven / maxScore) * 100).toFixed(2));
-            const graderName = loggedInUser ? loggedInUser.fullname : "Preceptor";
+            const graderName = loggedInUser ? loggedInUser.fullname || loggedInUser.name : "Preceptor";
             const gradedTimestamp = new Date().toLocaleString('th-TH');
         
-            // 🟢 1. อัปเดตค่าใน Memory ของเครื่องทันที
-            item.score = scoreGiven;
-            item.feedback = feedbackText || "ตรวจเรียบร้อยแล้ว";
-            item.graderName = graderName;
-            item.gradedTimestamp = gradedTimestamp;
+            // เตรียม Payload ส่งไปยัง Google Apps Script
+            const payload = {
+                action: "updateEssayGrading",
+                studentId: String(item.sapId || item.studentId || '').trim(),
+                category: String(item.category || '').trim(),
+                timestamp: String(item.timestamp || '').trim(),
+                essayAnswers: String(item.essayAnswers || item.answer || '').trim(), // 🟢 ส่งคำตอบไปช่วยระบุแถว
+                scoreGiven: scoreGiven,
+                percentage: percentage,
+                feedback: feedbackText || "ตรวจเรียบร้อยแล้ว",
+                graderName: graderName,
+                gradedTimestamp: gradedTimestamp
+            };
         
-            // หาและอัปเดตตัวจริงใน examResultsHistory
-            const targetInHistory = examResultsHistory.find(r => 
-                (r.sapId === item.sapId || r.studentId === item.studentId) && 
-                r.category === item.category && 
-                r.timestamp === item.timestamp &&
-                r.essayAnswers === item.essayAnswers
-            );
-            if (targetInHistory) {
-                targetInHistory.score = scoreGiven;
-                targetInHistory.feedback = item.feedback;
-                targetInHistory.graderName = graderName;
-                targetInHistory.gradedTimestamp = gradedTimestamp;
-            }
-        
-            // 🟢 2. สั่งรีเฟรชหน้ารายการรอตรวจทันที (ข้อที่ตรวจแล้วจะหายไปทันที!)
-            switchAdminTab('essay-grading');
-        
-            // 🟢 3. ส่งข้อมูลไปบันทึกลง Google Sheets อยู่เบื้องหลัง
             if (settings.webAppUrl) {
+                // 🟢 ส่งข้อมูลด้วย Content-Type text/plain เพื่อเลี่ยงปัญหา CORS Preflight ใน Apps Script
                 fetch(settings.webAppUrl, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: "updateEssayGrading",
-                        studentId: item.sapId || item.studentId,
-                        category: item.category,
-                        timestamp: item.timestamp,
-                        essayAnswers: item.essayAnswers,
-                        scoreGiven: scoreGiven,
-                        percentage: percentage,
-                        feedback: feedbackText || "ตรวจเรียบร้อยแล้ว",
-                        graderName: graderName,
-                        gradedTimestamp: gradedTimestamp
-                    })
-                }).then(() => {
-                    showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'ส่งผลการตรวจข้อเขียนเข้า Google Sheets เรียบร้อยแล้ว');
-                }).catch(err => {
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' || data.result === 'success') {
+                        // 🟢 เมื่อส่งลง Google Sheets สำเร็จแล้ว ค่อยตัดออกจาก Memory และรีเฟรชหน้า
+                        item.score = scoreGiven;
+                        item.feedback = feedbackText || "ตรวจเรียบร้อยแล้ว";
+        
+                        const target = examResultsHistory.find(r => 
+                            String(r.sapId || r.studentId).trim() === payload.studentId && 
+                            String(r.category).trim() === payload.category &&
+                            String(r.essayAnswers).trim() === payload.essayAnswers
+                        );
+                        if (target) {
+                            target.score = scoreGiven;
+                            target.feedback = item.feedback;
+                        }
+        
+                        showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'อัปเดตผลการตรวจลง Google Sheets เรียบร้อยแล้ว');
+                        switchAdminTab('essay-grading');
+                    } else {
+                        showAlertModal('error', 'บันทึกไม่สำเร็จ', data.message || 'ไม่สามารถอัปเดตแถวใน Google Sheets ได้');
+                    }
+                })
+                .catch(err => {
                     console.error("Grading update failed:", err);
-                    showAlertModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลไปยัง Google Sheets ได้');
+                    showAlertModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับ Google Sheets ได้');
                 });
             } else {
-                showAlertModal('warning', 'ไม่ได้ตั้งค่า WebApp', 'กรุณาตั้งค่า Google Sheets Web App URL ในเมนูแหล่งข้อมูลก่อน');
+                showAlertModal('warning', 'ไม่ได้ตั้งค่า WebApp', 'กรุณาตั้งค่า Google Sheets Web App URL ก่อน');
             }
         }
 
