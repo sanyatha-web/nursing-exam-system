@@ -3855,6 +3855,7 @@ async function fetchAndSyncUsers() {
         
             printArea.innerHTML = `
                 <div class="space-y-4">
+                    <!-- หัวการ์ดแสดงข้อมูลผู้เรียน -->
                     <div class="p-3 bg-indigo-900 text-white rounded-xl flex justify-between items-center">
                         <div>
                             <div class="font-bold text-sm">${student.fullname}</div>
@@ -3866,10 +3867,10 @@ async function fetchAndSyncUsers() {
                         </div>
                     </div>
         
-                    <!-- การ์ดพิเศษ 1: การสอบเลื่อนชั้นปี / สอบประมวลความรู้ -->
+                    <!-- 🟢 การ์ดพิเศษ 1: รายละเอียดคะแนนการสอบเลื่อนชั้นปี / สอบประมวลความรู้ (รวมส่วนข้อเขียน) -->
                     ${termExamsCardHtml}
         
-                    <!-- การ์ด 2: ประวัติผลการสอบบทเรียนสะสม -->
+                    <!-- 🟢 การ์ด 2: รายละเอียดคะแนนประวัติผลการสอบบทเรียนสะสม (รวมส่วนข้อเขียน) -->
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
                             <i class="fa-solid fa-book-bookmark text-indigo-600 mr-2"></i> ประวัติผลการสอบบทเรียนสะสม (${studentYear})
