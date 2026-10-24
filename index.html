@@ -58,6 +58,13 @@
                         <i class="fa-solid fa-house text-sm text-amber-300"></i>
                         <span class="hidden md:inline">หน้าแรก</span>
                     </button>
+
+                    <!-- ปุ่มการเลื่อนชั้น/จบการศึกษา (เพิ่มใหม่) -->
+                    <button id="nav-btn-promotion" onclick="switchAdminTab('promotion')" title="การเลื่อนชั้น/จบการศึกษา"
+                        class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 hover:bg-white/10 text-indigo-100">
+                        <i class="fa-solid fa-user-graduate text-sm text-amber-300"></i>
+                        <span class="hidden md:inline">การเลื่อนชั้น/จบการศึกษา</span>
+                    </button>
         
                     <!-- 2. ปุ่มการตั้งค่าการสอบ -->
                     <button id="nav-btn-exam-settings" onclick="switchAdminTab('overview')" title="การตั้งค่าการสอบ"
@@ -353,6 +360,60 @@
                 </div>
 
             </div> <!-- 🟢 แท็ก </div> นี้คือจุดปิดครอบคลุม tab-admin-manager-dashboard ทั้งหมดที่ถูกต้องครับ -->
+
+            <!-- ---------------- แท็บ: การเลื่อนชั้น / จบการศึกษา (PROMOTION DASHBOARD) ---------------- -->
+            <div id="tab-admin-promotion" class="hidden space-y-6">
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base flex items-center">
+                            <i class="fa-solid fa-user-graduate text-indigo-600 mr-2"></i> ระบบอนุมัติการเลื่อนชั้นปีและจบการศึกษา
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">ตรวจสอบรายชื่อนักศึกษาที่สอบผ่านตามเกณฑ์ และกดอนุมัติเลื่อนชั้นปี/จบการศึกษา</p>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button type="button" onclick="approveSelectedStudents()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-check-double"></i>
+                            <span>อนุมัติรายการที่เลือก (<span id="selected-promotion-count">0</span>)</span>
+                        </button>
+                    </div>
+                </div>
+            
+                <!-- แถบสลับระดับชั้นปี -->
+                <div class="flex border-b border-slate-200 space-x-4 text-xs font-bold">
+                    <button id="promo-tab-btn-y1" onclick="switchPromotionTab('1')" class="pb-2.5 border-b-2 border-indigo-600 text-indigo-600">
+                        🎓 เลื่อนชั้น ปี 1 ➔ ปี 2 (<span id="promo-count-y1">0</span>)
+                    </button>
+                    <button id="promo-tab-btn-y2" onclick="switchPromotionTab('2')" class="pb-2.5 text-slate-500 border-b-2 border-transparent hover:text-indigo-600">
+                        🎓 เลื่อนชั้น ปี 2 ➔ ปี 3 (<span id="promo-count-y2">0</span>)
+                    </button>
+                    <button id="promo-tab-btn-y3" onclick="switchPromotionTab('3')" class="pb-2.5 text-slate-500 border-b-2 border-transparent hover:text-indigo-600">
+                        🏆 จบการศึกษา ปี 3 (<span id="promo-count-y3">0</span>)
+                    </button>
+                </div>
+            
+                <!-- ตารางรายชื่อผู้สอบที่ผ่านเกณฑ์ -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-700">
+                            <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3.5 text-center"><input type="checkbox" id="chk-promo-select-all" onchange="toggleSelectAllPromotion(this.checked)" class="rounded text-indigo-600"></th>
+                                    <th class="p-3.5">SAP-ID</th>
+                                    <th class="p-3.5">ชื่อ-นามสกุล</th>
+                                    <th class="p-3.5">สาขาวิชา</th>
+                                    <th class="p-3.5 text-center">สถานะการสอบ</th>
+                                    <th class="p-3.5 text-center">สมุดพก</th>
+                                    <th class="p-3.5 text-center">ดำเนินการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="promotion-table-body" class="divide-y divide-slate-100">
+                                <!-- Dynamic Content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
             <!-- 📌 MODAL: ป๊อบอัปแสดงรายชื่อผู้สอบและติดตามสอบซ่อมละเอียด -->
             <div id="modal-manager-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -2943,8 +3004,9 @@ async function fetchAndSyncUsers() {
             const btnExam = document.getElementById('nav-btn-exam-settings');
             const btnTracker = document.getElementById('nav-btn-student-tracker');
             const btnEssay = document.getElementById('nav-btn-essay-grading');
+            const btnPromo = document.getElementById('nav-btn-promotion');
 
-            [btnHome, btnExam, btnTracker, btnEssay].forEach(btn => {
+            [btnHome, btnExam, btnTracker, btnEssay, btnPromo].forEach(btn => {
                 if (btn) btn.classList.remove('bg-white/20', 'text-white', 'shadow-inner');
             });
 
@@ -2956,6 +3018,7 @@ async function fetchAndSyncUsers() {
                 'tab-admin-data-sources',
                 'tab-admin-essay-grading',
                 'tab-admin-manager-dashboard',
+                'tab-admin-promotion',
                 'branch-selector-wrapper'
             ];
             
@@ -2990,6 +3053,12 @@ async function fetchAndSyncUsers() {
             } else if (tabName === 'essay-grading') {
                 if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 document.getElementById('tab-admin-essay-grading')?.classList.remove('hidden');
+
+            } else if (tabName === 'promotion') {
+                if (btnPromo) btnPromo.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                document.getElementById('tab-admin-promotion')?.classList.remove('hidden');
+                renderPromotionDashboard();
+            }
             
                 // 🟢 กรองเฉพาะรายการที่ "ยังไม่ได้ตรวจ" (score เป็น null, undefined, หรือ String ว่าง)
                 const pendingList = examResultsHistory.filter(r => {
@@ -3882,6 +3951,28 @@ async function fetchAndSyncUsers() {
                 });
             }
         
+            // 🟢 1. เช็กว่านักเรียนคนนี้มีข้อมูลการอนุมัติหรือไม่ แล้วสร้าง HTML ตราประทับ
+            let approvalBadgeHtml = '';
+            if (student.approvedBy) {
+                approvalBadgeHtml = `
+                    <div class="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-lg shadow">
+                                <i class="fa-solid fa-stamp"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-emerald-900 text-xs">อนุมัติการเลื่อนชั้นปี / จบการศึกษาแล้ว</h5>
+                                <p class="text-[11px] text-emerald-700">ผู้อนุมัติ: <strong class="text-slate-800">${student.approvedBy}</strong> (Manager)</p>
+                            </div>
+                        </div>
+                        <div class="text-right text-[11px] font-bold text-emerald-800">
+                            📅 วันที่อนุมัติ: ${student.approvedDate || '-'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 🟢 2. นำ ${approvalBadgeHtml} ใส่แทรกไว้ล่างสุดของสมุดพก (ต่อท้ายประวัติผลการสอบสะสม)
             printArea.innerHTML = `
                 <div class="space-y-4">
                     <div class="p-3 bg-indigo-900 text-white rounded-xl flex justify-between items-center">
@@ -3894,10 +3985,10 @@ async function fetchAndSyncUsers() {
                             <div class="text-[10px] text-indigo-200">ประวัติผลการประเมินสะสม</div>
                         </div>
                     </div>
-        
+
                     <!-- การ์ดพิเศษ 1: การสอบเลื่อนชั้นปี / สอบประมวลความรู้ -->
                     ${termExamsCardHtml}
-        
+
                     <!-- การ์ด 2: ประวัติผลการสอบบทเรียนสะสม -->
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
@@ -3907,6 +3998,9 @@ async function fetchAndSyncUsers() {
                             ${unitsHtml}
                         </div>
                     </div>
+
+                    <!-- 🟢 ตราประทับดิจิทัลอนุมัติโดย Manager (แสดงผลเมื่อได้รับการอนุมัติแล้ว) -->
+                    ${approvalBadgeHtml}
                 </div>
             `;
         
@@ -5505,6 +5599,198 @@ function toggleModalUserSelection(username, isChecked) {
             
             showAlertModal('success', 'ลบรายการสำเร็จ', 'ลบรายการตรวจข้อเขียนออกจากระบบเรียบร้อยแล้ว');
             renderEssayGradingCards(pendingList);
+        }
+
+        // Global State สำหรับระบบเลื่อนชั้น
+        let activePromotionYear = '1';
+        let selectedPromotionUsers = new Set();
+        
+        function switchPromotionTab(yearLevel) {
+            activePromotionYear = yearLevel;
+            selectedPromotionUsers.clear();
+            
+            ['1', '2', '3'].forEach(y => {
+                const btn = document.getElementById(`promo-tab-btn-y${y}`);
+                if (btn) {
+                    if (y === yearLevel) {
+                        btn.className = "pb-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
+                    } else {
+                        btn.className = "pb-2.5 text-slate-500 border-b-2 border-transparent hover:text-indigo-600 font-bold";
+                    }
+                }
+            });
+        
+            renderPromotionDashboard();
+        }
+        
+        function renderPromotionDashboard() {
+            const tableBody = document.getElementById('promotion-table-body');
+            if (!tableBody) return;
+        
+            const targetYearText = `ชั้นปีที่ ${activePromotionYear}`;
+            
+            // ดึงเฉพาะนักเรียนในสาขาที่ตรงกับชั้นปีที่เลือก
+            const eligibleStudents = userDatabase.filter(u => {
+                const isStudent = hasRole(u, 'student');
+                const matchYear = u.yearLevel === targetYearText;
+                const matchBranch = (loggedInUser && hasRole(loggedInUser, 'manager') && !hasRole(loggedInUser, 'superadmin'))
+                    ? u.branch === loggedInUser.branch
+                    : true;
+                return isStudent && matchYear && matchBranch;
+            });
+        
+            // กรองเฉพาะคนที่ผ่านเกณฑ์ครบทุกชุด + ข้อสอบเลื่อนชั้น/ประมวลความรู้
+            const qualifiedStudents = eligibleStudents.filter(student => {
+                const sapId = student.username || student.sapId;
+                const studentHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === sapId.toLowerCase());
+                
+                // เช็กข้อสอบบทเรียนปกติผ่านเกณฑ์ >= 80% ครบหรือไม่
+                const passedUnits = new Set(studentHistory.filter(r => (r.percentage || 0) >= 80).map(r => r.category));
+                
+                // ค้นหาชุดบทเรียนปกติของชั้นปีนี้
+                const totalCourseUnits = new Set(
+                    masterQuestions.filter(q => (!q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === targetYearText) && (!q.branch || q.branch === student.branch))
+                    .map(q => q.category)
+                );
+        
+                const isNormalPassed = totalCourseUnits.size > 0 && passedUnits.size >= totalCourseUnits.size;
+        
+                // เช็กการสอบเลื่อนชั้น/จบการศึกษา
+                const isTermPassed = studentHistory.some(r => {
+                    const cat = (r.category || '').toLowerCase();
+                    const set = (r.examSet || '').toLowerCase();
+                    const isTermKey = cat.includes('เลื่อนชั้น') || cat.includes('ประมวล') || set.includes('เลื่อนชั้น') || set.includes('ประมวล');
+                    return isTermKey && (r.percentage || 0) >= 80;
+                });
+        
+                return isNormalPassed || isTermPassed; // แสดงรายชื่อที่สอบผ่านครบเกณฑ์
+            });
+        
+            // อัปเดตตัวเลขนับจำนวน
+            document.getElementById(`promo-count-y${activePromotionYear}`).textContent = qualifiedStudents.length;
+        
+            if (qualifiedStudents.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-xs text-slate-400">🎉 ไม่มีรายการผู้สอบที่รอการอนุมัติในชั้นปีนี้</td></tr>`;
+                return;
+            }
+        
+            tableBody.innerHTML = qualifiedStudents.map(st => {
+                const sapId = st.username || st.sapId;
+                const isChecked = selectedPromotionUsers.has(sapId);
+        
+                return `
+                    <tr class="hover:bg-indigo-50/30 transition">
+                        <td class="p-3.5 text-center">
+                            <input type="checkbox" value="${sapId}" ${isChecked ? 'checked' : ''} onchange="toggleSelectPromotionUser('${sapId}', this.checked)" class="rounded text-indigo-600">
+                        </td>
+                        <td class="p-3.5 font-bold font-mono text-indigo-700">${sapId}</td>
+                        <td class="p-3.5 font-bold text-slate-800">${st.fullname}</td>
+                        <td class="p-3.5 text-slate-600">${st.branch}</td>
+                        <td class="p-3.5 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                ✓ ผ่านเกณฑ์ครบถ้วน
+                            </span>
+                        </td>
+                        <td class="p-3.5 text-center">
+                            <button type="button" onclick="openStudentTranscriptModal('${sapId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200">
+                                📘 สมุดพก
+                            </button>
+                        </td>
+                        <td class="p-3.5 text-center">
+                            <button type="button" onclick="approveSingleStudent('${sapId}')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">
+                                อนุมัติ
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        
+            updateSelectedPromotionUI();
+        }
+        
+        function toggleSelectPromotionUser(sapId, isChecked) {
+            if (isChecked) selectedPromotionUsers.add(sapId);
+            else selectedPromotionUsers.delete(sapId);
+            updateSelectedPromotionUI();
+        }
+        
+        function toggleSelectAllPromotion(isChecked) {
+            const checkboxes = document.querySelectorAll('#promotion-table-body input[type="checkbox"]');
+            checkboxes.forEach(chk => {
+                chk.checked = isChecked;
+                if (isChecked) selectedPromotionUsers.add(chk.value);
+                else selectedPromotionUsers.delete(chk.value);
+            });
+            updateSelectedPromotionUI();
+        }
+        
+        function updateSelectedPromotionUI() {
+            document.getElementById('selected-promotion-count').textContent = selectedPromotionUsers.size;
+        }
+        
+        // ฟังก์ชันสั่งอนุมัติผู้สอบ
+        function approveSelectedStudents() {
+            if (selectedPromotionUsers.size === 0) {
+                showAlertModal('warning', 'กรุณาเลือกผู้สอบ', 'โปรดเลือกรายชื่อนักศึกษาที่ต้องการอนุมัติอย่างน้อย 1 คน');
+                return;
+            }
+            processPromotionApproval(Array.from(selectedPromotionUsers));
+        }
+        
+        function approveSingleStudent(sapId) {
+            processPromotionApproval([sapId]);
+        }
+        
+        function processPromotionApproval(studentIds) {
+            const managerName = loggedInUser ? loggedInUser.fullname : "Manager";
+            const approvalDate = new Date().toLocaleDateString('th-TH');
+        
+            let nextYearText = "ชั้นปีที่ 2";
+            let actionText = "เลื่อนชั้นปีเป็น ชั้นปีที่ 2";
+            if (activePromotionYear === '2') {
+                nextYearText = "ชั้นปีที่ 3";
+                actionText = "เลื่อนชั้นปีเป็น ชั้นปีที่ 3";
+            } else if (activePromotionYear === '3') {
+                nextYearText = "จบการศึกษา";
+                actionText = "อนุมัติจบการศึกษา";
+            }
+        
+            if (!confirm(`คุณต้องการยืนยัน ${actionText} ให้กับนักศึกษาจำนวน ${studentIds.length} คน ใช่หรือไม่?`)) return;
+        
+            // อัปเดตใน userDatabase Local Memory
+            studentIds.forEach(id => {
+                const student = userDatabase.find(u => u.username === id || u.sapId === id);
+                if (student) {
+                    student.yearLevel = nextYearText;
+                    student.approvedBy = managerName;
+                    student.approvedDate = approvalDate;
+                }
+            });
+        
+            localStorage.setItem('online_exam_users', JSON.stringify(userDatabase));
+        
+            // ส่งคำสั่งอัปเดตไป Google Sheets
+            if (settings.webAppUrl) {
+                fetch(settings.webAppUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: "approvePromotion",
+                        studentIds: studentIds,
+                        nextYearLevel: nextYearText,
+                        managerName: managerName,
+                        approvalDate: approvalDate
+                    })
+                }).then(() => {
+                    showAlertModal('success', 'อนุมัติสำเร็จ', `ดำเนินการ ${actionText} เรียบร้อยแล้ว`);
+                    selectedPromotionUsers.clear();
+                    renderPromotionDashboard();
+                });
+            } else {
+                showAlertModal('success', 'อนุมัติสำเร็จ (Local)', `ดำเนินการ ${actionText} ในระบบเรียบร้อยแล้ว`);
+                selectedPromotionUsers.clear();
+                renderPromotionDashboard();
+            }
         }
         
     </script>
