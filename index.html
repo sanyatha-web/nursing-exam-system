@@ -1248,36 +1248,52 @@ let settings = {
         function loadCategoriesForLoggedInUser() {
             if (!loggedInUser) return;
         
-            const studentYear = loggedInUser.yearLevel || 'ไม่ระบุชั้นปี';
-            const studentBranch = loggedInUser.branch || '';
-            const studentId = loggedInUser.username;
+            const studentYear = (loggedInUser.yearLevel || 'ไม่ระบุชั้นปี').trim();
+            const studentBranch = (loggedInUser.branch || '').trim();
+            const studentId = (loggedInUser.username || '').trim();
         
-            // 1. ดึงประวัติการสอบที่ผ่านเกณฑ์ (≥ 80%) ของนักศึกษาคนนี้
-            const studentHistory = examResultsHistory.filter(r => r.sapId === studentId);
-            const passedCategories = new Set(
-                studentHistory.filter(r => r.percentage >= 80).map(r => r.category)
+            // 1. ดึงประวัติการสอบของผู้เรียนรายนี้
+            const studentHistory = examResultsHistory.filter(r => (r.sapId || '').trim() === studentId);
+        
+            // 2. ค้นหาชื่อหน่วยการเรียนรู้ที่มีข้อสอบข้อเขียนที่ "รอตรวจ" (ยังไม่มีคะแนน/score เป็น null หรือ empty)
+            const pendingCategories = new Set(
+                studentHistory
+                    .filter(r => {
+                        const exType = (r.examType || '').trim().toLowerCase();
+                        const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
+                        const isUnscored = r.score === null || r.score === undefined || r.score === '';
+                        return isEssay && isUnscored;
+                    })
+                    .map(r => (r.category || '').trim().toLowerCase())
             );
         
-            // 2. กรองข้อสอบเฉพาะ สาขา และ ชั้นปี ของนักศึกษาคนนี้
+            // 3. ค้นหาชื่อหน่วยการเรียนรู้ที่ "สอบผ่านแล้ว" (คะแนน >= 80%)
+            const passedCategories = new Set(
+                studentHistory
+                    .filter(r => (r.percentage || 0) >= 80)
+                    .map(r => (r.category || '').trim().toLowerCase())
+            );
+        
+            // 4. รวมหน่วยการเรียนรู้ที่ต้องบล็อก (สอบผ่านแล้ว OR อยู่ระหว่างรอตรวจ)
+            const lockedCategories = new Set([...passedCategories, ...pendingCategories]);
+        
+            // 5. กรองข้อสอบเฉพาะ สาขา และ ชั้นปี ของนักศึกษา
             let userPool = masterQuestions.filter(q => {
-                const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch === studentBranch;
-                const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel === studentYear;
+                const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch.trim() === studentBranch;
+                const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel.trim() === studentYear;
                 return matchBranch && matchYear;
             });
         
-            const pendingCategories = [];
-            const pendingSets = new Set();
+            const availableCategories = [];
         
             userPool.forEach(q => {
-                const cat = q.category;
+                const cat = (q.category || '').trim();
+                const catLower = cat.toLowerCase();
                 const setGrp = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
                 if (!cat) return;
         
-                // 🟢 เช็กว่าบทเรียนนี้ยังสอบ "ไม่ผ่าน" หรือ "ยังไม่ได้สอบ" ใช่หรือไม่
-                const isNotPassedYet = !passedCategories.has(cat);
-        
-                if (isNotPassedYet) {
-                    // เช็กการเปิด/ปิดสิทธิ์การสอบใน unitSettings
+                // 🟢 ตรวจสอบว่าหน่วยการเรียนรู้นี้ไม่ได้ถูกล็อก (ยังไม่ผ่าน และ ไม่มีข้อเขียนรอตรวจ)
+                if (!lockedCategories.has(catLower)) {
                     const possibleKeys = [
                         `${studentBranch}__${setGrp}__${cat}`,
                         `${studentBranch}__${settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)'}__${cat}`,
@@ -1298,46 +1314,51 @@ let settings = {
                         const isAllAccess = !conf || !conf.accessMode || conf.accessMode === 'all';
                         const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(studentId);
         
-                        if (isAllAccess || isUserAllowed) {
-                            if (!pendingCategories.includes(cat)) {
-                                pendingCategories.push(cat);
-                                pendingSets.add(setGrp);
-                            }
+                        if ((isAllAccess || isUserAllowed) && !availableCategories.includes(cat)) {
+                            availableCategories.push(cat);
                         }
                     }
                 }
             });
         
-            // 🟢 3. อัปเดตข้อความป้ายแสดงสถานะด้านบน
+            // 6. แสดงผลข้อความสถานะด้านบน
             const badgeElem = document.getElementById('dashboard-active-set-badge');
             if (badgeElem) {
-                if (pendingCategories.length === 0) {
-                    badgeElem.textContent = `🎉 สอบผ่านครบทุกหน่วยของ ${studentYear} แล้ว`;
-                    badgeElem.className = "font-bold text-emerald-600";
+                if (availableCategories.length === 0) {
+                    if (pendingCategories.size > 0) {
+                        badgeElem.textContent = `⏳ มีหน่วยการเรียนรู้ที่อยู่ระหว่างรอ Preceptor ตรวจข้อเขียน`;
+                        badgeElem.className = "font-bold text-amber-600";
+                    } else {
+                        badgeElem.textContent = `🎉 คุณสอบผ่านครบทุกหน่วยของ ${studentYear} แล้ว`;
+                        badgeElem.className = "font-bold text-emerald-600";
+                    }
                 } else {
-                    badgeElem.textContent = `${studentYear} (เหลือต้องสอบอีก ${pendingCategories.length} หน่วยการเรียนรู้)`;
+                    badgeElem.textContent = `${studentYear} (เหลือต้องสอบอีก ${availableCategories.length} หน่วยการเรียนรู้)`;
                     badgeElem.className = "font-bold text-amber-600";
                 }
             }
         
-            // 🟢 4. อัปเดต Dropdown เลือกแบบทดสอบ
+            // 7. อัปเดต Dropdown เลือกแบบทดสอบ
             const selectElem = document.getElementById('dashboard-category-select');
-            if (!selectElem) return;
-        
-            // 🟢 ผูก Event เมื่อนักเรียนเปลี่ยนตัวเลือกบทเรียน ให้กล่องเตือนอัปเดตตามทันที
-            selectElem.onchange = renderInitialSetupNotice;
-        
-            if (pendingCategories.length === 0) {
-                selectElem.innerHTML = `<option value="">-- คุณสอบผ่านครบทุกหน่วยการเรียนรู้ของชั้นปีนี้แล้ว --</option>`;
-            } else {
-                selectElem.innerHTML = pendingCategories.map(cat => {
-                    const qMatch = userPool.find(q => q.category === cat);
-                    const setGrp = qMatch?.setGroup || 'ชุดการเรียนรู้ทั่วไป';
-                    return `<option value="${cat}">${setGrp} - ${cat}</option>`;
-                }).join('');
+            if (selectElem) {
+                selectElem.onchange = renderInitialSetupNotice;
+                if (availableCategories.length === 0) {
+                    if (pendingCategories.size > 0) {
+                        selectElem.innerHTML = `<option value="">-- มีชุดข้อสอบรอตรวจ ไม่สามารถทำซ้ำได้ --</option>`;
+                    } else {
+                        selectElem.innerHTML = `<option value="">-- คุณสอบผ่านครบทุกหน่วยการเรียนรู้แล้ว --</option>`;
+                    }
+                    selectElem.disabled = true;
+                } else {
+                    selectElem.disabled = false;
+                    selectElem.innerHTML = availableCategories.map(cat => {
+                        const qMatch = userPool.find(q => (q.category || '').trim() === cat);
+                        const setGrp = qMatch?.setGroup || 'ชุดการเรียนรู้ทั่วไป';
+                        return `<option value="${cat}">${setGrp} - ${cat}</option>`;
+                    }).join('');
+                }
             }
         
-            // 🟢 สั่งอัปเดตกล่องแจ้งเตือนทันทีหลังจากสร้างตัวเลือกเสร็จ
             renderInitialSetupNotice();
         }
 
@@ -3253,26 +3274,28 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                 const totalPartsCount = targetExamList.length;
                 let passedPartsCount = 0;
         
+                // โค้ดใหม่: ตัดช่องว่าง (.trim()) และแปลงเป็นตัวพิมพ์เล็ก (.toLowerCase()) ก่อนเปรียบเทียบ
                 targetExamList.forEach(item => {
                     if (item.isSet) {
                         const matchedAttempts = studentHistory.filter(r => {
-                            const rSet = r.examSet || '';
-                            const name = (rSet + ' ' + (r.category || '')).toLowerCase();
-                            const isNotTermExam = !name.includes('เลื่อนชั้น') && !name.includes('ประมวล') && !name.includes('comprehensive');
-                            return isNotTermExam && (rSet === item.setName || name.includes(item.setName.toLowerCase()));
+                            const rSet = (r.examSet || '').trim().toLowerCase();
+                            const rCat = (r.category || '').trim().toLowerCase();
+                            const targetSet = item.setName.trim().toLowerCase();
+                            const isNotTermExam = !rCat.includes('เลื่อนชั้น') && !rCat.includes('ประมวล') && !rCat.includes('comprehensive');
+                            return isNotTermExam && (rSet === targetSet || rCat === targetSet);
                         });
-                        if (matchedAttempts.some(a => a.percentage >= 80)) {
+                        if (matchedAttempts.some(a => (a.percentage || 0) >= 80)) {
                             passedPartsCount++;
                         }
                     } else {
                         const matchedAttempts = studentHistory.filter(r => {
-                            const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
+                            const name = ((r.category || '') + ' ' + (r.examSet || '')).trim().toLowerCase();
                             if (item.keyword === 'ประมวล') {
                                 return name.includes('ประมวล') || name.includes('comprehensive');
                             }
-                            return name.includes(item.keyword.toLowerCase());
+                            return name.includes(item.keyword.trim().toLowerCase());
                         });
-                        if (matchedAttempts.some(a => a.percentage >= 80)) {
+                        if (matchedAttempts.some(a => (a.percentage || 0) >= 80)) {
                             passedPartsCount++;
                         }
                     }
@@ -3495,7 +3518,12 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 if (isAttemptPending) {
                                     attemptSummaryText = `<span class="text-amber-600 font-bold">รอตรวจข้อเขียน</span>`;
                                 } else {
-                                    attemptSummaryText = `<span class="font-mono font-bold text-indigo-900">${attemptEarnedScore.toFixed(1)}/${attemptMaxScore} (${attemptPerc}%)</span>`;
+                                    // โค้ดใหม่: ใช้ Math.round() แปลงคะแนนดิบเป็นจำนวนเต็ม และบังคับทศนิยมเปอร์เซ็นต์ 2 ตำแหน่งด้วย .toFixed(2)
+                                    const displayEarnedScore = Math.round(attemptEarnedScore);
+                                    const displayMaxScore = Math.round(attemptMaxScore);
+                                    const displayPerc = attemptPerc.toFixed(2);
+                                    
+                                    attemptSummaryText = `<span class="font-mono font-bold text-indigo-900">${displayEarnedScore}/${displayMaxScore} (${displayPerc}%)</span>`;
                                 }
 
                                 return `
