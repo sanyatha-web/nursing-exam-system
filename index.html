@@ -4661,6 +4661,7 @@ function toggleModalUserSelection(username, isChecked) {
             renderManagerDashboard();
         }
 
+        // ✅ ฟังก์ชันเรนเดอร์ Accordion บทเรียนปกติ (ปรับปรุง Progress Bar ทั้ง 2 มุมมองให้อิงอัตราการสอบผ่านแบบเดียวกับการ์ดที่ 3)
         function renderNormalUnitsAccordion(studentsList, normalResults, availableQuestions) {
             const container = document.getElementById('manager-sets-accordion-container');
             if (!container) return;
@@ -4724,46 +4725,13 @@ function toggleModalUserSelection(username, isChecked) {
                 const unitsMap = setsStructure[groupName];
                 const unitNames = Object.keys(unitsMap);
         
-                let setTotalScores = [];
-                unitNames.forEach(u => unitsMap[u]?.forEach(r => setTotalScores.push(r.percentage)));
-                const setAvg = setTotalScores.length > 0 ? (setTotalScores.reduce((a, b) => a + b, 0) / setTotalScores.length).toFixed(1) : "0.0";
-                const setBarColor = setAvg >= 80 ? 'bg-emerald-500' : (setAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
+                // ตัวแปรสะสมเพื่อคำนวณ Progress Bar รวมของกลุ่มใหญ่ (Header)
+                let totalGroupTargetPassedCount = 0; // เป้าหมายหน่วยที่สอบผ่านรวม
+                let actualGroupPassedCount = 0;      // จำนวนคนที่สอบผ่านหน่วยย่อยต่างๆ รวมกันจริง
         
-                const groupIcon = currentManagerViewMode === 'set' ? 'fa-folder-open' : 'fa-graduation-cap';
-        
-                html += `
-                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                        <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
-                                    <i class="fa-solid ${groupIcon}"></i>
-                                </div>
-                                <div>
-                                    <h5 class="font-bold text-slate-800 text-sm">${groupName}</h5>
-                                    <p class="text-[11px] text-slate-400">${unitNames.length} หน่วยการเรียนรู้ย่อย</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-4 min-w-[180px]">
-                                <div class="w-full space-y-1">
-                                    <div class="flex justify-between text-[11px] font-bold">
-                                        <span class="text-slate-500">เฉลี่ยกลุ่ม (เฉพาะผู้สอบ):</span>
-                                        <span class="text-indigo-900">${setAvg}%</span>
-                                    </div>
-                                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                                        <div class="${setBarColor} h-2 rounded-full" style="width: ${Math.min(setAvg, 100)}%"></div>
-                                    </div>
-                                </div>
-                                <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
-                            </div>
-                        </div>
-        
-                        <div id="set-body-${setIdx}" class="hidden divide-y divide-slate-100 bg-white border-t border-slate-200">
-                `;
+                let subUnitsHtml = '';
         
                 unitNames.forEach((catName, unitIdx) => {
-                    const history = unitsMap[catName];
-                    const uAvg = history.length > 0 ? (history.reduce((a, b) => a + b.percentage, 0) / history.length).toFixed(1) : "0.0";
-        
                     const passedList = [];
                     const failedList = [];
                     const unattemptedList = [];
@@ -4782,7 +4750,7 @@ function toggleModalUserSelection(username, isChecked) {
                         return true;
                     });
         
-                    // ⚡ ดึงข้อมูลเร็วขึ้นโดยใช้ Map Key แทนการ .filter()
+                    // จำแนกสถานะนักเรียนรายบุคคลในหน่วยนี้
                     filteredStudentsList.forEach(st => {
                         const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
                         const lookupKey = `${groupName}__${catName}__${stId}`;
@@ -4803,6 +4771,16 @@ function toggleModalUserSelection(username, isChecked) {
                         }
                     });
         
+                    // 🟢 คำนวณ % ความก้าวหน้าของหน่วยย่อยนี้ (จำนวนคนสอบผ่าน / จำนวนนักศึกษาทั้งหมดในกลุ่ม)
+                    const unitStudentCount = filteredStudentsList.length;
+                    const unitPassedCount = passedList.length;
+                    const uRate = unitStudentCount > 0 ? ((unitPassedCount / unitStudentCount) * 100).toFixed(1) : "0.0";
+                    const uBarColor = uRate >= 80 ? 'bg-emerald-500' : (uRate >= 50 ? 'bg-amber-500' : 'bg-rose-500');
+        
+                    // สะสมตัวเลขเพื่อไปคิด Progress Bar ของ Header ใหญ่
+                    totalGroupTargetPassedCount += unitStudentCount;
+                    actualGroupPassedCount += unitPassedCount;
+        
                     const cacheKey = `unit_${setIdx}_${unitIdx}`;
                     managerModalCache[cacheKey] = { 
                         title: catName, 
@@ -4812,14 +4790,12 @@ function toggleModalUserSelection(username, isChecked) {
                         unattemptedList 
                     };
         
-                    const uBarColor = uAvg >= 80 ? 'bg-emerald-500' : (uAvg >= 60 ? 'bg-amber-500' : 'bg-rose-500');
-        
-                    html += `
+                    subUnitsHtml += `
                         <div class="p-4 space-y-2">
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <span class="font-bold text-slate-800 text-xs"><i class="fa-solid fa-book-bookmark text-indigo-600 mr-1.5"></i>${catName}</span>
                                 <div class="flex items-center space-x-1.5 text-xs flex-wrap">
-                                    <span class="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">ผ่าน ${passedList.length}</span>
+                                    <span class="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">ผ่าน ${passedList.length}/${unitStudentCount} คน (${uRate}%)</span>
                                     <span class="font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">สอบซ่อม ${failedList.length}</span>
                                     <span class="font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">ยังไม่สอบ ${unattemptedList.length}</span>
                                     <button onclick="openManagerDetailModalFromCache('${cacheKey}')" 
@@ -4829,13 +4805,48 @@ function toggleModalUserSelection(username, isChecked) {
                                 </div>
                             </div>
                             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                <div class="${uBarColor} h-2 rounded-full" style="width: ${Math.min(uAvg, 100)}%"></div>
+                                <div class="${uBarColor} h-2 rounded-full transition-all duration-300" style="width: ${Math.min(uRate, 100)}%"></div>
                             </div>
                         </div>
                     `;
                 });
         
-                html += `</div></div>`;
+                // 🟢 คำนวณ % ความก้าวหน้ารวมของกลุ่มใหญ่ (Header)
+                const groupRate = totalGroupTargetPassedCount > 0 ? ((actualGroupPassedCount / totalGroupTargetPassedCount) * 100).toFixed(1) : "0.0";
+                const groupBarColor = groupRate >= 80 ? 'bg-emerald-500' : (groupRate >= 50 ? 'bg-amber-500' : 'bg-rose-500');
+                const groupIcon = currentManagerViewMode === 'set' ? 'fa-folder-open' : 'fa-graduation-cap';
+        
+                html += `
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                        <div onclick="toggleManagerAccordion('set-body-${setIdx}')" class="p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
+                                    <i class="fa-solid ${groupIcon}"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold text-slate-800 text-sm">${groupName}</h5>
+                                    <p class="text-[11px] text-slate-400">${unitNames.length} หน่วยการเรียนรู้ย่อย</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 min-w-[200px]">
+                                <div class="w-full space-y-1">
+                                    <div class="flex justify-between text-[11px] font-bold">
+                                        <span class="text-slate-500">อัตราสอบผ่านรวม:</span>
+                                        <span class="text-indigo-900">${actualGroupPassedCount}/${totalGroupTargetPassedCount} (${groupRate}%)</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                        <div class="${groupBarColor} h-2 rounded-full transition-all duration-300" style="width: ${Math.min(groupRate, 100)}%"></div>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+        
+                        <div id="set-body-${setIdx}" class="hidden divide-y divide-slate-100 bg-white border-t border-slate-200">
+                            ${subUnitsHtml}
+                        </div>
+                    </div>
+                `;
             });
         
             container.innerHTML = html;
