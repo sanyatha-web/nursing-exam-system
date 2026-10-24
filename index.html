@@ -1572,7 +1572,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // 🟢 [แก้ไขสมบูรณ์] ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (ดึงข้อเขียนและคงค่าว่างของคะแนนไว้)
+        // 🟢 [แก้ไขสมบูรณ์] ฟังก์ชัน แปลง CSV ประวัติผลการสอบ (รองรับข้อเขียนหลายแถวและคะแนนเต็มรายข้อ)
         function parseCSVToResults(csvText) {
             if (!csvText || csvText.trim() === '') return;
             if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.substr(1);
@@ -1631,7 +1631,8 @@ async function fetchAndSyncUsers() {
                 const examType = typeIdx !== -1 ? cols[typeIdx] : '';
                 const essayAnswers = essayAnsIdx !== -1 ? cols[essayAnsIdx] : '';
 
-                const uniqueKey = `${sapId.trim()}__${category.trim()}__${examType.trim()}__${timestamp.trim()}`;
+                // 🟢 [แก้ไขจุดที่ 1] เพิ่ม essayAnswers ลงใน uniqueKey เพื่อไม่ให้ตัดข้อเขียนข้อถัดๆ ไปทิ้ง
+                const uniqueKey = `${sapId.trim()}__${category.trim()}__${examType.trim()}__${essayAnswers.trim()}__${timestamp.trim()}`;
                 if (uniqueKeys.has(uniqueKey)) {
                     continue;
                 }
@@ -1644,10 +1645,10 @@ async function fetchAndSyncUsers() {
                 const yearLevel = yearIdx !== -1 ? cols[yearIdx] : '';
                 const academicYear = academicYearIdx !== -1 ? cols[academicYearIdx] : '';
                 
-                // 🟢 จัดการค่าคะแนน: ถ้าใน CSV เป็นค่าว่างให้คงเป็น null ไว้ (ห้ามแปลงเป็น 0)
                 const rawScoreStr = scoreIdx !== -1 ? cols[scoreIdx].trim() : '';
                 let score = (rawScoreStr !== '' && !isNaN(parseFloat(rawScoreStr))) ? parseFloat(rawScoreStr) : null;
                 
+                // 🟢 [แก้ไขจุดที่ 2] ดึงคะแนนเต็มของข้อนี้จาก CSV (ถ้าไม่มีให้ตั้งเป็น 10)
                 let total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 10 : 10;
                 if (total <= 0) total = 10;
 
@@ -1677,10 +1678,10 @@ async function fetchAndSyncUsers() {
                     academicYear,
                     category,
                     examType,
-                    score, // 🟢 คงค่า null เมื่อยังไม่ได้ตรวจ
-                    total,
+                    score,
+                    total, // คะแนนเต็มรายข้อ
                     percentage,
-                    essayAnswers // 🟢 ดึงข้อมูลข้อความคำตอบบรรยายเข้ามาเก็บไว้
+                    essayAnswers
                 });
             }
 
@@ -2606,12 +2607,13 @@ async function fetchAndSyncUsers() {
                         category: studentData.category,
                         examType: "อัตนัย/ข้อเขียน",
                         score: null,             // เว้นว่างรอ Preceptor
+                        totalQuestions: item.fullScore || 10, // 🟢 [แก้ไขจุดที่ 2] บันทึกคะแนนเต็มของข้อนี้
                         percentage: null,        // เว้นว่างรอ Preceptor
-                        essayAnswers: formattedSingleEssay, // 🟢 ข้อความคำตอบข้อนี้
+                        essayAnswers: formattedSingleEssay,
                         timeSpent: timeSpentFormatted,
-                        feedback: "",            // เว้นว่างรอ Preceptor
-                        graderName: "",          // เว้นว่างรอ Preceptor
-                        gradedTimestamp: "",     // เว้นว่างรอ Preceptor
+                        feedback: "",            
+                        graderName: "",          
+                        gradedTimestamp: "",     
                         tabSwitches: settings.antiCheatEnable ? tabSwitchCount : 0,
                         antiCheatEnabled: settings.antiCheatEnable ? "เปิดใช้งาน" : "ปิดใช้งาน",
                         preventScreenshot: settings.preventScreenshot ? "บล็อกการแคป" : "อนุญาต",
@@ -3425,35 +3427,45 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 let choiceRowHtml = '';
                                 let essayRowsHtml = '';
 
-                                rowsInAttempt.forEach(r => {
+                                rowsInAttempt.forEach((r, rIdx) => {
                                     const exType = (r.examType || '').trim().toLowerCase();
                                     
-                                    // 🟢 เช็กเงื่อนไขว่าเป็นข้อเขียนหรือไม่
                                     const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
-                                
+                                    const isChoice = exType.includes('ปรนัย') || exType === 'choice' || (!isEssay && (exType === '' || exType === 'choice'));
+
                                     const rawScore = r.score;
                                     const sc = parseFloat(rawScore);
                                     const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 3);
-                                
+
                                     if (isEssay) {
-                                        // 📝 กรณีเป็นข้อสอบข้อเขียน (อัตนัย)
+                                        // 📝 ดึงหัวข้อ/เลขออร์เดอร์ของข้อเขียนจาก essayAnswers
+                                        let essayLabel = `ข้อเขียน`;
+                                        if (r.essayAnswers && r.essayAnswers !== '-') {
+                                            const matchQ = r.essayAnswers.match(/^ข้อ\s*(\d+)/i);
+                                            if (matchQ) {
+                                                essayLabel = `ข้อเขียน ข้อที่ ${matchQ[1]}`;
+                                            } else {
+                                                essayLabel = `ข้อเขียน (${r.essayAnswers.substring(0, 15)}...)`;
+                                            }
+                                        }
+
                                         if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
                                             attemptEarnedScore += sc;
                                             attemptMaxScore += tot;
                                             const essayPerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
                                             essayRowsHtml += `
                                                 <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
-                                                    <span>• 📝 ข้อเขียน (ตรวจแล้ว)</span>
+                                                    <span>• 📝 ${essayLabel} (ตรวจแล้ว)</span>
                                                     <span class="font-semibold text-slate-700 font-mono">${sc}/${tot} (${essayPerc}%)</span>
                                                 </div>
                                             `;
                                         } else {
-                                            // ⏳ กรณียังไม่ลงคะแนน หรือคะแนนเป็น null
+                                            attemptMaxScore += tot; // นับรวมคะแนนเต็ม
                                             isAttemptPending = true;
                                             hasAnyPendingEssay = true;
                                             essayRowsHtml += `
                                                 <div class="flex justify-between items-center text-[11px] text-amber-700 pl-4 py-0.5">
-                                                    <span>• 📝 ข้อเขียน</span>
+                                                    <span>• 📝 ${essayLabel} <span class="text-[10px] text-slate-400 font-normal">(เต็ม ${tot} คะแนน)</span></span>
                                                     <span class="font-bold text-amber-600">⏳ รอ Preceptor ตรวจ</span>
                                                 </div>
                                             `;
