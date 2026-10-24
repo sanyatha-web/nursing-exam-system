@@ -3428,28 +3428,112 @@ async function fetchAndSyncUsers() {
             container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขที่กรอง</div>`;
         }
 
-        // ✅ [ปรับแก้สมบูรณ์ 100%] ฟังก์ชันเปิด Modal สมุดพก แยกปรนัย/ข้อเขียน และแสดงสถานะรอตรวจถูกต้อง
+        // ฟังก์ชันช่วย ยืด/หุบ ชุดการเรียนรู้ในสมุดพก
+        function toggleTranscriptSetAccordion(setIdx) {
+            const elem = document.getElementById(`transcript-set-body-${setIdx}`);
+            const icon = document.getElementById(`transcript-set-icon-${setIdx}`);
+            if (elem) {
+                elem.classList.toggle('hidden');
+                if (icon) {
+                    icon.classList.toggle('fa-chevron-down');
+                    icon.classList.toggle('fa-chevron-right');
+                }
+            }
+        }
+        
+        // ✅ 1. ฟังก์ชันเปิด Modal สมุดพก (เพิ่มการ์ดสอบเลื่อนชั้น/ประมวลไว้ด้านบนสุด + รองรับการหุบ/ขยาย)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
-
+        
             document.getElementById('transcript-student-name').textContent = `สมุดพกรายงานผลการเรียน: ${student.fullname}`;
             document.getElementById('transcript-student-sub').textContent = `SAP-ID: ${student.username} | สาขา: ${student.branch} (${student.yearLevel || 'ไม่ระบุ'}) | ปีการศึกษา: ${student.academicYear || '-'}`;
-
+        
             const printArea = document.getElementById('transcript-print-area');
-            const studentHistory = examResultsHistory.filter(r => r.sapId === sapId);
+            const studentHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === sapId.toLowerCase());
             const studentYear = (student.yearLevel || '').trim();
             const studentBranch = (student.branch || '').trim();
-
+        
             const yearMatch = studentYear.match(/\d+/);
             const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
-
+        
+            // ==========================================
+            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (แสดงไว้บนสุด)
+            // ==========================================
+            const termExamsConfig = [];
+            for (let y = 1; y <= currentYearNum; y++) {
+                if (y === 3) {
+                    termExamsConfig.push({ name: `การสอบประมวลความรู้ (Comprehensive Exam)`, keyword: `ประมวล` });
+                } else {
+                    termExamsConfig.push({ name: `การสอบเลื่อนชั้นปีที่ ${y}`, keyword: `เลื่อนชั้นปีที่ ${y}` });
+                }
+            }
+        
+            let termExamsHtml = '';
+            termExamsConfig.forEach((termItem, idx) => {
+                const matchedAttempts = studentHistory.filter(r => {
+                    const name = ((r.category || '') + ' ' + (r.examSet || '')).trim().toLowerCase();
+                    if (termItem.keyword === 'ประมวล') {
+                        return name.includes('ประมวล') || name.includes('comprehensive');
+                    }
+                    return name.includes(termItem.keyword.toLowerCase());
+                });
+        
+                if (matchedAttempts.length === 0) {
+                    termExamsHtml += `
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+                            <div class="font-bold text-slate-800">📌 ${idx + 1}. ${termItem.name}</div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-400 border border-slate-200">
+                                ยังไม่ได้เข้าสอบ
+                            </span>
+                        </div>
+                    `;
+                } else {
+                    let best = matchedAttempts[0];
+                    matchedAttempts.forEach(r => {
+                        if ((r.percentage || 0) > (best.percentage || 0)) best = r;
+                    });
+        
+                    const isPassed = (best.percentage || 0) >= 80;
+                    const badgeClass = isPassed ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-rose-100 text-rose-800 border-rose-200';
+                    const badgeText = isPassed ? `✓ ผ่านเกณฑ์ (${best.percentage}%)` : `✕ ต้องสอบซ่อม (${best.percentage}%)`;
+        
+                    termExamsHtml += `
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1 text-xs">
+                            <div class="flex justify-between items-center">
+                                <div class="font-bold text-slate-800">📌 ${idx + 1}. ${termItem.name}</div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">
+                                    ${badgeText}
+                                </span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 font-mono">
+                                เข้าสอบแล้ว ${matchedAttempts.length} ครั้ง | คะแนนสูงสุด: ${best.score}/${best.total || 100} (${best.percentage}%)
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        
+            const termExamsCardHtml = `
+                <div class="p-4 bg-white rounded-xl border border-rose-200 shadow-sm space-y-3">
+                    <h5 class="font-bold text-rose-900 flex items-center text-xs border-b border-rose-100 pb-2">
+                        <i class="fa-solid fa-graduation-cap text-rose-600 mr-2"></i> ประวัติการสอบเลื่อนชั้นปี / สอบประมวลความรู้
+                    </h5>
+                    <div class="space-y-2">
+                        ${termExamsHtml}
+                    </div>
+                </div>
+            `;
+        
+            // ==========================================
+            // ส่วนที่ 2: ประวัติการสอบบทเรียนสะสม (ไว้ด้านล่าง + หุบ/ขยายได้)
+            // ==========================================
             let allowedYears = ['ทุกชั้นปี'];
             for (let y = 1; y <= currentYearNum; y++) {
                 allowedYears.push(`ชั้นปีที่ ${y}`);
                 allowedYears.push(`ปี ${y}`);
             }
-
+        
             const matchQuestions = masterQuestions.filter(q => {
                 const qYear = (q.yearLevel || '').trim();
                 const qBranch = (q.branch || '').trim();
@@ -3457,32 +3541,32 @@ async function fetchAndSyncUsers() {
                 const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === studentBranch;
                 return isYearMatch && isBranchMatch;
             });
-
+        
             const setsGroupMap = {};
             matchQuestions.forEach(q => {
                 const catName = q.category || 'หน่วยการเรียนรู้ทั่วไป';
                 const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
                 const isTermExam = catName.includes('เลื่อนชั้น') || catName.includes('ประมวล') || catName.includes('ปลายภาค') || catName.includes('กลางภาค');
-
+        
                 if (!isTermExam) {
                     if (!setsGroupMap[setName]) setsGroupMap[setName] = [];
                     if (!setsGroupMap[setName].includes(catName)) setsGroupMap[setName].push(catName);
                 }
             });
-
+        
             let unitsHtml = '';
             const setNames = Object.keys(setsGroupMap);
-
+        
             if (setNames.length === 0) {
                 unitsHtml = `<div class="p-4 text-center text-slate-400 bg-white rounded-xl border border-slate-200">ไม่พบข้อมูลชุดการเรียนรู้สะสมสำหรับ ${studentYear}</div>`;
             } else {
-                setNames.forEach((setName) => {
+                setNames.forEach((setName, setIdx) => {
                     const categoriesList = setsGroupMap[setName];
                     let subUnitsHtml = '';
-
+        
                     categoriesList.forEach((uCat, catIdx) => {
                         const attemptsRows = studentHistory.filter(r => r.category === uCat || (r.examSet === setName && r.category === uCat));
-
+        
                         if (attemptsRows.length === 0) {
                             subUnitsHtml += `
                                 <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
@@ -3499,37 +3583,34 @@ async function fetchAndSyncUsers() {
                                 if (!attemptsMap[tKey]) attemptsMap[tKey] = [];
                                 attemptsMap[tKey].push(row);
                             });
-
+        
                             const sortedTimestamps = Object.keys(attemptsMap).sort((a, b) => new Date(b) - new Date(a));
                             const totalAttemptsCount = sortedTimestamps.length;
                             
                             let overallBestPerc = 0;
                             let hasAnyPendingEssay = false;
-
+        
                             let attemptsDetailHtml = sortedTimestamps.map((tKey, timeIdx) => {
                                 const rowsInAttempt = attemptsMap[tKey];
                                 const attemptNum = totalAttemptsCount - timeIdx;
                                 const isLatest = timeIdx === 0;
-
+        
                                 let attemptEarnedScore = 0;
                                 let attemptMaxScore = 0;
                                 let isAttemptPending = false;
-
+        
                                 let choiceRowHtml = '';
                                 let essayRowsHtml = '';
-
-                                rowsInAttempt.forEach((r, rIdx) => {
+        
+                                rowsInAttempt.forEach((r) => {
                                     const exType = (r.examType || '').trim().toLowerCase();
-                                    
                                     const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
-                                    const isChoice = exType.includes('ปรนัย') || exType === 'choice' || (!isEssay && (exType === '' || exType === 'choice'));
-
+        
                                     const rawScore = r.score;
                                     const sc = parseFloat(rawScore);
                                     const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 3);
-
+        
                                     if (isEssay) {
-                                        // 📝 ดึงหัวข้อ/เลขออร์เดอร์ของข้อเขียนจาก essayAnswers
                                         let essayLabel = `ข้อเขียน`;
                                         if (r.essayAnswers && r.essayAnswers !== '-') {
                                             const matchQ = r.essayAnswers.match(/^ข้อ\s*(\d+)/i);
@@ -3539,7 +3620,7 @@ async function fetchAndSyncUsers() {
                                                 essayLabel = `ข้อเขียน (${r.essayAnswers.substring(0, 15)}...)`;
                                             }
                                         }
-
+        
                                         if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
                                             attemptEarnedScore += sc;
                                             attemptMaxScore += tot;
@@ -3551,7 +3632,7 @@ async function fetchAndSyncUsers() {
                                                 </div>
                                             `;
                                         } else {
-                                            attemptMaxScore += tot; // นับรวมคะแนนเต็ม
+                                            attemptMaxScore += tot;
                                             isAttemptPending = true;
                                             hasAnyPendingEssay = true;
                                             essayRowsHtml += `
@@ -3562,7 +3643,6 @@ async function fetchAndSyncUsers() {
                                             `;
                                         }
                                     } else {
-                                        // 🔹 กรณีเป็นข้อสอบตัวเลือก (ปรนัย)
                                         if (!isNaN(sc) && sc !== null) {
                                             attemptEarnedScore += sc;
                                             attemptMaxScore += tot;
@@ -3576,24 +3656,22 @@ async function fetchAndSyncUsers() {
                                         }
                                     }
                                 });
-
+        
                                 const attemptPerc = attemptMaxScore > 0 ? parseFloat(((attemptEarnedScore / attemptMaxScore) * 100).toFixed(1)) : 0;
                                 if (!isAttemptPending && attemptPerc > overallBestPerc) {
                                     overallBestPerc = attemptPerc;
                                 }
-
+        
                                 let attemptSummaryText = "";
                                 if (isAttemptPending) {
                                     attemptSummaryText = `<span class="text-amber-600 font-bold">รอตรวจข้อเขียน</span>`;
                                 } else {
-                                    // โค้ดใหม่: ใช้ Math.round() แปลงคะแนนดิบเป็นจำนวนเต็ม และบังคับทศนิยมเปอร์เซ็นต์ 2 ตำแหน่งด้วย .toFixed(2)
                                     const displayEarnedScore = Math.round(attemptEarnedScore);
                                     const displayMaxScore = Math.round(attemptMaxScore);
                                     const displayPerc = attemptPerc.toFixed(2);
-                                    
                                     attemptSummaryText = `<span class="font-mono font-bold text-indigo-900">${displayEarnedScore}/${displayMaxScore} (${displayPerc}%)</span>`;
                                 }
-
+        
                                 return `
                                     <div class="space-y-1 ${timeIdx > 0 ? 'border-t border-slate-100 pt-1.5' : ''}">
                                         <div class="flex justify-between items-center text-xs font-bold text-slate-800">
@@ -3608,10 +3686,10 @@ async function fetchAndSyncUsers() {
                                     </div>
                                 `;
                             }).join('');
-
+        
                             const isPassed = overallBestPerc >= 80;
                             let statusBadgeHtml = "";
-
+        
                             if (hasAnyPendingEssay) {
                                 statusBadgeHtml = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-amber-100 text-amber-800 border border-amber-300">⏳ รอ Preceptor ตรวจข้อเขียน</span>`;
                             } else if (isPassed) {
@@ -3619,7 +3697,7 @@ async function fetchAndSyncUsers() {
                             } else {
                                 statusBadgeHtml = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-200">✕ ต้องสอบซ่อม (${overallBestPerc}%)</span>`;
                             }
-
+        
                             subUnitsHtml += `
                                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
                                     <div class="flex justify-between items-center border-b border-slate-200 pb-2">
@@ -3633,22 +3711,25 @@ async function fetchAndSyncUsers() {
                             `;
                         }
                     });
-
+        
                     unitsHtml += `
-                        <div class="p-3 bg-white rounded-xl border border-indigo-100 shadow-sm space-y-2">
-                            <div class="flex items-center space-x-2 border-b border-indigo-50 pb-2">
-                                <i class="fa-solid fa-layer-group text-indigo-600 text-xs"></i>
-                                <span class="font-bold text-xs text-indigo-950">${setName}</span>
-                                <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">(${categoriesList.length} หน่วย)</span>
+                        <div class="p-3 bg-white rounded-xl border border-indigo-100 shadow-sm space-y-2 transcript-set-card">
+                            <div onclick="toggleTranscriptSetAccordion(${setIdx})" class="flex items-center justify-between border-b border-indigo-50 pb-2 cursor-pointer hover:bg-indigo-50/50 p-1.5 rounded-lg transition">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-layer-group text-indigo-600 text-xs"></i>
+                                    <span class="font-bold text-xs text-indigo-950">${setName}</span>
+                                    <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">(${categoriesList.length} หน่วย)</span>
+                                </div>
+                                <i id="transcript-set-icon-${setIdx}" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform"></i>
                             </div>
-                            <div class="space-y-2 pl-1">
+                            <div id="transcript-set-body-${setIdx}" class="transcript-set-body space-y-2 pl-1 pt-1">
                                 ${subUnitsHtml}
                             </div>
                         </div>
                     `;
                 });
             }
-
+        
             printArea.innerHTML = `
                 <div class="space-y-4">
                     <div class="p-3 bg-indigo-900 text-white rounded-xl flex justify-between items-center">
@@ -3661,7 +3742,11 @@ async function fetchAndSyncUsers() {
                             <div class="text-[10px] text-indigo-200">ประวัติผลการประเมินสะสม</div>
                         </div>
                     </div>
-
+        
+                    <!-- การ์ดพิเศษ 1: การสอบเลื่อนชั้นปี / สอบประมวลความรู้ (อยู่บนสุด) -->
+                    ${termExamsCardHtml}
+        
+                    <!-- การ์ด 2: ประวัติผลการสอบบทเรียนสะสม (ไว้ด้านล่าง) -->
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
                             <i class="fa-solid fa-book-bookmark text-indigo-600 mr-2"></i> ประวัติผลการสอบบทเรียนสะสม (${studentYear})
@@ -3672,7 +3757,7 @@ async function fetchAndSyncUsers() {
                     </div>
                 </div>
             `;
-
+        
             document.getElementById('modal-student-transcript').classList.remove('hidden');
         }
         
@@ -3680,7 +3765,7 @@ async function fetchAndSyncUsers() {
             document.getElementById('modal-student-transcript').classList.add('hidden');
         }
         
-        // ✅ 3. ฟังก์ชันสั่งพิมพ์ใบทรานสคริปต์ (Print / PDF)
+        // ✅ 2. ฟังก์ชันสั่งพิมพ์ใบทรานสคริปต์ (บังคับขยายทุกชุดที่ถูกหุบไว้ให้ออกใน PDF 100%)
         function printStudentTranscript() {
             const printContents = document.getElementById('transcript-print-area').innerHTML;
             const studentTitle = document.getElementById('transcript-student-name').textContent;
@@ -3694,6 +3779,9 @@ async function fetchAndSyncUsers() {
                         <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
                         <style>
                             body { font-family: 'Prompt', sans-serif; padding: 20px; }
+                            /* 🟢 บังคับขยายทุกส่วนที่ถูกกดหุบไว้ให้แสดงผลในหน้าสั่งพิมพ์ 100% */
+                            .transcript-set-body { display: block !important; }
+                            .fa-chevron-down, .fa-chevron-right { display: none !important; }
                         </style>
                     </head>
                     <body onload="window.print(); window.close();">
