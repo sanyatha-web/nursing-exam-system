@@ -1252,14 +1252,13 @@ let settings = {
             const studentBranch = (loggedInUser.branch || '').trim();
             const studentId = (loggedInUser.username || loggedInUser.sapId || '').trim().toLowerCase();
         
-            // 🟢 0. อ่านประวัติผลสอบจาก LocalStorage มาผสมร่วมด้วย เพื่อให้ทำงานได้ทันทีแม้ Refresh หน้าจอ
+            // 🟢 0. รวมประวัติและจัดกลุ่มตาม Timestamp ป้องกันค่านับซ้ำ
             let combinedHistory = [...examResultsHistory];
             const cachedHistoryStr = localStorage.getItem('cached_exam_results_history');
             if (cachedHistoryStr) {
                 try {
                     const cachedHistory = JSON.parse(cachedHistoryStr);
                     if (Array.isArray(cachedHistory)) {
-                        // รวมประวัติสอบโดยไม่ให้ซ้ำกัน
                         cachedHistory.forEach(cItem => {
                             const exists = combinedHistory.some(r => 
                                 (r.sapId || r.studentId || '').trim().toLowerCase() === (cItem.sapId || cItem.studentId || '').trim().toLowerCase() &&
@@ -1272,13 +1271,13 @@ let settings = {
                 } catch(e) { console.error("Error parsing cached history:", e); }
             }
         
-            // 1. ดึงประวัติการสอบทั้งหมดของผู้เรียนรายนี้เฉพาะบุคคล (Per-User)
+            // 1. ดึงประวัติการสอบเฉพาะผู้เรียนรายนี้
             const studentHistory = combinedHistory.filter(r => {
                 const idInRecord = (r.sapId || r.studentId || '').trim().toLowerCase();
                 return idInRecord === studentId;
             });
-        
-            // 2. ค้นหาชื่อหน่วยการเรียนรู้ (category) และชื่อชุด (examSet) ที่ "อยู่ระหว่างรอตรวจข้อเขียน"
+
+            // 2. ค้นหาชื่อหน่วยการเรียนรู้ที่รอตรวจข้อเขียน
             const pendingCategories = new Set();
             studentHistory.forEach(r => {
                 const exType = (r.examType || '').trim().toLowerCase();
@@ -1290,8 +1289,8 @@ let settings = {
                     if (r.examSet) pendingCategories.add(r.examSet.trim().toLowerCase());
                 }
             });
-        
-            // 3. ค้นหาชื่อหน่วยการเรียนรู้ (category) และชื่อชุด (examSet) ที่ผู้สอบคนนี้ "สอบผ่านแล้ว" (คะแนน >= 80%)
+
+            // 3. ค้นหาชื่อหน่วยการเรียนรู้ที่สอบผ่านแล้ว (คะแนน >= 80%)
             const passedCategories = new Set();
             studentHistory.forEach(r => {
                 if ((r.percentage || 0) >= 80) {
@@ -1700,8 +1699,8 @@ async function fetchAndSyncUsers() {
                 const examType = typeIdx !== -1 ? cols[typeIdx] : '';
                 const essayAnswers = essayAnsIdx !== -1 ? cols[essayAnsIdx] : '';
 
-                // 🟢 [แก้ไขจุดที่ 1] เพิ่ม essayAnswers ลงใน uniqueKey เพื่อไม่ให้ตัดข้อเขียนข้อถัดๆ ไปทิ้ง
-                const uniqueKey = `${sapId.trim()}__${category.trim()}__${examType.trim()}__${essayAnswers.trim()}__${timestamp.trim()}`;
+                // 🟢 แก้ไข: ตัด essayAnswers ออกจาก uniqueKey เพื่อให้ข้อสอบรอบเดียวกัน (Timestamp เดียวกัน) ไม่สร้างแถวซ้ำ
+                const uniqueKey = `${sapId.trim().toLowerCase()}__${category.trim().toLowerCase()}__${timestamp.trim()}`;
                 if (uniqueKeys.has(uniqueKey)) {
                     continue;
                 }
@@ -1717,7 +1716,6 @@ async function fetchAndSyncUsers() {
                 const rawScoreStr = scoreIdx !== -1 ? cols[scoreIdx].trim() : '';
                 let score = (rawScoreStr !== '' && !isNaN(parseFloat(rawScoreStr))) ? parseFloat(rawScoreStr) : null;
                 
-                // 🟢 [แก้ไขจุดที่ 2] ดึงคะแนนเต็มของข้อนี้จาก CSV (ถ้าไม่มีให้ตั้งเป็น 10)
                 let total = totalIdx !== -1 ? parseFloat(cols[totalIdx]) || 10 : 10;
                 if (total <= 0) total = 10;
 
@@ -1748,7 +1746,7 @@ async function fetchAndSyncUsers() {
                     category,
                     examType,
                     score,
-                    total, // คะแนนเต็มรายข้อ
+                    total,
                     percentage,
                     essayAnswers
                 });
@@ -4777,28 +4775,28 @@ function toggleModalUserSelection(username, isChecked) {
                     filteredStudentsList.forEach(st => {
                         const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
                         
-                        // ค้นหาประวัติการสอบแบบยืดหยุ่น (เช็กทั้ง Key ตรงกลุ่ม หรือค้นหาตาม Category อย่างเดียว)
-                        const lookupKey = `${groupName}__${catName}__${stId}`;
-                        let stAttempts = resultsIndex.get(lookupKey) || [];
-        
-                        if (stAttempts.length === 0) {
-                            stAttempts = normalResults.filter(r => 
-                                (r.sapId || r.studentId || '').toString().trim().toLowerCase() === stId &&
-                                (r.category || '').trim().toLowerCase() === catName.toLowerCase()
-                            );
-                        }
-        
+                        // ค้นหาประวัติการสอบทั้งหมดของนักเรียนในหน่วยนี้
+                        let stAttempts = normalResults.filter(r => 
+                            (r.sapId || r.studentId || '').toString().trim().toLowerCase() === stId &&
+                            (r.category || '').trim().toLowerCase() === catName.toLowerCase()
+                        );
+
                         if (stAttempts.length === 0) {
                             unattemptedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
                         } else {
+                            // 🟢 จัดกลุ่มตาม Timestamp เพื่อให้นับรอบการเข้าสอบที่แท้จริง (ไม่นับแยกปรนัย/อัตนัย)
+                            const uniqueTimestamps = new Set(stAttempts.map(a => a.timestamp));
+                            const actualAttemptCount = uniqueTimestamps.size;
+
                             let best = stAttempts[0];
                             for (let i = 1; i < stAttempts.length; i++) {
                                 if (stAttempts[i].percentage > best.percentage) best = stAttempts[i];
                             }
+
                             if (best.percentage >= 80) {
-                                passedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'สอบผ่าน' });
+                                passedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: actualAttemptCount, statusText: 'สอบผ่าน' });
                             } else {
-                                failedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: stAttempts.length, statusText: 'ไม่ผ่าน/ต้องสอบซ่อม' });
+                                failedList.push({ student: st, score: best.score, total: best.total, percentage: best.percentage, attemptCount: actualAttemptCount, statusText: 'ไม่ผ่าน/ต้องสอบซ่อม' });
                             }
                         }
                     });
