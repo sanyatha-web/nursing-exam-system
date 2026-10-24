@@ -3440,7 +3440,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ✅ ฟังก์ชันเปิด Modal สมุดพก (ปรับปรุงการค้นผลสอบเลื่อนชั้น/ประมวลความรู้ + รวมคะแนนข้อเขียนเป็นบรรทัดเดียว)
+        // 🟢 ฟังก์ชันเปิด Modal สมุดพก (ปรับปรุงการแสดงผลส่วนข้อเขียนให้แสดงผลแน่นอน)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3457,7 +3457,7 @@ async function fetchAndSyncUsers() {
             const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
         
             // ==========================================
-            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (ปรับปรุงการค้นหาให้เจอแน่นอน + รวมข้อเขียนเป็นบรรทัดเดียว)
+            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้
             // ==========================================
             const termExamsConfig = [];
             for (let y = 1; y <= currentYearNum; y++) {
@@ -3470,7 +3470,6 @@ async function fetchAndSyncUsers() {
         
             let termExamsHtml = '';
             termExamsConfig.forEach((termItem, idx) => {
-                // 🟢 ค้นหาผลสอบที่ตรงกับการสอบเลื่อนชั้น/ประมวลความรู้แบบยืดหยุ่น
                 const matchedAttempts = studentHistory.filter(r => {
                     const cat = (r.category || '').toLowerCase();
                     const set = (r.examSet || '').toLowerCase();
@@ -3495,7 +3494,6 @@ async function fetchAndSyncUsers() {
                         </div>
                     `;
                 } else {
-                    // จัดกลุ่มผลสอบตามเวลาการสอบ (Timestamp)
                     const attemptsMap = {};
                     matchedAttempts.forEach(row => {
                         const tKey = row.timestamp || 'ไม่ระบุเวลา';
@@ -3520,7 +3518,8 @@ async function fetchAndSyncUsers() {
         
                         rowsInAttempt.forEach((r) => {
                             const exType = (r.examType || '').trim().toLowerCase();
-                            const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
+                            // 🟢 ปรับเช็กให้ยืดหยุ่นขึ้น
+                            const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-' && r.essayAnswers !== '');
         
                             const rawScore = r.score;
                             const sc = parseFloat(rawScore);
@@ -3552,7 +3551,6 @@ async function fetchAndSyncUsers() {
                             overallBestPerc = attemptPerc;
                         }
         
-                        // 1. บรรทัดสรุปข้อปรนัย
                         let choiceRowHtml = '';
                         if (hasChoice) {
                             const choicePerc = choiceMax > 0 ? ((choiceScore / choiceMax) * 100).toFixed(1) : 0;
@@ -3564,7 +3562,6 @@ async function fetchAndSyncUsers() {
                             `;
                         }
         
-                        // 2. บรรทัดสรุปข้อเขียน (รวมทุกข้อในบรรทัดเดียว)
                         let essayRowHtml = '';
                         if (essayCount > 0) {
                             if (isAttemptPending) {
@@ -3722,7 +3719,7 @@ async function fetchAndSyncUsers() {
         
                                 rowsInAttempt.forEach((r) => {
                                     const exType = (r.examType || '').trim().toLowerCase();
-                                    const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-');
+                                    const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay' || (r.essayAnswers && r.essayAnswers !== '-' && r.essayAnswers !== '');
         
                                     const rawScore = r.score;
                                     const sc = parseFloat(rawScore);
@@ -3853,9 +3850,9 @@ async function fetchAndSyncUsers() {
                 });
             }
         
+            // 🟢 แสดงผลลงใน Modal
             printArea.innerHTML = `
                 <div class="space-y-4">
-                    <!-- หัวการ์ดแสดงข้อมูลผู้เรียน -->
                     <div class="p-3 bg-indigo-900 text-white rounded-xl flex justify-between items-center">
                         <div>
                             <div class="font-bold text-sm">${student.fullname}</div>
@@ -3867,10 +3864,10 @@ async function fetchAndSyncUsers() {
                         </div>
                     </div>
         
-                    <!-- 🟢 การ์ดพิเศษ 1: รายละเอียดคะแนนการสอบเลื่อนชั้นปี / สอบประมวลความรู้ (รวมส่วนข้อเขียน) -->
+                    <!-- การ์ดพิเศษ 1: การสอบเลื่อนชั้นปี / สอบประมวลความรู้ -->
                     ${termExamsCardHtml}
         
-                    <!-- 🟢 การ์ด 2: รายละเอียดคะแนนประวัติผลการสอบบทเรียนสะสม (รวมส่วนข้อเขียน) -->
+                    <!-- การ์ด 2: ประวัติผลการสอบบทเรียนสะสม -->
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
                             <i class="fa-solid fa-book-bookmark text-indigo-600 mr-2"></i> ประวัติผลการสอบบทเรียนสะสม (${studentYear})
