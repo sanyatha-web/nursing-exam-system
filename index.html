@@ -3327,7 +3327,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขที่กรอง</div>`;
         }
 
-        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (แก้ไขปัญหาสลับคะแนนและแสดงสถานะรอตรวจ)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (แยกคำนวณปรนัยและอัตนัยอย่างถูกต้อง)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3419,7 +3419,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                                 rowsInAttempt.forEach(r => {
                                     const exType = (r.examType || '').trim();
-                                    const isChoice = exType.includes('ปรนัย');
+                                    const isChoice = exType.includes('ปรนัย') || exType === '' || exType === 'choice';
                                     const rawScore = r.score;
                                     const sc = parseFloat(rawScore);
                                     const tot = parseFloat(r.totalQuestions || r.total) || (isChoice ? 3 : 10);
@@ -3437,7 +3437,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                             `;
                                         }
                                     } else {
-                                        // 🟢 แยกการประมวลผลข้อเขียน: ถ้าคะแนนเป็นค่าว่าง/null แปลว่ารอตรวจ
+                                        // 🟢 ข้อเขียน: ถ้าคะแนนเป็นว่าง/null ให้ขึ้นสถานะรอตรวจ
                                         if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
                                             attemptEarnedScore += sc;
                                             attemptMaxScore += tot;
@@ -3451,7 +3451,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                         } else {
                                             isAttemptPending = true;
                                             hasAnyPendingEssay = true;
-                                            attemptMaxScore += tot;
                                             essayRowsHtml += `
                                                 <div class="flex justify-between items-center text-[11px] text-amber-700 pl-4 py-0.5">
                                                     <span>• 📝 ข้อเขียน</span>
