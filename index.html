@@ -5658,62 +5658,93 @@ function toggleModalUserSelection(username, isChecked) {
                 return isStudent && matchYear && matchBranch;
             });
         
-            // 2. กรองเฉพาะคนที่ผ่านครบ "ทุกเกณฑ์ 100%" (AND Logic)
+            // 2. กรองเฉพาะคนที่ผ่านครบ "ทุกเกณฑ์ 100%"
             const qualifiedStudents = eligibleStudents.filter(student => {
                 const sapId = (student.username || student.sapId || '').trim().toLowerCase();
                 const studentHistory = examResultsHistory.filter(r => (r.sapId || r.studentId || '').trim().toLowerCase() === sapId);
                 
-                // 🟢 เกณฑ์ที่ 1: เช็กการสอบเก็บหน่วยการเรียนรู้ปกติ
-                const passedUnits = new Set(
-                    studentHistory
-                        .filter(r => (r.percentage || 0) >= 80)
-                        .map(r => (r.category || '').trim().toLowerCase())
-                );
-                
-                const totalCourseUnitsSet = new Set(
-                    masterQuestions
-                        .filter(q => {
-                            const qYear = (q.yearLevel || '').trim();
-                            const qBranch = (q.branch || '').trim();
-                            const catName = (q.category || '').toLowerCase();
-                            const setName = (q.setGroup || '').toLowerCase();
-
-                            const isYearMatch = !qYear || qYear === 'ทุกชั้นปี' || qYear === targetYearText;
-                            const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === student.branch;
-                            const isNormalLesson = !catName.includes('เลื่อนชั้น') && !catName.includes('ประมวล') && !setName.includes('เลื่อนชั้น') && !setName.includes('ประมวล');
-
-                            return isYearMatch && isBranchMatch && isNormalLesson;
-                        })
-                        .map(q => (q.category || '').trim().toLowerCase())
-                );
+                // 🟢 เกณฑ์ที่ 1: ดึงคลังวิชา/หน่วยการเรียนรู้ทั้งหมดที่ต้องสอบในชั้นปีนี้
+                const requiredQuestions = masterQuestions.filter(q => {
+                    const qYear = (q.yearLevel || '').trim();
+                    const qBranch = (q.branch || '').trim();
+                    const catName = (q.category || '').toLowerCase();
+                    const setName = (q.setGroup || '').toLowerCase();
         
-                const isNormalPassed = totalCourseUnitsSet.size > 0 && passedUnits.size >= totalCourseUnitsSet.size;
+                    const isYearMatch = !qYear || qYear === 'ทุกชั้นปี' || qYear === targetYearText;
+                    const isBranchMatch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === student.branch;
+                    const isNormalLesson = !catName.includes('เลื่อนชั้น') && !catName.includes('ประมวล') && !setName.includes('เลื่อนชั้น') && !setName.includes('ประมวล');
         
-                // 🟢 เกณฑ์ที่ 2: เช็กการสอบเลื่อนชั้นปี (สำหรับ ปี 1 และ ปี 2)
-                const isPromotionPassed = studentHistory.some(r => {
-                    const cat = (r.category || '').toLowerCase();
-                    const set = (r.examSet || '').toLowerCase();
-                    const isPromoKey = cat.includes('เลื่อนชั้น') || set.includes('เลื่อนชั้น') || cat.includes('ปลายภาค') || set.includes('ปลายภาค');
-                    return isPromoKey && (r.percentage || 0) >= 80;
+                    return isYearMatch && isBranchMatch && isNormalLesson;
                 });
-
-                // 🟢 เกณฑ์ที่ 3: เช็กการสอบประมวลความรู้ (สำหรับ ปี 3)
-                const isComprehensivePassed = studentHistory.some(r => {
-                    const cat = (r.category || '').toLowerCase();
-                    const set = (r.examSet || '').toLowerCase();
-                    const isCompKey = cat.includes('ประมวล') || set.includes('ประมวล') || cat.includes('comprehensive') || set.includes('comprehensive');
-                    return isCompKey && (r.percentage || 0) >= 80;
+        
+                const totalCourseUnitsSet = new Set(requiredQuestions.map(q => (q.category || '').trim().toLowerCase()));
+        
+                // ถ้าไม่มีวิชาเปิดสอบเลย ให้ถือว่ายังไม่พร้อมอนุมัติ
+                if (totalCourseUnitsSet.size === 0) return false;
+        
+                // 🟢 เกณฑ์ที่ 2: ตรวจสอบว่าสอบผ่านครบทุกหน่วยการเรียนรู้ (คะแนน >= 80% และไม่มีข้อเขียนค้างตรวจ)
+                const passedUnits = new Set();
+                let hasPendingEssay = false;
+        
+                studentHistory.forEach(r => {
+                    const catLower = (r.category || '').trim().toLowerCase();
+                    const exType = (r.examType || '').trim().toLowerCase();
+                    const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType.includes('essay') || exType.includes('text') || (r.essayAnswers && r.essayAnswers !== '-');
+                    const isUnscored = r.score === null || r.score === undefined || String(r.score).trim() === '';
+        
+                    // ถ้ามีข้อสอบอัตนัยที่ยังไม่ตรวจ ให้ติด Flag ไว้
+                    if (isEssay && isUnscored) {
+                        hasPendingEssay = true;
+                    }
+        
+                    if ((r.percentage || 0) >= 80) {
+                        passedUnits.size;
+                        passedUnits.add(catLower);
+                    }
                 });
-
-                // 🎯 บังคับเช็กเงื่อนไขตามชั้นปีด้วยตัวเชื่อม && (AND)
+        
+                // หากยังมีข้อเขียนรอตรวจ ให้ตัดออกจากสิทธิ์การอนุมัติทันที
+                if (hasPendingEssay) return false;
+        
+                // ตรวจสอบว่าผ่านครบทุกหน่วยการเรียนรู้ที่ต้องสอบหรือไม่
+                const isAllUnitsPassed = totalCourseUnitsSet.size > 0 && Array.from(totalCourseUnitsSet).every(unit => passedUnits.has(unit));
+        
+                // 🟢 เกณฑ์ที่ 3: ตรวจสอบการสอบเฉพาะชั้นปี (ถ้ามีข้อสอบชุดนั้นในคลัง)
                 if (activePromotionYear === '1' || activePromotionYear === '2') {
-                    // ปี 1 และ ปี 2: ต้องผ่านหน่วยการเรียนรู้ครบ + สอบเลื่อนชั้นผ่าน
-                    return isNormalPassed && isPromotionPassed;
+                    const hasPromoExamInBank = masterQuestions.some(q => {
+                        const name = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
+                        return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค');
+                    });
+        
+                    if (hasPromoExamInBank) {
+                        const isPromoPassed = studentHistory.some(r => {
+                            const cat = (r.category || '').toLowerCase();
+                            const set = (r.examSet || '').toLowerCase();
+                            const isPromoKey = cat.includes('เลื่อนชั้น') || set.includes('เลื่อนชั้น') || cat.includes('ปลายภาค') || set.includes('ปลายภาค');
+                            return isPromoKey && (r.percentage || 0) >= 80;
+                        });
+                        return isAllUnitsPassed && isPromoPassed;
+                    }
+                    return isAllUnitsPassed;
+        
                 } else if (activePromotionYear === '3') {
-                    // ปี 3: ต้องผ่านหน่วยการเรียนรู้ครบ + สอบประมวลความรู้ผ่าน
-                    return isNormalPassed && isComprehensivePassed;
+                    const hasCompExamInBank = masterQuestions.some(q => {
+                        const name = ((q.setGroup || '') + ' ' + (q.category || '')).toLowerCase();
+                        return name.includes('ประมวล') || name.includes('comprehensive');
+                    });
+        
+                    if (hasCompExamInBank) {
+                        const isCompPassed = studentHistory.some(r => {
+                            const cat = (r.category || '').toLowerCase();
+                            const set = (r.examSet || '').toLowerCase();
+                            const isCompKey = cat.includes('ประมวล') || set.includes('ประมวล') || cat.includes('comprehensive') || set.includes('comprehensive');
+                            return isCompKey && (r.percentage || 0) >= 80;
+                        });
+                        return isAllUnitsPassed && isCompPassed;
+                    }
+                    return isAllUnitsPassed;
                 }
-
+        
                 return false;
             });
         
