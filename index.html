@@ -3441,7 +3441,7 @@ async function fetchAndSyncUsers() {
             }
         }
         
-        // ✅ ฟังก์ชันเปิด Modal สมุดพก (ปรับโครงสร้างประวัติการสอบเลื่อนชั้น/ประมวลความรู้ ให้แสดงแยกข้อปรนัย/ข้อเขียน และรอตรวจ เหมือนหน่วยย่อย)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพก (ปรับปรุงการค้นผลสอบเลื่อนชั้น/ประมวลความรู้ + รวมคะแนนข้อเขียนเป็นบรรทัดเดียว)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3458,25 +3458,32 @@ async function fetchAndSyncUsers() {
             const currentYearNum = yearMatch ? parseInt(yearMatch[0], 10) : 1;
         
             // ==========================================
-            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (แยกปรนัย/ข้อเขียน/รอตรวจ เหมือนหน่วยย่อย)
+            // ส่วนที่ 1: การ์ดสอบเลื่อนชั้นปี / สอบประมวลความรู้ (ปรับปรุงการค้นหาให้เจอแน่นอน + รวมข้อเขียนเป็นบรรทัดเดียว)
             // ==========================================
             const termExamsConfig = [];
             for (let y = 1; y <= currentYearNum; y++) {
                 if (y === 3) {
-                    termExamsConfig.push({ name: `การสอบประมวลความรู้ (Comprehensive Exam)`, keyword: `ประมวล` });
+                    termExamsConfig.push({ name: `การสอบประมวลความรู้ (Comprehensive Exam)`, yearNum: 3, isComp: true });
                 } else {
-                    termExamsConfig.push({ name: `การสอบเลื่อนชั้นปีที่ ${y}`, keyword: `เลื่อนชั้นปีที่ ${y}` });
+                    termExamsConfig.push({ name: `การสอบเลื่อนชั้นปีที่ ${y}`, yearNum: y, isComp: false });
                 }
             }
         
             let termExamsHtml = '';
             termExamsConfig.forEach((termItem, idx) => {
+                // 🟢 ค้นหาผลสอบที่ตรงกับการสอบเลื่อนชั้น/ประมวลความรู้แบบยืดหยุ่น
                 const matchedAttempts = studentHistory.filter(r => {
-                    const name = ((r.category || '') + ' ' + (r.examSet || '')).trim().toLowerCase();
-                    if (termItem.keyword === 'ประมวล') {
-                        return name.includes('ประมวล') || name.includes('comprehensive');
+                    const cat = (r.category || '').toLowerCase();
+                    const set = (r.examSet || '').toLowerCase();
+                    const combined = `${cat} ${set}`;
+        
+                    if (termItem.isComp) {
+                        return combined.includes('ประมวล') || combined.includes('comprehensive') || combined.includes('comp');
+                    } else {
+                        const hasTermKey = combined.includes('เลื่อนชั้น') || combined.includes('ปลายภาค') || combined.includes('กลางภาค');
+                        const hasYearKey = combined.includes(`ปีที่ ${termItem.yearNum}`) || combined.includes(`ปี ${termItem.yearNum}`) || combined.includes(`ชั้นปีที่ ${termItem.yearNum}`);
+                        return hasTermKey && hasYearKey;
                     }
-                    return name.includes(termItem.keyword.toLowerCase());
                 });
         
                 if (matchedAttempts.length === 0) {
@@ -3489,7 +3496,7 @@ async function fetchAndSyncUsers() {
                         </div>
                     `;
                 } else {
-                    // จัดกลุ่มผลสอบตามการสอบแต่ละครั้ง (Timestamp)
+                    // จัดกลุ่มผลสอบตามเวลาการสอบ (Timestamp)
                     const attemptsMap = {};
                     matchedAttempts.forEach(row => {
                         const tKey = row.timestamp || 'ไม่ระบุเวลา';
@@ -3508,12 +3515,9 @@ async function fetchAndSyncUsers() {
                         const attemptNum = totalAttemptsCount - timeIdx;
                         const isLatest = timeIdx === 0;
         
-                        let attemptEarnedScore = 0;
-                        let attemptMaxScore = 0;
+                        let choiceScore = 0, choiceMax = 0, hasChoice = false;
+                        let essayEarnedSum = 0, essayMaxSum = 0, essayCount = 0;
                         let isAttemptPending = false;
-        
-                        let choiceRowHtml = '';
-                        let essayRowsHtml = '';
         
                         rowsInAttempt.forEach((r) => {
                             const exType = (r.examType || '').trim().toLowerCase();
@@ -3521,66 +3525,73 @@ async function fetchAndSyncUsers() {
         
                             const rawScore = r.score;
                             const sc = parseFloat(rawScore);
-                            const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 3);
+                            const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 1);
         
                             if (isEssay) {
-                                let essayLabel = `ข้อเขียน`;
-                                if (r.essayAnswers && r.essayAnswers !== '-') {
-                                    const matchQ = r.essayAnswers.match(/^ข้อ\s*(\d+)/i);
-                                    if (matchQ) {
-                                        essayLabel = `ข้อเขียน ข้อที่ ${matchQ[1]}`;
-                                    } else {
-                                        essayLabel = `ข้อเขียน (${r.essayAnswers.substring(0, 15)}...)`;
-                                    }
-                                }
-        
+                                essayCount++;
+                                essayMaxSum += tot;
                                 if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
-                                    attemptEarnedScore += sc;
-                                    attemptMaxScore += tot;
-                                    const essayPerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
-                                    essayRowsHtml += `
-                                        <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
-                                            <span>• 📝 ${essayLabel} (ตรวจแล้ว)</span>
-                                            <span class="font-semibold text-slate-700 font-mono">${sc}/${tot} (${essayPerc}%)</span>
-                                        </div>
-                                    `;
+                                    essayEarnedSum += sc;
                                 } else {
-                                    attemptMaxScore += tot;
                                     isAttemptPending = true;
                                     hasAnyPendingEssay = true;
-                                    essayRowsHtml += `
-                                        <div class="flex justify-between items-center text-[11px] text-amber-700 pl-4 py-0.5">
-                                            <span>• 📝 ${essayLabel} <span class="text-[10px] text-slate-400 font-normal">(เต็ม ${tot} คะแนน)</span></span>
-                                            <span class="font-bold text-amber-600">⏳ รอ Preceptor ตรวจ</span>
-                                        </div>
-                                    `;
                                 }
                             } else {
                                 if (!isNaN(sc) && sc !== null) {
-                                    attemptEarnedScore += sc;
-                                    attemptMaxScore += tot;
-                                    const choicePerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
-                                    choiceRowHtml = `
-                                        <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
-                                            <span>• 🔹 ข้อตัวเลือก (ปรนัย)</span>
-                                            <span class="font-semibold text-slate-700 font-mono">${sc}/${tot} (${choicePerc}%)</span>
-                                        </div>
-                                    `;
+                                    hasChoice = true;
+                                    choiceScore += sc;
+                                    choiceMax += tot;
                                 }
                             }
                         });
         
-                        const attemptPerc = attemptMaxScore > 0 ? parseFloat(((attemptEarnedScore / attemptMaxScore) * 100).toFixed(1)) : 0;
+                        const attemptEarnedTotal = choiceScore + essayEarnedSum;
+                        const attemptMaxTotal = choiceMax + essayMaxSum;
+                        const attemptPerc = attemptMaxTotal > 0 ? parseFloat(((attemptEarnedTotal / attemptMaxTotal) * 100).toFixed(1)) : 0;
+                        
                         if (!isAttemptPending && attemptPerc > overallBestPerc) {
                             overallBestPerc = attemptPerc;
+                        }
+        
+                        // 1. บรรทัดสรุปข้อปรนัย
+                        let choiceRowHtml = '';
+                        if (hasChoice) {
+                            const choicePerc = choiceMax > 0 ? ((choiceScore / choiceMax) * 100).toFixed(1) : 0;
+                            choiceRowHtml = `
+                                <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
+                                    <span>• 🔹 ข้อตัวเลือก (ปรนัย)</span>
+                                    <span class="font-semibold text-slate-700 font-mono">${choiceScore}/${choiceMax} (${choicePerc}%)</span>
+                                </div>
+                            `;
+                        }
+        
+                        // 2. บรรทัดสรุปข้อเขียน (รวมทุกข้อในบรรทัดเดียว)
+                        let essayRowHtml = '';
+                        if (essayCount > 0) {
+                            if (isAttemptPending) {
+                                essayRowHtml = `
+                                    <div class="flex justify-between items-center text-[11px] text-amber-700 pl-4 py-0.5">
+                                        <span>• 📝 ข้อสอบข้อเขียน (รวม ${essayCount} ข้อ)</span>
+                                        <span class="font-bold text-amber-600">⏳ รอ Preceptor ตรวจ</span>
+                                    </div>
+                                `;
+                            } else {
+                                const essayPerc = essayMaxSum > 0 ? ((essayEarnedSum / essayMaxSum) * 100).toFixed(1) : 0;
+                                essayRowHtml = `
+                                    <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
+                                        <span>• 📝 ข้อสอบข้อเขียน (รวม ${essayCount} ข้อ)</span>
+                                        <span class="font-semibold text-slate-700 font-mono">${essayEarnedSum}/${essayMaxSum} (${essayPerc}%)</span>
+                                    </div>
+                                `;
+                            }
                         }
         
                         let attemptSummaryText = "";
                         if (isAttemptPending) {
                             attemptSummaryText = `<span class="text-amber-600 font-bold">รอตรวจข้อเขียน</span>`;
                         } else {
-                            const displayEarnedScore = Math.round(attemptEarnedScore);
-                            const displayMaxScore = Math.round(attemptMaxScore);
+                            const displayEarnedScore = Math.round(attemptEarnedTotal);
+                            const displayMaxScore = Math.round(attemptMaxTotal);
                             const displayPerc = attemptPerc.toFixed(2);
                             attemptSummaryText = `<span class="font-mono font-bold text-indigo-900">${displayEarnedScore}/${displayMaxScore} (${displayPerc}%)</span>`;
                         }
@@ -3595,7 +3606,7 @@ async function fetchAndSyncUsers() {
                                     </div>
                                 </div>
                                 ${choiceRowHtml}
-                                ${essayRowsHtml}
+                                ${essayRowHtml}
                             </div>
                         `;
                     }).join('');
@@ -3637,7 +3648,7 @@ async function fetchAndSyncUsers() {
             `;
         
             // ==========================================
-            // ส่วนที่ 2: ประวัติการสอบบทเรียนสะสม (ไว้ด้านล่าง + หุบ/ขยายได้)
+            // ส่วนที่ 2: ประวัติการสอบบทเรียนสะสม
             // ==========================================
             let allowedYears = ['ทุกชั้นปี'];
             for (let y = 1; y <= currentYearNum; y++) {
@@ -3706,12 +3717,9 @@ async function fetchAndSyncUsers() {
                                 const attemptNum = totalAttemptsCount - timeIdx;
                                 const isLatest = timeIdx === 0;
         
-                                let attemptEarnedScore = 0;
-                                let attemptMaxScore = 0;
+                                let choiceScore = 0, choiceMax = 0, hasChoice = false;
+                                let essayEarnedSum = 0, essayMaxSum = 0, essayCount = 0;
                                 let isAttemptPending = false;
-        
-                                let choiceRowHtml = '';
-                                let essayRowsHtml = '';
         
                                 rowsInAttempt.forEach((r) => {
                                     const exType = (r.examType || '').trim().toLowerCase();
@@ -3719,66 +3727,71 @@ async function fetchAndSyncUsers() {
         
                                     const rawScore = r.score;
                                     const sc = parseFloat(rawScore);
-                                    const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 3);
+                                    const tot = parseFloat(r.totalQuestions || r.total) || (isEssay ? 10 : 1);
         
                                     if (isEssay) {
-                                        let essayLabel = `ข้อเขียน`;
-                                        if (r.essayAnswers && r.essayAnswers !== '-') {
-                                            const matchQ = r.essayAnswers.match(/^ข้อ\s*(\d+)/i);
-                                            if (matchQ) {
-                                                essayLabel = `ข้อเขียน ข้อที่ ${matchQ[1]}`;
-                                            } else {
-                                                essayLabel = `ข้อเขียน (${r.essayAnswers.substring(0, 15)}...)`;
-                                            }
-                                        }
-        
+                                        essayCount++;
+                                        essayMaxSum += tot;
                                         if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
-                                            attemptEarnedScore += sc;
-                                            attemptMaxScore += tot;
-                                            const essayPerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
-                                            essayRowsHtml += `
-                                                <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
-                                                    <span>• 📝 ${essayLabel} (ตรวจแล้ว)</span>
-                                                    <span class="font-semibold text-slate-700 font-mono">${sc}/${tot} (${essayPerc}%)</span>
-                                                </div>
-                                            `;
+                                            essayEarnedSum += sc;
                                         } else {
-                                            attemptMaxScore += tot;
                                             isAttemptPending = true;
                                             hasAnyPendingEssay = true;
-                                            essayRowsHtml += `
-                                                <div class="flex justify-between items-center text-[11px] text-amber-700 pl-4 py-0.5">
-                                                    <span>• 📝 ${essayLabel} <span class="text-[10px] text-slate-400 font-normal">(เต็ม ${tot} คะแนน)</span></span>
-                                                    <span class="font-bold text-amber-600">⏳ รอ Preceptor ตรวจ</span>
-                                                </div>
-                                            `;
                                         }
                                     } else {
                                         if (!isNaN(sc) && sc !== null) {
-                                            attemptEarnedScore += sc;
-                                            attemptMaxScore += tot;
-                                            const choicePerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
-                                            choiceRowHtml = `
-                                                <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
-                                                    <span>• 🔹 ข้อตัวเลือก (ปรนัย)</span>
-                                                    <span class="font-semibold text-slate-700 font-mono">${sc}/${tot} (${choicePerc}%)</span>
-                                                </div>
-                                            `;
+                                            hasChoice = true;
+                                            choiceScore += sc;
+                                            choiceMax += tot;
                                         }
                                     }
                                 });
         
-                                const attemptPerc = attemptMaxScore > 0 ? parseFloat(((attemptEarnedScore / attemptMaxScore) * 100).toFixed(1)) : 0;
+                                const attemptEarnedTotal = choiceScore + essayEarnedSum;
+                                const attemptMaxTotal = choiceMax + essayMaxSum;
+                                const attemptPerc = attemptMaxTotal > 0 ? parseFloat(((attemptEarnedTotal / attemptMaxTotal) * 100).toFixed(1)) : 0;
+                                
                                 if (!isAttemptPending && attemptPerc > overallBestPerc) {
                                     overallBestPerc = attemptPerc;
+                                }
+        
+                                let choiceRowHtml = '';
+                                if (hasChoice) {
+                                    const choicePerc = choiceMax > 0 ? ((choiceScore / choiceMax) * 100).toFixed(1) : 0;
+                                    choiceRowHtml = `
+                                        <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
+                                            <span>• 🔹 ข้อตัวเลือก (ปรนัย)</span>
+                                            <span class="font-semibold text-slate-700 font-mono">${choiceScore}/${choiceMax} (${choicePerc}%)</span>
+                                        </div>
+                                    `;
+                                }
+        
+                                let essayRowHtml = '';
+                                if (essayCount > 0) {
+                                    if (isAttemptPending) {
+                                        essayRowHtml = `
+                                            <div class="flex justify-between items-center text-[11px] text-amber-700 pl-4 py-0.5">
+                                                <span>• 📝 ข้อสอบข้อเขียน (รวม ${essayCount} ข้อ)</span>
+                                                <span class="font-bold text-amber-600">⏳ รอ Preceptor ตรวจ</span>
+                                            </div>
+                                        `;
+                                    } else {
+                                        const essayPerc = essayMaxSum > 0 ? ((essayEarnedSum / essayMaxSum) * 100).toFixed(1) : 0;
+                                        essayRowHtml = `
+                                            <div class="flex justify-between items-center text-[11px] text-slate-600 pl-4 py-0.5">
+                                                <span>• 📝 ข้อสอบข้อเขียน (รวม ${essayCount} ข้อ)</span>
+                                                <span class="font-semibold text-slate-700 font-mono">${essayEarnedSum}/${essayMaxSum} (${essayPerc}%)</span>
+                                            </div>
+                                        `;
+                                    }
                                 }
         
                                 let attemptSummaryText = "";
                                 if (isAttemptPending) {
                                     attemptSummaryText = `<span class="text-amber-600 font-bold">รอตรวจข้อเขียน</span>`;
                                 } else {
-                                    const displayEarnedScore = Math.round(attemptEarnedScore);
-                                    const displayMaxScore = Math.round(attemptMaxScore);
+                                    const displayEarnedScore = Math.round(attemptEarnedTotal);
+                                    const displayMaxScore = Math.round(attemptMaxTotal);
                                     const displayPerc = attemptPerc.toFixed(2);
                                     attemptSummaryText = `<span class="font-mono font-bold text-indigo-900">${displayEarnedScore}/${displayMaxScore} (${displayPerc}%)</span>`;
                                 }
@@ -3793,7 +3806,7 @@ async function fetchAndSyncUsers() {
                                             </div>
                                         </div>
                                         ${choiceRowHtml}
-                                        ${essayRowsHtml}
+                                        ${essayRowHtml}
                                     </div>
                                 `;
                             }).join('');
@@ -3854,10 +3867,10 @@ async function fetchAndSyncUsers() {
                         </div>
                     </div>
         
-                    <!-- การ์ดพิเศษ 1: การสอบเลื่อนชั้นปี / สอบประมวลความรู้ (อยู่บนสุด) -->
+                    <!-- การ์ดพิเศษ 1: การสอบเลื่อนชั้นปี / สอบประมวลความรู้ -->
                     ${termExamsCardHtml}
         
-                    <!-- การ์ด 2: ประวัติผลการสอบบทเรียนสะสม (ไว้ด้านล่าง) -->
+                    <!-- การ์ด 2: ประวัติผลการสอบบทเรียนสะสม -->
                     <div class="space-y-2">
                         <h5 class="font-bold text-slate-800 flex items-center text-xs">
                             <i class="fa-solid fa-book-bookmark text-indigo-600 mr-2"></i> ประวัติผลการสอบบทเรียนสะสม (${studentYear})
