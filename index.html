@@ -2991,7 +2991,7 @@ async function fetchAndSyncUsers() {
                 if (btnEssay) btnEssay.classList.add('bg-white/20', 'text-white', 'shadow-inner');
                 document.getElementById('tab-admin-essay-grading')?.classList.remove('hidden');
             
-                // 🟢 ดึงประวัติข้อเขียนทั้งหมดที่ยังไม่มีคะแนน ( score === null || score === '' )
+                // 🟢 กรองเฉพาะรายการที่ "ยังไม่ได้ตรวจ" (score เป็น null, undefined, หรือ String ว่าง)
                 const pendingList = examResultsHistory.filter(r => {
                     const exType = (r.examType || '').trim().toLowerCase();
                     const isEssay = exType.includes('อัตนัย') || 
@@ -3000,7 +3000,8 @@ async function fetchAndSyncUsers() {
                                     exType.includes('text') || 
                                     (r.essayAnswers && r.essayAnswers.trim() !== '' && r.essayAnswers.trim() !== '-');
                                     
-                    const isUnscored = r.score === null || r.score === undefined || r.score === '';
+                    // 🟢 เช็กว่ายังไม่มีคะแนนจริงๆ (ถ้าใส่คะแนนแล้วแม้แต่ 0 จะถือว่าตรวจแล้ว)
+                    const isUnscored = (r.score === null || r.score === undefined || String(r.score).trim() === '');
                     
                     // กรองสาขาเฉพาะ Preceptor
                     const matchBranch = (loggedInUser && hasRole(loggedInUser, 'preceptor') && !hasRole(loggedInUser, 'superadmin'))
@@ -3011,6 +3012,7 @@ async function fetchAndSyncUsers() {
                 });
             
                 renderEssayGradingCards(pendingList);
+                
             } else if (tabName === 'data-sources') {
                 document.getElementById('tab-admin-data-sources')?.classList.remove('hidden');
             }
@@ -4618,14 +4620,8 @@ function toggleModalUserSelection(username, isChecked) {
                 return;
             }
         
-            // 🟢 ข้อ 2: ดักจับและป้องกันการบันทึกถ้าคะแนนเกิน
             if (scoreGiven > maxScore) {
-                showAlertModal('error', 'ไม่สามารถบันทึกได้', `คะแนนที่คุณกรอก (${scoreGiven}) เกินกว่าคะแนนเต็มที่ตั้งไว้ (${maxScore}) กรุณาแก้ไขก่อนบันทึก`);
-                return;
-            }
-        
-            if (scoreGiven < 0) {
-                showAlertModal('warning', 'คะแนนไม่ถูกต้อง', 'คะแนนไม่สามารถติดลบได้');
+                showAlertModal('error', 'ไม่สามารถบันทึกได้', `คะแนนที่คุณกรอก (${scoreGiven}) เกินกว่าคะแนนเต็มที่ตั้งไว้ (${maxScore})`);
                 return;
             }
         
@@ -4633,6 +4629,30 @@ function toggleModalUserSelection(username, isChecked) {
             const graderName = loggedInUser ? loggedInUser.fullname : "Preceptor";
             const gradedTimestamp = new Date().toLocaleString('th-TH');
         
+            // 🟢 1. อัปเดตค่าใน Memory ของเครื่องทันที
+            item.score = scoreGiven;
+            item.feedback = feedbackText || "ตรวจเรียบร้อยแล้ว";
+            item.graderName = graderName;
+            item.gradedTimestamp = gradedTimestamp;
+        
+            // หาและอัปเดตตัวจริงใน examResultsHistory
+            const targetInHistory = examResultsHistory.find(r => 
+                (r.sapId === item.sapId || r.studentId === item.studentId) && 
+                r.category === item.category && 
+                r.timestamp === item.timestamp &&
+                r.essayAnswers === item.essayAnswers
+            );
+            if (targetInHistory) {
+                targetInHistory.score = scoreGiven;
+                targetInHistory.feedback = item.feedback;
+                targetInHistory.graderName = graderName;
+                targetInHistory.gradedTimestamp = gradedTimestamp;
+            }
+        
+            // 🟢 2. สั่งรีเฟรชหน้ารายการรอตรวจทันที (ข้อที่ตรวจแล้วจะหายไปทันที!)
+            switchAdminTab('essay-grading');
+        
+            // 🟢 3. ส่งข้อมูลไปบันทึกลง Google Sheets อยู่เบื้องหลัง
             if (settings.webAppUrl) {
                 fetch(settings.webAppUrl, {
                     method: 'POST',
@@ -4643,6 +4663,7 @@ function toggleModalUserSelection(username, isChecked) {
                         studentId: item.sapId || item.studentId,
                         category: item.category,
                         timestamp: item.timestamp,
+                        essayAnswers: item.essayAnswers,
                         scoreGiven: scoreGiven,
                         percentage: percentage,
                         feedback: feedbackText || "ตรวจเรียบร้อยแล้ว",
@@ -4651,9 +4672,6 @@ function toggleModalUserSelection(username, isChecked) {
                     })
                 }).then(() => {
                     showAlertModal('success', 'บันทึกคะแนนสำเร็จ', 'ส่งผลการตรวจข้อเขียนเข้า Google Sheets เรียบร้อยแล้ว');
-                    fetchAndSyncResults().then(() => {
-                        switchAdminTab('essay-grading');
-                    });
                 }).catch(err => {
                     console.error("Grading update failed:", err);
                     showAlertModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลไปยัง Google Sheets ได้');
@@ -4661,7 +4679,7 @@ function toggleModalUserSelection(username, isChecked) {
             } else {
                 showAlertModal('warning', 'ไม่ได้ตั้งค่า WebApp', 'กรุณาตั้งค่า Google Sheets Web App URL ในเมนูแหล่งข้อมูลก่อน');
             }
-}
+        }
 
         // Global Store เก็บข้อมูล Modal
         let currentManagerModalData = {
