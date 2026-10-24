@@ -4559,9 +4559,23 @@ function toggleModalUserSelection(username, isChecked) {
                 return matchBranch && matchYear && isNotTermExam;
             });
         
-            // 🟢 2. ดึงจำนวนชุดและหน่วยเรียนย่อยเฉพาะของชั้นปีที่เลือกจริง
-            const setNames = Array.from(new Set(availableNormalQuestions.map(q => (q.setGroup || 'ชุดการเรียนรู้ทั่วไป').trim()))).filter(Boolean);
-            const unitNames = Array.from(new Set(availableNormalQuestions.map(q => (q.category || 'หน่วยการเรียนรู้ทั่วไป').trim()))).filter(Boolean);
+            // 🟢 2. ดึงจำนวนชุดและหน่วยเรียนย่อยเฉพาะของชั้นปีที่เลือกจริง (พร้อมใส่ค่าสำรองกรณีไม่ได้ระบุ setGroup)
+            const setNames = Array.from(new Set(availableNormalQuestions.map(q => {
+                const setVal = (q.setGroup || '').trim();
+                const catVal = (q.category || '').trim();
+                return setVal || (catVal ? `ชุดการเรียนรู้ (${catVal})` : 'ชุดการเรียนรู้ทั่วไป');
+            }))).filter(Boolean);
+        
+            const unitNames = Array.from(new Set(availableNormalQuestions.map(q => {
+                return (q.category || 'หน่วยการเรียนรู้ทั่วไป').trim();
+            }))).filter(Boolean);
+        
+            // 🟢 อัปเดตข้อมูลการ์ดที่ 2 (จำนวนชุดการเรียนรู้)
+            const kpiSetsElem = document.getElementById('kpi-total-sets');
+            if (kpiSetsElem) kpiSetsElem.textContent = `${setNames.length} ชุด`;
+        
+            const kpiSetsSub = document.getElementById('kpi-sets-subtext');
+            if (kpiSetsSub) kpiSetsSub.textContent = `รวม ${unitNames.length} หน่วยการเรียนรู้`;
         
             // 🟢 การ์ดที่ 3: คำนวณ %ความก้าวหน้าภาพรวม (สูตรใหม่: หน่วยที่ผ่านรวม / (หน่วยทั้งหมด * นักเรียนทั้งหมด))
             const totalStudentsCount = branchStudents.length;
