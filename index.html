@@ -4634,7 +4634,6 @@ function toggleModalUserSelection(username, isChecked) {
 
         // 🟢 ฟังก์ชันส่งออกรายงานภาพรวมสาขา (QA Report) เป็น CSV
         function exportManagerReportCSV() // 🟢 ฟังก์ชันส่งออกรายงานภาพรวมสาขาสำหรับประธานหลักสูตร (Manager / QA Report)
-        function exportManagerReportCSV() {
             if (!userDatabase || userDatabase.length === 0) {
                 showAlertModal('warning', 'ไม่พบข้อมูล', 'ไม่มีข้อมูลสำหรับการส่งออก');
                 return;
