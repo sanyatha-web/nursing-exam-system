@@ -3073,8 +3073,13 @@ async function fetchAndSyncUsers() {
         
             displayBranches.forEach(bName => {
                 const bSet = branchSettings[bName] || settings;
-                const branchQuestions = masterQuestions.filter(q => q.branch === bName || !q.branch || q.branch === 'ข้อสอบกลาง');
+                const branchQuestions = masterQuestions.filter(q => q.branch === bName || (!q.branch && bName === 'ข้อสอบกลาง'));
         
+                // 🟢 1. เช็กก่อนว่าถ้าสาขานี้ยังไม่มีข้อสอบในคลัง ให้ข้ามไปเลย (ไม่แสดงในตาราง)
+                if (branchQuestions.length === 0) {
+                    return; // Skip สาขานี้ไป
+                }
+
                 const groupedUnits = [];
                 branchQuestions.forEach(q => {
                     const setName = q.setGroup || 'ชุดการเรียนรู้ทั่วไป';
@@ -3090,11 +3095,7 @@ async function fetchAndSyncUsers() {
                         groupedUnits.push({ setName, yearLevel, catName });
                     }
                 });
-        
-                if (groupedUnits.length === 0) {
-                    groupedUnits.push({ setName: 'ชุดการเรียนรู้ทั่วไป', yearLevel: 'ทุกชั้นปี', catName: 'หน่วยการเรียนรู้ทั่วไป' });
-                }
-        
+
                 groupedUnits.forEach((item) => {
                     const setName = item.setName;
                     const yearLevel = item.yearLevel;
