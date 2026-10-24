@@ -3327,7 +3327,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขที่กรอง</div>`;
         }
 
-        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (Dynamic Render: Newest-First + Align Right + Multi-Attempt Grouping)
+        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (แก้ไขปัญหาสลับคะแนนและแสดงสถานะรอตรวจ)
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3383,7 +3383,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                         const attemptsRows = studentHistory.filter(r => r.category === uCat || (r.examSet === setName && r.category === uCat));
 
                         if (attemptsRows.length === 0) {
-                            // กรณีที่ยังไม่เคยสอบในหน่วยนี้
                             subUnitsHtml += `
                                 <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
                                     <div class="font-semibold text-slate-700">${catIdx + 1}. ${uCat}</div>
@@ -3393,7 +3392,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 </div>
                             `;
                         } else {
-                            // 🟢 1. จัดกลุ่มรายการตามรอบสอบ (Group by Timestamp)
                             const attemptsMap = {};
                             attemptsRows.forEach(row => {
                                 const tKey = row.timestamp || 'ไม่ระบุเวลา';
@@ -3401,18 +3399,15 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                 attemptsMap[tKey].push(row);
                             });
 
-                            // 🟢 2. เรียงลำดับรอบการสอบจาก ล่าสุด -> เก่าสุด (Newest-First)
-                            const sortedTimestamps = Object.keys(attemptsMap).sort((a, b) => {
-                                return new Date(b) - new Date(a);
-                            });
-
+                            const sortedTimestamps = Object.keys(attemptsMap).sort((a, b) => new Date(b) - new Date(a));
                             const totalAttemptsCount = sortedTimestamps.length;
+                            
                             let overallBestPerc = 0;
                             let hasAnyPendingEssay = false;
 
                             let attemptsDetailHtml = sortedTimestamps.map((tKey, timeIdx) => {
                                 const rowsInAttempt = attemptsMap[tKey];
-                                const attemptNum = totalAttemptsCount - timeIdx; // คำนวณครั้งที่ N
+                                const attemptNum = totalAttemptsCount - timeIdx;
                                 const isLatest = timeIdx === 0;
 
                                 let attemptEarnedScore = 0;
@@ -3424,8 +3419,9 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                                 rowsInAttempt.forEach(r => {
                                     const exType = (r.examType || '').trim();
-                                    const isChoice = exType === 'ปรนัย';
-                                    const sc = parseFloat(r.score);
+                                    const isChoice = exType.includes('ปรนัย');
+                                    const rawScore = r.score;
+                                    const sc = parseFloat(rawScore);
                                     const tot = parseFloat(r.totalQuestions || r.total) || (isChoice ? 3 : 10);
 
                                     if (isChoice) {
@@ -3441,8 +3437,8 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                             `;
                                         }
                                     } else {
-                                        // แถวอัตนัย/ข้อเขียน
-                                        if (!isNaN(sc)) {
+                                        // 🟢 แยกการประมวลผลข้อเขียน: ถ้าคะแนนเป็นค่าว่าง/null แปลว่ารอตรวจ
+                                        if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
                                             attemptEarnedScore += sc;
                                             attemptMaxScore += tot;
                                             const essayPerc = tot > 0 ? ((sc / tot) * 100).toFixed(1) : 0;
@@ -3466,9 +3462,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                     }
                                 });
 
-                                // คำนวณ % สุทธิของรอบสอบนี้
                                 const attemptPerc = attemptMaxScore > 0 ? parseFloat(((attemptEarnedScore / attemptMaxScore) * 100).toFixed(1)) : 0;
-                                if (attemptPerc > overallBestPerc) overallBestPerc = attemptPerc;
+                                if (!isAttemptPending && attemptPerc > overallBestPerc) {
+                                    overallBestPerc = attemptPerc;
+                                }
 
                                 let attemptSummaryText = "";
                                 if (isAttemptPending) {
@@ -3486,7 +3483,6 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                                 ${attemptSummaryText}
                                             </div>
                                         </div>
-                                        <!-- Dynamic Child Rows -->
                                         ${choiceRowHtml}
                                         ${essayRowsHtml}
                                     </div>
