@@ -1698,9 +1698,8 @@ async function fetchAndSyncUsers() {
                 const category = catIdx !== -1 ? cols[catIdx] : 'หน่วยการเรียนรู้ทั่วไป';
                 const examType = typeIdx !== -1 ? cols[typeIdx] : '';
                 const essayAnswers = essayAnsIdx !== -1 ? cols[essayAnsIdx] : '';
-
-                // 🟢 แก้ไข: ตัด essayAnswers ออกจาก uniqueKey เพื่อให้ข้อสอบรอบเดียวกัน (Timestamp เดียวกัน) ไม่สร้างแถวซ้ำ
-                const uniqueKey = `${sapId.trim().toLowerCase()}__${category.trim().toLowerCase()}__${timestamp.trim()}`;
+ำ
+                const uniqueKey = `${sapId.trim().toLowerCase()}__${category.trim().toLowerCase()}__${examType.trim().toLowerCase()}__${timestamp.trim()}`;
                 if (uniqueKeys.has(uniqueKey)) {
                     continue;
                 }
@@ -3520,11 +3519,11 @@ async function fetchAndSyncUsers() {
                             const exType = (r.examType || '').trim().toLowerCase();
                             // 🟢 ปรับเช็กเงื่อนไขข้อเขียนให้ครอบคลุมทุกรูปคีย์เวิร์ด
                             const isEssay = exType.includes('อัตนัย') || 
-                                            exType.includes('ข้อเขียน') || 
-                                            exType === 'text' || 
-                                            exType === 'essay' || 
-                                            exType === 'media_text' ||
-                                            (r.essayAnswers && r.essayAnswers !== '-' && r.essayAnswers !== '');
+                                exType.includes('ข้อเขียน') || 
+                                exType.includes('essay') || 
+                                exType.includes('text') || 
+                                exType.includes('subjective') ||
+                                (r.essayAnswers && r.essayAnswers.trim() !== '' && r.essayAnswers.trim() !== '-');
         
                             const rawScore = r.score;
                             const sc = parseFloat(rawScore);
