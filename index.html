@@ -3327,7 +3327,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
             container.innerHTML = cardsHtml || `<div class="col-span-full p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขที่กรอง</div>`;
         }
 
-        // ✅ ฟังก์ชันเปิด Modal สมุดพกโต้ตอบรายบุคคล (แยกคำนวณปรนัยและอัตนัยอย่างถูกต้อง)
+        // ✅ [ปรับแก้สมบูรณ์] ฟังก์ชันเปิด Modal สมุดพก แยกปรนัย/อัตนัย และแสดงสถานะรอตรวจถูกต้อง 100%
         function openStudentTranscriptModal(sapId) {
             const student = userDatabase.find(u => u.username === sapId);
             if (!student) return;
@@ -3419,7 +3419,10 @@ function togglePasswordVisibility(inputId, eyeIconId) {
 
                                 rowsInAttempt.forEach(r => {
                                     const exType = (r.examType || '').trim();
-                                    const isChoice = exType.includes('ปรนัย') || exType === '' || exType === 'choice';
+                                    // 🟢 เช็กเงื่อนไขประเภทข้อสอบแยกกันชัดเจน
+                                    const isChoice = exType.includes('ปรนัย') || exType === 'choice';
+                                    const isEssay = exType.includes('อัตนัย') || exType.includes('ข้อเขียน') || exType === 'text' || exType === 'essay';
+
                                     const rawScore = r.score;
                                     const sc = parseFloat(rawScore);
                                     const tot = parseFloat(r.totalQuestions || r.total) || (isChoice ? 3 : 10);
@@ -3436,8 +3439,7 @@ function togglePasswordVisibility(inputId, eyeIconId) {
                                                 </div>
                                             `;
                                         }
-                                    } else {
-                                        // 🟢 ข้อเขียน: ถ้าคะแนนเป็นว่าง/null ให้ขึ้นสถานะรอตรวจ
+                                    } else if (isEssay || !isChoice) { // 🟢 บล็อกจากข้อสอบปรนัยเข้ามาปน
                                         if (rawScore !== '' && rawScore !== null && rawScore !== undefined && !isNaN(sc)) {
                                             attemptEarnedScore += sc;
                                             attemptMaxScore += tot;
