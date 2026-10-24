@@ -2941,7 +2941,10 @@ async function fetchAndSyncUsers() {
             if (btnExam) btnExam.classList.toggle('hidden', isPreceptor || (isManager && !isAdmin));
             if (btnTracker) btnTracker.classList.toggle('hidden', isPreceptor);
             if (btnPromo) {
-                if (isManager) {
+                // 🟢 เช็กให้ชัดเจนว่าเป็น Manager และต้อง "ไม่ใช่ Superadmin"
+                const isOnlyManager = loggedInUser && loggedInUser.roles && loggedInUser.roles.includes('manager') && !loggedInUser.roles.includes('superadmin');
+            
+                if (isOnlyManager) {
                     btnPromo.classList.remove('hidden');
                 } else {
                     btnPromo.classList.add('hidden');
@@ -2991,7 +2994,8 @@ async function fetchAndSyncUsers() {
             const isManager = hasRole(loggedInUser, 'manager');
             const isPreceptor = hasRole(loggedInUser, 'preceptor');
 
-            if (tabName === 'promotion' && !isManager) {
+            const isStrictManager = loggedInUser && loggedInUser.roles && loggedInUser.roles.includes('manager') && !loggedInUser.roles.includes('superadmin');
+            if (tabName === 'promotion' && !isStrictManager) {
                 showAlertModal('warning', 'สิทธิ์ไม่เพียงพอ', 'เมนูการเลื่อนชั้น/จบการศึกษา อนุญาตเฉพาะผู้บริหาร (Manager) เท่านั้น');
                 return;
             }
