@@ -1386,11 +1386,15 @@ let settings = {
         
                 if (!isCatLocked && !isSetLocked) {
                     
-                    // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ยืดหยุ่นขึ้น ไม่ให้หลุดเพราะชื่อชุดข้อสอบไม่ตรง
-                    let conf = null;
+                    // 🟢 ประกาศตัวแปรดึงค่าสาขาและหน่วยที่เลือก
+                    const studentBranch = loggedInUser.branch;
+                    const cat = selectedCategory;
+                    
+                    // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ (ใช้ชื่อตัวแปร matchedUnitConf ให้ตรงกับโค้ดด้านล่าง)
+                    let matchedUnitConf = null;
                     for (let key in unitSettings) {
                         if (key.startsWith(studentBranch) && key.endsWith(cat)) {
-                            conf = unitSettings[key];
+                            matchedUnitConf = unitSettings[key];
                             break;
                         }
                     }
@@ -1478,11 +1482,15 @@ let settings = {
                 return;
             }
         
-            // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ให้ตรงกับที่อาจารย์บันทึกไว้ (จับคู่ สาขา + ชื่อหน่วย)
-            let conf = null;
+            // 🟢 ประกาศตัวแปรดึงค่าสาขาและหน่วยที่เลือก
+            const studentBranch = loggedInUser.branch;
+            const cat = selectedCategory;
+            
+            // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ (ใช้ชื่อตัวแปร matchedUnitConf ให้ตรงกับโค้ดด้านล่าง)
+            let matchedUnitConf = null;
             for (let key in unitSettings) {
                 if (key.startsWith(studentBranch) && key.endsWith(cat)) {
-                    conf = unitSettings[key];
+                    matchedUnitConf = unitSettings[key];
                     break;
                 }
             }
