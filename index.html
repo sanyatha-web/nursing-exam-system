@@ -1479,7 +1479,13 @@ let settings = {
             }
         
             const selectedSet = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
-            const uKey = `${loggedInUser.branch}__${selectedSet}__${selectedCategory}`;
+            let conf = null;
+            for (let key in unitSettings) {
+                if (key.startsWith(studentBranch) && key.endsWith(cat)) {
+                    conf = unitSettings[key];
+                    break;
+                }
+            }
             const matchedUnitConf = unitSettings[uKey];
         
             // 🟢 1. ดึงการตั้งค่าของหน่วยการเรียนรู้นี้มาอัปเดตลง settings ก่อนนำไปสุ่มข้อสอบและเซ็ตระบบ Anti-Cheat
@@ -2293,8 +2299,13 @@ async function fetchAndSyncUsers() {
             // ✅ เพิ่ม 2 บรรทัดนี้เพื่อให้หน้าภาพรวมและปุ่มเลือกสาขาอัปเดตข้อมูลทันที
             if (typeof renderOverviewTable === 'function') renderOverviewTable();
             if (typeof renderBranchButtons === 'function') renderBranchButtons();
-        
+            // ✅ สั่งอัปเดตหน้าเลือกแบบทดสอบฝั่งนักศึกษาทันทีที่มีการกดบันทึก
+            if (typeof loadCategoriesForLoggedInUser === 'function') {
+                loadCategoriesForLoggedInUser();
+            }
+                    
             showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลสิทธิ์ผู้เข้าสอบและคลังข้อสอบถูกบันทึกเรียบร้อยแล้ว');
+
         }                       
 
         function renderInitialSetupNotice() {
