@@ -2850,27 +2850,46 @@ async function fetchAndSyncUsers() {
 
         function postResultToGoogleSheets(payload) {
             const syncTag = document.getElementById('result-sync-status');
-            if (!settings.webAppUrl) {
-                syncTag.textContent = "ไม่ได้ตั้งค่า Google Sheets URL (บันทึกในเครื่อง)";
-                syncTag.className = "font-medium text-amber-600";
+            
+            // 🟢 ดึงค่า WebApp URL จาก settings หรือจาก LocalStorage โดยตรงกันพลาด
+            let activeWebAppUrl = settings.webAppUrl;
+            if (!activeWebAppUrl) {
+                try {
+                    const savedSettings = JSON.parse(localStorage.getItem('online_exam_settings') || '{}');
+                    activeWebAppUrl = savedSettings.webAppUrl || '';
+                } catch(e) {}
+            }
+        
+            if (!activeWebAppUrl || activeWebAppUrl.trim() === '') {
+                if (syncTag) {
+                    syncTag.textContent = "ไม่ได้ตั้งค่า Google Sheets URL (บันทึกในเครื่อง)";
+                    syncTag.className = "font-medium text-amber-600";
+                }
                 return;
             }
-
-            syncTag.textContent = "กำลังส่งข้อมูลเข้า Google Sheets...";
-            syncTag.className = "font-medium text-indigo-600 animate-pulse";
-
-            fetch(settings.webAppUrl, {
+        
+            if (syncTag) {
+                syncTag.textContent = "กำลังส่งข้อมูลเข้า Google Sheets...";
+                syncTag.className = "font-medium text-indigo-600 animate-pulse";
+            }
+        
+            // 🟢 ส่งข้อมูลไปยัง Google Apps Script Web App
+            fetch(activeWebAppUrl, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             }).then(() => {
-                syncTag.textContent = "ส่งข้อมูลเข้า Google Sheets สำเร็จ";
-                syncTag.className = "font-medium text-emerald-600";
+                if (syncTag) {
+                    syncTag.textContent = "ส่งข้อมูลเข้า Google Sheets สำเร็จ";
+                    syncTag.className = "font-medium text-emerald-600";
+                }
             }).catch(err => {
                 console.error(err);
-                syncTag.textContent = "ส่งเข้า Google Sheets ไม่สำเร็จ";
-                syncTag.className = "font-medium text-rose-600";
+                if (syncTag) {
+                    syncTag.textContent = "ส่งเข้า Google Sheets ไม่สำเร็จ";
+                    syncTag.className = "font-medium text-rose-600";
+                }
             });
         }
 
