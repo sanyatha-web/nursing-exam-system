@@ -5402,7 +5402,8 @@ function toggleModalUserSelection(username, isChecked) {
                             }
                         });
         
-                        const attemptCount = examHistory.length;
+                        const uniqueTimestamps = new Set(examHistory.map(r => r.timestamp));
+                        const attemptCount = uniqueTimestamps.size;
         
                         // 🟢 แยกสถานะ 3 กลุ่ม
                         if (attemptCount === 0) {
