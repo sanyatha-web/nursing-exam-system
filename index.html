@@ -2258,13 +2258,18 @@ async function fetchAndSyncUsers() {
             const usersUrlElem = document.getElementById('setting-users-csv-url');
             const sheetUrlElem = document.getElementById('setting-sheet-csv-url');
             const resultsUrlElem = document.getElementById('setting-results-csv-url');
-            const webAppUrlElem = document.getElementById('setting-webapp-url');
+            const webAppUrlElem = document.getElementById('setting-webapp-url'); // 👈 อ่านช่อง WebApp URL
         
+            // อัปเดตค่าเข้าตัวแปร settings
             if (usersUrlElem) settings.usersCsvUrl = usersUrlElem.value.trim();
             if (sheetUrlElem) settings.sheetCsvUrl = sheetUrlElem.value.trim();
             if (resultsUrlElem) settings.resultsCsvUrl = resultsUrlElem.value.trim();
-            if (webAppUrlElem) settings.webAppUrl = webAppUrlElem.value.trim();
+            if (webAppUrlElem) settings.webAppUrl = webAppUrlElem.value.trim(); // 👈 บันทึกเข้า settings.webAppUrl
         
+            settings.selectedSet = selectedSet;
+            if (globalElem) settings.globalExamEnable = globalElem.checked;
+        
+            // บันทึกตั้งค่ารายหน่วย
             const pool = masterQuestions.filter(q => 
                 (q.branch === currentSelectedBranch || !q.branch || q.branch === 'ข้อสอบกลาง') &&
                 (selectedSet === 'ทั้งหมด (ทุกชุดการเรียนรู้)' || q.setGroup === selectedSet || q.branch === selectedSet)
@@ -2272,7 +2277,6 @@ async function fetchAndSyncUsers() {
             const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
         
             categories.forEach((cat, idx) => {
-                // 🟢 กำหนดรูปแบบ uKey ให้มาตรฐานและตรงกันทุกจุด
                 const uKey = `${currentSelectedBranch}__${cat.trim()}`;
                 
                 const unitSkillCounts = {};
@@ -2303,21 +2307,18 @@ async function fetchAndSyncUsers() {
                 };
             });
         
-            // บันทึกลง LocalStorage
+            // ✅ บันทึกลง LocalStorage ให้ครบถ้วนทุก Key
             localStorage.setItem('online_exam_settings', JSON.stringify(settings));
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
-            // ✅ เพิ่ม 2 บรรทัดนี้เพื่อให้หน้าภาพรวมและปุ่มเลือกสาขาอัปเดตข้อมูลทันที
             if (typeof renderOverviewTable === 'function') renderOverviewTable();
             if (typeof renderBranchButtons === 'function') renderBranchButtons();
-            // ✅ สั่งอัปเดตหน้าเลือกแบบทดสอบฝั่งนักศึกษาทันทีที่มีการกดบันทึก
             if (typeof loadCategoriesForLoggedInUser === 'function') {
                 loadCategoriesForLoggedInUser();
             }
                     
-            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลสิทธิ์ผู้เข้าสอบและคลังข้อสอบถูกบันทึกเรียบร้อยแล้ว');
-
+            showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลการเชื่อมต่อ WebApp และการตั้งค่าถูกบันทึกลงระบบเรียบร้อยแล้ว');
         }                       
 
         function renderInitialSetupNotice() {
