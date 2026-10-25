@@ -1385,26 +1385,25 @@ let settings = {
                 const isSetLocked = lockedCategories.has(setGrpLower);
         
                 if (!isCatLocked && !isSetLocked) {
-                    
-                    // 🟢 ประกาศตัวแปรดึงค่าสาขาและหน่วยที่เลือก
+    
+                    // ✅ ดึงค่าสาขาของผู้เรียน และชื่อหน่วยการเรียนรู้ (cat) ที่วนลูปอยู่ขณะนั้น
                     const studentBranch = loggedInUser.branch;
-                    const cat = selectedCategory;
                     
-                    // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ (ใช้ชื่อตัวแปร matchedUnitConf ให้ตรงกับโค้ดด้านล่าง)
-                    let matchedUnitConf = null;
+                    // ✅ ค้นหาการตั้งค่าหน่วยเรียนรู้ (ใช้ตัวแปรชื่อ conf ให้ตรงกันทั้งบล็อก)
+                    let conf = null;
                     for (let key in unitSettings) {
                         if (key.startsWith(studentBranch) && key.endsWith(cat)) {
-                            matchedUnitConf = unitSettings[key];
+                            conf = unitSettings[key];
                             break;
                         }
                     }
-        
+                
                     const isEnabled = conf ? conf.enabled === true : true;
-        
+                
                     if (isEnabled) {
                         const isAllAccess = !conf || !conf.accessMode || conf.accessMode === 'all';
                         const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
-        
+                
                         // เติมเฉพาะหน่วยที่ยังไม่ได้สอบผ่านลงในรายการเลือก
                         if ((isAllAccess || isUserAllowed) && !availableCategories.includes(cat)) {
                             availableCategories.push(cat);
