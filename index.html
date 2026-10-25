@@ -2255,7 +2255,7 @@ async function fetchAndSyncUsers() {
         
             categories.forEach((cat, idx) => {
                 // 🟢 กำหนดรูปแบบ uKey ให้มาตรฐานและตรงกันทุกจุด
-                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
+                const uKey = `${currentSelectedBranch}__${cat.trim()}`;
                 
                 const unitSkillCounts = {};
                 document.querySelectorAll(`.unit-type-input-${idx}`).forEach(input => {
@@ -3204,7 +3204,7 @@ async function fetchAndSyncUsers() {
                     const catName = item.catName;
                 
                     // 🟢 ค้นหา Key การตั้งค่าที่ตรงกันแบบ Flexible Search
-                    let matchedConf = null;
+                    let matchedConf = unitSettings[`${bName}__${catName.trim()}`];
                     let activeKey = "";
                 
                     // ค้นหาคีย์ที่มีโอกาสเป็นไปได้ทั้งหมดใน unitSettings
