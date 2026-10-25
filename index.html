@@ -2688,6 +2688,11 @@ async function fetchAndSyncUsers() {
                 timeSpentFormatted = `${minsSpent} นาที ${secsSpent} วินาที`;
             }
 
+            // 🟢 ดึงชื่อชุดข้อสอบจริงจากข้อสอบที่กำลังทำอยู่ (setGroup) 
+            // หากไม่มี ให้ลองดึงจากหมวดหมู่ (category) หรือชื่อวิชา
+            const actualExamSet = (activeQuestions && activeQuestions.length > 0 && activeQuestions[0].setGroup)
+                ? activeQuestions[0].setGroup
+                : (studentData.category || 'ชุดการเรียนรู้ทั่วไป');
             const payloadRecords = [];
             const timestampNow = new Date().toLocaleString('th-TH');
 
@@ -2701,7 +2706,7 @@ async function fetchAndSyncUsers() {
                     branch: studentData.branch,
                     yearLevel: studentData.yearLevel,
                     academicYear: loggedInUser?.academicYear || "",
-                    examSet: settings.selectedSet,
+                    examSet: actualExamSet,
                     category: studentData.category,
                     examType: "ปรนัย",
                     score: choiceScore,
@@ -2732,7 +2737,7 @@ async function fetchAndSyncUsers() {
                         branch: studentData.branch,
                         yearLevel: studentData.yearLevel,
                         academicYear: loggedInUser?.academicYear || "",
-                        examSet: settings.selectedSet,
+                        examSet: actualExamSet,
                         category: studentData.category,
                         examType: "อัตนัย/ข้อเขียน",
                         score: null,             // เว้นว่างรอ Preceptor
