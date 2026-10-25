@@ -1391,9 +1391,10 @@ let settings = {
                         `${studentBranch}__${cat}`
                     ];
         
+                    // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ยืดหยุ่นขึ้น ไม่ให้หลุดเพราะชื่อชุดข้อสอบไม่ตรง
                     let conf = null;
-                    for (let key of possibleKeys) {
-                        if (unitSettings[key]) {
+                    for (let key in unitSettings) {
+                        if (key.startsWith(studentBranch) && key.endsWith(cat)) {
                             conf = unitSettings[key];
                             break;
                         }
@@ -3216,12 +3217,14 @@ async function fetchAndSyncUsers() {
                         `${bName}__${catName}`
                     ];
         
+                    // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ยืดหยุ่นขึ้น (ถ้าเจอว่ามี key ไหนของสาขา+หน่วยนี้เปิดอยู่ ให้ยึดค่านั้น)
                     let matchedConf = null;
                     let activeKey = possibleKeys[0];
-                    for (let k of possibleKeys) {
-                        if (unitSettings[k]) {
-                            matchedConf = unitSettings[k];
-                            activeKey = k;
+                    
+                    for (let key in unitSettings) {
+                        if (key.startsWith(bName) && key.endsWith(catName)) {
+                            matchedConf = unitSettings[key];
+                            activeKey = key;
                             break;
                         }
                     }
