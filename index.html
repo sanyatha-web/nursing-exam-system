@@ -2290,10 +2290,12 @@ async function fetchAndSyncUsers() {
             localStorage.setItem('online_exam_branch_settings', JSON.stringify(branchSettings));
             localStorage.setItem('online_exam_unit_settings', JSON.stringify(unitSettings));
         
+            // ✅ เพิ่ม 2 บรรทัดนี้เพื่อให้หน้าภาพรวมและปุ่มเลือกสาขาอัปเดตข้อมูลทันที
             if (typeof renderOverviewTable === 'function') renderOverviewTable();
+            if (typeof renderBranchButtons === 'function') renderBranchButtons();
         
             showAlertModal('success', 'บันทึกการตั้งค่าสำเร็จ', 'ข้อมูลสิทธิ์ผู้เข้าสอบและคลังข้อสอบถูกบันทึกเรียบร้อยแล้ว');
-        }                        
+        }                       
 
         function renderInitialSetupNotice() {
             const container = document.getElementById('notice-anti-cheat');
@@ -3203,29 +3205,11 @@ async function fetchAndSyncUsers() {
                     const yearLevel = item.yearLevel;
                     const catName = item.catName;
                 
-                    // 🟢 ค้นหา Key การตั้งค่าที่ตรงกันแบบ Flexible Search
-                    let matchedConf = unitSettings[`${bName}__${catName.trim()}`];
-                    let activeKey = "";
+                    // ✅ ค้นหา Key การตั้งค่าที่ตรงกันแบบแน่นอน
+                    const uKey = `${bName}__${catName.trim()}`;
+                    const matchedConf = unitSettings[uKey];
                 
-                    // ค้นหาคีย์ที่มีโอกาสเป็นไปได้ทั้งหมดใน unitSettings
-                    for (let key in unitSettings) {
-                        if (
-                            key === `${bName}__${setName}__${catName}` || 
-                            key === `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}` ||
-                            (key.includes(bName) && key.includes(catName)) ||
-                            key.endsWith(`__${catName}`)
-                        ) {
-                            matchedConf = unitSettings[key];
-                            activeKey = key;
-                            break;
-                        }
-                    }
-                
-                    // 🟢 ดึงค่าการตั้งค่ามาแสดงผลในตาราง
-                    const accessMode = matchedConf?.accessMode || 'all';
-                    const allowedUsersCount = (matchedConf?.allowedUsers || []).length;
-                    
-                    // ตรวจสอบสถานะการเปิด-ปิดสอบ (รวมทั้ง Master Switch และรายหน่วย)
+                    // ดึงสถานะการเปิดสอบ (ตรวจสอบทั้ง Master Switch และ รายหน่วย)
                     const isUnitEnabled = matchedConf ? (matchedConf.enabled !== false) : true;
                     const isGlobalEnable = isUnitEnabled && (bSet.globalExamEnable !== false);
                     
@@ -3233,7 +3217,7 @@ async function fetchAndSyncUsers() {
                     const qCount = matchedConf?.questionCount !== undefined ? matchedConf.questionCount : (bSet.questionCount || 15);
                     const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
                     
-                    // ดึงค่า Anti-Cheat และการป้องกันแคปหน้าจอ
+                    // ดึงค่า Anti-Cheat และ การป้องกันแคปหน้าจอ
                     const isAntiCheat = matchedConf?.antiCheatEnable !== undefined ? matchedConf.antiCheatEnable : (bSet.antiCheatEnable || false);
                     const isPreventScreenshot = matchedConf?.preventScreenshot !== undefined ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
                     
@@ -4096,7 +4080,7 @@ async function fetchAndSyncUsers() {
             }
 
             container.innerHTML = categories.map((cat, idx) => {
-                const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
+                const uKey = `${currentSelectedBranch}__${cat.trim()}`;
                 const uConf = unitSettings[uKey] || {
                     enabled: true,
                     questionCount: 15,
