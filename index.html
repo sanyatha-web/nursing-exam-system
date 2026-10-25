@@ -5352,29 +5352,8 @@ function toggleModalUserSelection(username, isChecked) {
             container.innerHTML = html;
         }
 
-        // ✅ ฟังก์ชันเรนเดอร์การ์ดสอบเลื่อนชั้น (ปี 1-2) และสอบประมวลความรู้ (ปี 3)
+        // 🟢 ฟังก์ชันเรนเดอร์การ์ดสอบเลื่อนชั้น (ปี 1-2) และสอบประมวลความรู้ (ปี 3) แสดงผลผู้เรียนทุกคน
         function renderTermExamsTracker(branchStudents, termExamResults, normalResults, availableNormalQuestions) {
-            // 🟢 1. หาจำนวนหน่วยการเรียนรู้ทั้งหมดที่มีในชั้นปีนั้น
-            const totalRequiredUnits = Array.from(new Set(availableNormalQuestions.map(q => (q.category || '').trim()))).filter(Boolean).length;
-        
-            // 🟢 2. กรองเฉพาะนักเรียนที่สอบผ่านหน่วยการเรียนรู้ครบทุกหน่วยแล้วเท่านั้น
-            const eligibleStudents = branchStudents.filter(st => {
-                const stHistory = normalResults.filter(r => (r.sapId || r.studentId) === st.username);
-                
-                // นับจำนวนหน่วยการเรียนรู้ที่สอบผ่าน (คะแนน >= 80% หรือสถานะ ผ่าน)
-                const passedUnitsSet = new Set();
-                stHistory.forEach(r => {
-                    if ((r.percentage || 0) >= 80 || r.status === 'Passed' || r.status === 'ผ่าน') {
-                        if (r.category) passedUnitsSet.add(r.category.trim());
-                    }
-                });
-        
-                // 🎯 เงื่อนไขสำคัญ: ต้องผ่านหน่วยการเรียนรู้ครบตามจำนวนทั้งหมดก่อน (และต้องมีอย่างน้อย 1 หน่วย)
-                const isModulesComplete = totalRequiredUnits > 0 && passedUnitsSet.size >= totalRequiredUnits;
-        
-                return isModulesComplete;
-            });
-        
             const container = document.getElementById('manager-term-exams-container');
             if (!container) return 0;
         
@@ -5387,10 +5366,10 @@ function toggleModalUserSelection(username, isChecked) {
                 { title: 'การสอบประมวลความรู้ (Comprehensive Exam)', targetYears: ['ชั้นปีที่ 3'] }
             ];
         
-            // ⚡ พรีประมวลผลผลสอบจับคู่ SAP-ID ใส่ Map ก่อนลูป
+            // 1. จัดกลุ่มผลสอบรายบุคคลใส่ Map
             const termResultsByStudent = new Map();
             (termExamResults || []).forEach(r => {
-                const stId = (r.sapId || '').toString().trim().toLowerCase();
+                const stId = (r.sapId || r.studentId || '').toString().trim().toLowerCase();
                 if (!termResultsByStudent.has(stId)) {
                     termResultsByStudent.set(stId, []);
                 }
@@ -5401,31 +5380,33 @@ function toggleModalUserSelection(username, isChecked) {
                 let yearBreakdownHtml = '';
         
                 config.targetYears.forEach((yearName, yIdx) => {
-                    // 🟢 จุดแก้ไขสำคัญ: กรองรายชื่อจาก eligibleStudents แทน studentsList
-                    const yearStudents = eligibleStudents.filter(s => s.yearLevel === yearName);
+                    // 🟢 ดึงนักศึกษาทุกคนในชั้นปีนั้นๆ โดยไม่กรองความก้าวหน้า 100%
+                    const yearStudents = branchStudents.filter(s => s.yearLevel === yearName);
                     if (yearStudents.length === 0) return;
         
                     const passedList = [];
                     const failedList = [];
+                    const unattemptedList = [];
         
                     yearStudents.forEach(st => {
                         const stId = (st.username || st.sapId || '').toString().trim().toLowerCase();
                         const allStAttempts = termResultsByStudent.get(stId) || [];
         
-                        // กรองเฉพาะรายชื่อวิชาสอบที่เข้าเงื่อนไข
+                        // กรองเฉพาะรายชื่อวิชาสอบที่ตรงกับประเภทการสอบ
                         const examHistory = allStAttempts.filter(r => {
                             const name = ((r.category || '') + ' ' + (r.examSet || '')).toLowerCase();
                             if (config.targetYears.includes('ชั้นปีที่ 3')) {
-                                return name.includes('ประมวล') || name.includes('comprehensive') || name.includes('ปลายภาค');
+                                return name.includes('ประมวล') || name.includes('comprehensive') || name.includes('comp');
                             } else {
-                                return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค');
+                                return name.includes('เลื่อนชั้น') || name.includes('ปลายภาค') || name.includes('กลางภาค');
                             }
                         });
         
                         const attemptCount = examHistory.length;
         
+                        // 🟢 แยกสถานะ 3 กลุ่ม
                         if (attemptCount === 0) {
-                            failedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
+                            unattemptedList.push({ student: st, score: 0, percentage: 0, attemptCount: 0, statusText: 'ยังไม่ได้เข้าสอบ' });
                             remedialStudentIds.add(st.username);
                         } else {
                             let bestResult = examHistory[0];
@@ -5443,14 +5424,22 @@ function toggleModalUserSelection(username, isChecked) {
                     });
         
                     const cacheKey = `term_${examIdx}_${yIdx}`;
-                    managerModalCache[cacheKey] = { title: `${config.title} (${yearName})`, subtitle: config.title, passedList, failedList };
+                    managerModalCache[cacheKey] = { 
+                        title: `${config.title} (${yearName})`, 
+                        subtitle: config.title, 
+                        passedList, 
+                        failedList, 
+                        unattemptedList 
+                    };
         
+                    // 🟢 วาด HTML แสดงป้ายสรุป 3 สถานะ (ผ่าน / ตก/ซ่อม / ยังไม่สอบ)
                     yearBreakdownHtml += `
                         <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
                             <div class="font-bold text-slate-800">${yearName} <span class="text-slate-400 font-normal">(${yearStudents.length} คน)</span></div>
-                            <div class="flex items-center space-x-2">
+                            <div class="flex items-center space-x-1.5 flex-wrap">
                                 <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg">ผ่าน ${passedList.length}</span>
                                 <span class="font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-lg">ตก/ซ่อม ${failedList.length}</span>
+                                <span class="font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">ยังไม่สอบ ${unattemptedList.length}</span>
                                 <button onclick="openManagerDetailModalFromCache('${cacheKey}')" 
                                     class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] shadow transition">
                                     <i class="fa-solid fa-list-check"></i> รายชื่อ
@@ -5481,7 +5470,7 @@ function toggleModalUserSelection(username, isChecked) {
             return remedialStudentIds.size;
         }
 
-        // ฟังก์ชันเปิด Modal จาก Cache
+        // 🟢 ฟังก์ชันเปิดป๊อบอัปแสดงรายชื่อแยกตาม 3 สถานะ
         function openManagerDetailModalFromCache(cacheKey) {
             const data = managerModalCache[cacheKey];
             if (!data) return;
@@ -5499,7 +5488,7 @@ function toggleModalUserSelection(username, isChecked) {
             document.getElementById('manager-modal-subtitle').textContent = data.subtitle;
             document.getElementById('manager-modal-search').value = '';
         
-            // สร้าง Tab Switcher ใหม่ใน Modal
+            // สร้าง Tab Switcher 3 แท็บใน Modal (ผ่าน / สอบซ่อม / ยังไม่สอบ)
             const tabContainer = document.getElementById('modal-tab-container') || document.querySelector('#modal-manager-detail .bg-slate-100');
             if (tabContainer) {
                 tabContainer.id = 'modal-tab-container';
