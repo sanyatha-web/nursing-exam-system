@@ -1313,7 +1313,7 @@ let settings = {
             const studentBranch = (loggedInUser.branch || '').trim();
             const studentId = (loggedInUser.username || loggedInUser.sapId || '').trim().toLowerCase();
         
-            // 🟢 0. รวมประวัติและจัดกลุ่มตาม Timestamp ป้องกันค่านับซ้ำ
+            // 0. รวมประวัติและจัดกลุ่มตาม Timestamp ป้องกันค่านับซ้ำ
             let combinedHistory = [...examResultsHistory];
             const cachedHistoryStr = localStorage.getItem('cached_exam_results_history');
             if (cachedHistoryStr) {
@@ -1337,7 +1337,7 @@ let settings = {
                 const idInRecord = (r.sapId || r.studentId || '').trim().toLowerCase();
                 return idInRecord === studentId;
             });
-
+        
             // 2. ค้นหาชื่อหน่วยการเรียนรู้ที่รอตรวจข้อเขียน
             const pendingCategories = new Set();
             studentHistory.forEach(r => {
@@ -1350,7 +1350,7 @@ let settings = {
                     if (r.examSet) pendingCategories.add(r.examSet.trim().toLowerCase());
                 }
             });
-
+        
             // 3. ค้นหาชื่อหน่วยการเรียนรู้ที่สอบผ่านแล้ว (คะแนน >= 80%)
             const passedCategories = new Set();
             studentHistory.forEach(r => {
@@ -1365,8 +1365,11 @@ let settings = {
         
             // 5. กรองคลังข้อสอบเฉพาะ สาขา และ ชั้นปี ของนักเรียน
             let userPool = masterQuestions.filter(q => {
-                const matchBranch = !q.branch || q.branch === 'ข้อสอบกลาง' || q.branch === 'ทุกสาขา' || q.branch.trim() === studentBranch;
-                const matchYear = !q.yearLevel || q.yearLevel === 'ทุกชั้นปี' || q.yearLevel.trim() === studentYear;
+                const qBranch = (q.branch || '').trim();
+                const qYear = (q.yearLevel || '').trim();
+        
+                const matchBranch = !qBranch || qBranch === 'ข้อสอบกลาง' || qBranch === 'ทุกสาขา' || qBranch === studentBranch;
+                const matchYear = !qYear || qYear === 'ทุกชั้นปี' || qYear === studentYear;
                 return matchBranch && matchYear;
             });
         
@@ -1380,30 +1383,33 @@ let settings = {
         
                 if (!cat) return;
         
-                // 🔒 ตรวจสอบว่าถ้าชื่อหน่วยเรียนรู้ หรือ ชื่อชุดการเรียนรู้ เคยสอบผ่านแล้ว ให้ข้าม (ซ่อน) ออกจาก Dropdown
+                // 🔒 ตรวจสอบว่าถ้าเคยสอบผ่านแล้วหรือรอตรวจข้อเขียน ให้ข้าม
                 const isCatLocked = lockedCategories.has(catLower);
                 const isSetLocked = lockedCategories.has(setGrpLower);
         
                 if (!isCatLocked && !isSetLocked) {
-    
-                    // ✅ ดึงค่าสาขาของผู้เรียน และชื่อหน่วยการเรียนรู้ (cat) ที่วนลูปอยู่ขณะนั้น
-                    const studentBranch = loggedInUser.branch;
                     
-                    // ✅ ค้นหาการตั้งค่าหน่วยเรียนรู้ (ใช้ตัวแปรชื่อ conf ให้ตรงกันทั้งบล็อก)
+                    // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ (จับคู่ สาขา + ชื่อหน่วย หรือ สาขา + ชื่อชุด)
                     let conf = null;
-                    for (let key in unitSettings) {
-                        if (key.startsWith(studentBranch) && key.endsWith(cat)) {
-                            conf = unitSettings[key];
-                            break;
+                    const uKeyDirect = `${studentBranch}__${cat}`;
+                    if (unitSettings[uKeyDirect]) {
+                        conf = unitSettings[uKeyDirect];
+                    } else {
+                        for (let key in unitSettings) {
+                            if (key.startsWith(studentBranch) && (key.endsWith(cat) || key.endsWith(setGrp))) {
+                                conf = unitSettings[key];
+                                break;
+                            }
                         }
                     }
-                
+        
+                    // ถ้าไม่มีการตั้งค่าเฉพาะหน่วย ให้เปิดเป็นค่าเริ่มต้น (true)
                     const isEnabled = conf ? conf.enabled === true : true;
-                
+        
                     if (isEnabled) {
                         const isAllAccess = !conf || !conf.accessMode || conf.accessMode === 'all';
-                        const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && conf.allowedUsers.includes(loggedInUser.username);
-                
+                        const isUserAllowed = conf && conf.accessMode === 'custom' && Array.isArray(conf.allowedUsers) && (conf.allowedUsers.includes(loggedInUser.username) || conf.allowedUsers.includes(loggedInUser.sapId));
+        
                         // เติมเฉพาะหน่วยที่ยังไม่ได้สอบผ่านลงในรายการเลือก
                         if ((isAllAccess || isUserAllowed) && !availableCategories.includes(cat)) {
                             availableCategories.push(cat);
@@ -1417,19 +1423,19 @@ let settings = {
             if (badgeElem) {
                 if (availableCategories.length === 0) {
                     if (pendingCategories.size > 0) {
-                        badgeElem.textContent = `⏳ มีหน่วยการเรียนรู้ที่อยู่ระหว่างรอ Preceptor ตรวจข้อเขียน`;
+                        badgeElem.textContent = `⏳ มีหน่วยการเรียนรู้/การสอบเลื่อนชั้น ที่อยู่ระหว่างรอตรวจข้อเขียน`;
                         badgeElem.className = "font-bold text-amber-600";
                     } else {
                         badgeElem.textContent = `🎉 คุณสอบผ่านครบทุกหน่วยการเรียนรู้ของ ${studentYear} แล้ว`;
                         badgeElem.className = "font-bold text-emerald-600";
                     }
                 } else {
-                    badgeElem.textContent = `${studentYear} (เหลือต้องสอบอีก ${availableCategories.length} หน่วยการเรียนรู้)`;
+                    badgeElem.textContent = `${studentYear} (มีแบบทดสอบ/การสอบเลื่อนชั้น เปิดอยู่ ${availableCategories.length} รายการ)`;
                     badgeElem.className = "font-bold text-amber-600";
                 }
             }
         
-            // 7. อัปเดตรายการใน Dropdown (ถ้าสอบผ่านหมดแล้วจะล็อก Dropdown ทันที)
+            // 7. อัปเดตรายการใน Dropdown
             const selectElem = document.getElementById('dashboard-category-select');
             if (selectElem) {
                 selectElem.onchange = renderInitialSetupNotice;
