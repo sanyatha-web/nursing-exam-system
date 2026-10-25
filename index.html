@@ -3208,36 +3208,58 @@ async function fetchAndSyncUsers() {
                     const setName = item.setName;
                     const yearLevel = item.yearLevel;
                     const catName = item.catName;
-        
-                    // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ยืดหยุ่นขึ้น
+                
+                    // 🟢 1. ค้นหา Key การตั้งค่าที่ตรงกันที่สุด (เรียงจากตรงเป๊ะไปจนถึงค้นหาตามเงื่อนไข)
                     let matchedConf = null;
-                    let activeKey = possibleKeys.length > 0 ? possibleKeys[0] : '';
-                    
-                    if (typeof unitSettings !== 'undefined') {
+                    let activeKey = "";
+                
+                    // รูปแบบ Key ที่เป็นไปได้ทั้งหมดในระบบของคุณ
+                    const possibleExactKeys = [
+                        `${bName}_${yearLevel}_${setName}_${catName}`,
+                        `${bName}_${setName}_${catName}`,
+                        `${bName}_${catName}`,
+                        catName
+                    ];
+                
+                    // เช็ก Exact Match ก่อน
+                    for (const k of possibleExactKeys) {
+                        if (unitSettings && unitSettings[k]) {
+                            matchedConf = unitSettings[k];
+                            activeKey = k;
+                            break;
+                        }
+                    }
+                
+                    // ถ้ายังไม่เจอ ให้ค้นหาแบบ Partial Match (เช็กว่ามีทั้งชื่อสาขาและชื่อหน่วยอยู่ใน Key หรือไม่)
+                    if (!matchedConf && unitSettings) {
                         for (let key in unitSettings) {
-                            if (key.startsWith(bName) && key.endsWith(catName)) {
+                            if (key.includes(bName) && key.includes(catName)) {
                                 matchedConf = unitSettings[key];
                                 activeKey = key;
                                 break;
                             }
                         }
                     }
-                    
+                
+                    // 🟢 2. ดึงค่าการตั้งค่ามาใช้งาน (หากไม่มี matchedConf ให้ดึงจาก bSet หรือใช้ค่า Default ของระบบ)
                     const accessMode = matchedConf?.accessMode || 'all';
                     const allowedUsersCount = (matchedConf?.allowedUsers || []).length;
                     
-                    const isUnitEnabled = matchedConf ? matchedConf.enabled === true : true;
+                    // เช็กสถานะการเปิด-ปิดสอบ
+                    const isUnitEnabled = matchedConf ? (matchedConf.enabled !== false) : true;
                     const isGlobalEnable = isUnitEnabled && (bSet.globalExamEnable !== false);
                     
-                    const qCount = matchedConf?.questionCount || bSet.questionCount || 15;
+                    // ดึงจำนวนข้อและเวลา
+                    const qCount = matchedConf?.questionCount !== undefined ? matchedConf.questionCount : (bSet.questionCount || 15);
                     const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
                     
-                    const isAntiCheat = matchedConf ? matchedConf.antiCheatEnable : bSet.antiCheatEnable;
-                    const isPreventScreenshot = matchedConf ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
+                    // ดึงค่า Anti-Cheat และการป้องกันต่างๆ
+                    const isAntiCheat = matchedConf?.antiCheatEnable !== undefined ? matchedConf.antiCheatEnable : (bSet.antiCheatEnable !== undefined ? bSet.antiCheatEnable : false);
+                    const isPreventScreenshot = matchedConf?.preventScreenshot !== undefined ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
                     
-                    const isShuffle = matchedConf ? (matchedConf.shuffleOptions !== false) : true;
-                    const isDistribute = matchedConf ? (matchedConf.distributeBySkills || false) : false;
-                    const isBlindGrading = matchedConf ? (matchedConf.blindGrading || false) : false;
+                    const isShuffle = matchedConf?.shuffleOptions !== undefined ? matchedConf.shuffleOptions : true;
+                    const isDistribute = matchedConf?.distributeBySkills !== undefined ? matchedConf.distributeBySkills : false;
+                    const isBlindGrading = matchedConf?.blindGrading !== undefined ? matchedConf.blindGrading : false;
         
                     tableRowsHtml += `
                         <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100">
