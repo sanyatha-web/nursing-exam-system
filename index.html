@@ -1478,7 +1478,7 @@ let settings = {
                 return;
             }
         
-            const selectedSet = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
+            // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ให้ตรงกับที่อาจารย์บันทึกไว้ (จับคู่ สาขา + ชื่อหน่วย)
             let conf = null;
             for (let key in unitSettings) {
                 if (key.startsWith(studentBranch) && key.endsWith(cat)) {
@@ -1486,7 +1486,6 @@ let settings = {
                     break;
                 }
             }
-            const matchedUnitConf = unitSettings[uKey];
         
             // 🟢 1. ดึงการตั้งค่าของหน่วยการเรียนรู้นี้มาอัปเดตลง settings ก่อนนำไปสุ่มข้อสอบและเซ็ตระบบ Anti-Cheat
             if (matchedUnitConf) {
@@ -2313,9 +2312,14 @@ async function fetchAndSyncUsers() {
             if (!container || !loggedInUser) return;
         
             const selectedCategory = document.getElementById('dashboard-category-select')?.value || '';
-            const selectedSet = settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)';
-            const uKey = `${loggedInUser.branch}__${selectedSet}__${selectedCategory}`;
-            const matchedUnitConf = unitSettings[uKey];
+            // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้สำหรับเตรียมจัดข้อสอบ
+            let matchedUnitConf = null;
+            for (let key in unitSettings) {
+                if (key.startsWith(loggedInUser.branch) && key.endsWith(selectedCategory)) {
+                    matchedUnitConf = unitSettings[key];
+                    break;
+                }
+            }
         
             // ดึงค่าการตั้งค่า Anti-Cheat และ ป้องกันแคปจอ (ถ้าในหน่วยตั้งไว้ให้ใช้ค่าหน่วย ถ้าไม่มีให้ใช้ค่า Global)
             const isAntiCheatOn = matchedUnitConf ? matchedUnitConf.antiCheatEnable : settings.antiCheatEnable;
