@@ -3217,14 +3217,19 @@ async function fetchAndSyncUsers() {
                     const qCount = matchedConf?.questionCount !== undefined ? matchedConf.questionCount : (bSet.questionCount || 15);
                     const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
                     
-                    // ดึงค่า Anti-Cheat และ การป้องกันแคปหน้าจอ
+                    // ดึงค่าการตั้งค่า Anti-Cheat และ การป้องกันแคปหน้าจอ
                     const isAntiCheat = matchedConf?.antiCheatEnable !== undefined ? matchedConf.antiCheatEnable : (bSet.antiCheatEnable || false);
                     const isPreventScreenshot = matchedConf?.preventScreenshot !== undefined ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
                     
                     const isShuffle = matchedConf?.shuffleOptions !== undefined ? matchedConf.shuffleOptions : true;
                     const isDistribute = matchedConf?.distributeBySkills !== undefined ? matchedConf.distributeBySkills : false;
                     const isBlindGrading = matchedConf?.blindGrading !== undefined ? matchedConf.blindGrading : false;
-        
+                    
+                    // 🟢 เพิ่มการประกาศตัวแปร 3 ตัวนี้ก่อนนำไปใช้งานด้านล่าง
+                    const accessMode = matchedConf?.accessMode || 'all';
+                    const activeKey = uKey;
+                    const allowedUsersCount = (matchedConf?.allowedUsers || []).length;
+                    
                     tableRowsHtml += `
                         <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100">
                             <td class="p-3 font-bold text-slate-800 whitespace-nowrap">
