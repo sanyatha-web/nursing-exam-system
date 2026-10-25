@@ -1385,12 +1385,7 @@ let settings = {
                 const isSetLocked = lockedCategories.has(setGrpLower);
         
                 if (!isCatLocked && !isSetLocked) {
-                    const possibleKeys = [
-                        `${studentBranch}__${setGrp}__${cat}`,
-                        `${studentBranch}__${settings.selectedSet || 'ทั้งหมด (ทุกชุดการเรียนรู้)'}__${cat}`,
-                        `${studentBranch}__${cat}`
-                    ];
-        
+                    
                     // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ยืดหยุ่นขึ้น ไม่ให้หลุดเพราะชื่อชุดข้อสอบไม่ตรง
                     let conf = null;
                     for (let key in unitSettings) {
@@ -3210,12 +3205,6 @@ async function fetchAndSyncUsers() {
                     const setName = item.setName;
                     const yearLevel = item.yearLevel;
                     const catName = item.catName;
-        
-                    const possibleKeys = [
-                        `${bName}__${setName}__${catName}`,
-                        `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}`,
-                        `${bName}__${catName}`
-                    ];
         
                     // 🟢 ค้นหาการตั้งค่าหน่วยเรียนรู้ยืดหยุ่นขึ้น (ถ้าเจอว่ามี key ไหนของสาขา+หน่วยนี้เปิดอยู่ ให้ยึดค่านั้น)
                     let matchedConf = null;
