@@ -3108,9 +3108,6 @@ async function fetchAndSyncUsers() {
             const filterSelect = document.getElementById('overview-branch-filter');
             if (!tableBody) return;
         
-            // 🟢 ประกาศตัวแปร possibleKeys ไว้ตรงนี้ เพื่อป้องกัน ReferenceError
-            const possibleKeys = Object.keys(unitSettings || {});
-        
             // 1. Header ตาราง
             const tableHeader = tableBody.closest('table')?.querySelector('thead tr');
             if (tableHeader) {
@@ -3183,9 +3180,8 @@ async function fetchAndSyncUsers() {
                 const bSet = (typeof branchSettings !== 'undefined' && branchSettings[bName]) ? branchSettings[bName] : (typeof settings !== 'undefined' ? settings : {});
                 const branchQuestions = (masterQuestions || []).filter(q => q.branch === bName || (!q.branch && bName === 'ข้อสอบกลาง'));
         
-                // 🟢 1. เช็กก่อนว่าถ้าสาขานี้ยังไม่มีข้อสอบในคลัง ให้ข้ามไปเลย (ไม่แสดงในตาราง)
                 if (branchQuestions.length === 0) {
-                    return; // Skip สาขานี้ไป
+                    return; // ข้ามสาขาที่ยังไม่มีข้อสอบ
                 }
         
                 const groupedUnits = [];
@@ -3209,19 +3205,21 @@ async function fetchAndSyncUsers() {
                     const yearLevel = item.yearLevel;
                     const catName = item.catName;
                 
-                    // 🟢 1. ค้นหา Key การตั้งค่าที่ตรงกันที่สุด (เรียงจากตรงเป๊ะไปจนถึงค้นหาตามเงื่อนไข)
+                    // 🟢 1. ค้นหา Key การตั้งค่าใน unitSettings แบบสอดคล้องกับการบันทึกจริง
                     let matchedConf = null;
                     let activeKey = "";
-                
-                    // รูปแบบ Key ที่เป็นไปได้ทั้งหมดในระบบของคุณ
+
+                    // รูปแบบ Key ที่ถูกต้องตามโครงสร้างการบันทึก (${branch}__${set}__${category})
                     const possibleExactKeys = [
+                        `${bName}__${setName}__${catName}`,
+                        `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}`,
                         `${bName}_${yearLevel}_${setName}_${catName}`,
                         `${bName}_${setName}_${catName}`,
                         `${bName}_${catName}`,
                         catName
                     ];
                 
-                    // เช็ก Exact Match ก่อน
+                    // ตรวจหา Exact Match
                     for (const k of possibleExactKeys) {
                         if (unitSettings && unitSettings[k]) {
                             matchedConf = unitSettings[k];
@@ -3230,7 +3228,7 @@ async function fetchAndSyncUsers() {
                         }
                     }
                 
-                    // ถ้ายังไม่เจอ ให้ค้นหาแบบ Partial Match (เช็กว่ามีทั้งชื่อสาขาและชื่อหน่วยอยู่ใน Key หรือไม่)
+                    // หากยังไม่พบ ให้ค้นหาแบบยืดหยุ่นด้วยการเช็กส่วนประกอบของ Key
                     if (!matchedConf && unitSettings) {
                         for (let key in unitSettings) {
                             if (key.includes(bName) && key.includes(catName)) {
@@ -3240,26 +3238,30 @@ async function fetchAndSyncUsers() {
                             }
                         }
                     }
+
+                    if (!activeKey) {
+                        activeKey = `${bName}__${setName}__${catName}`;
+                    }
                 
-                    // 🟢 2. ดึงค่าการตั้งค่ามาใช้งาน (หากไม่มี matchedConf ให้ดึงจาก bSet หรือใช้ค่า Default ของระบบ)
+                    // 🟢 2. ดึงข้อมูลสถานะและค่าการตั้งค่าจริงที่แมปได้
                     const accessMode = matchedConf?.accessMode || 'all';
                     const allowedUsersCount = (matchedConf?.allowedUsers || []).length;
                     
                     // เช็กสถานะการเปิด-ปิดสอบ
-                    const isUnitEnabled = matchedConf ? (matchedConf.enabled !== false) : true;
+                    const isUnitEnabled = matchedConf ? (matchedConf.enabled === true) : true;
                     const isGlobalEnable = isUnitEnabled && (bSet.globalExamEnable !== false);
                     
-                    // ดึงจำนวนข้อและเวลา
+                    // ดึงจำนวนข้อและเวลาทำข้อสอบ
                     const qCount = matchedConf?.questionCount !== undefined ? matchedConf.questionCount : (bSet.questionCount || 15);
                     const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
                     
-                    // ดึงค่า Anti-Cheat และการป้องกันต่างๆ
-                    const isAntiCheat = matchedConf?.antiCheatEnable !== undefined ? matchedConf.antiCheatEnable : (bSet.antiCheatEnable !== undefined ? bSet.antiCheatEnable : false);
-                    const isPreventScreenshot = matchedConf?.preventScreenshot !== undefined ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
+                    // ดึงค่า Anti-Cheat, ป้องกันแคปจอ, สลับตัวเลือก, คละทักษะ และ Blind Grading
+                    const isAntiCheat = matchedConf ? (matchedConf.antiCheatEnable === true) : (bSet.antiCheatEnable === true);
+                    const isPreventScreenshot = matchedConf ? (matchedConf.preventScreenshot !== false) : (bSet.preventScreenshot !== false);
                     
-                    const isShuffle = matchedConf?.shuffleOptions !== undefined ? matchedConf.shuffleOptions : true;
-                    const isDistribute = matchedConf?.distributeBySkills !== undefined ? matchedConf.distributeBySkills : false;
-                    const isBlindGrading = matchedConf?.blindGrading !== undefined ? matchedConf.blindGrading : false;
+                    const isShuffle = matchedConf ? (matchedConf.shuffleOptions !== false) : true;
+                    const isDistribute = matchedConf ? (matchedConf.distributeBySkills === true) : false;
+                    const isBlindGrading = matchedConf ? (matchedConf.blindGrading === true) : false;
         
                     tableRowsHtml += `
                         <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100">
@@ -3320,7 +3322,6 @@ async function fetchAndSyncUsers() {
                 });
             });
         
-            // 🟢 ป้องกันการกระตุก: อัปเดต HTML เฉพาะกรณีที่เนื้อหาตารางมีการเปลี่ยนแปลงจริงเท่านั้น
             if (tableBody.innerHTML !== tableRowsHtml) {
                 tableBody.innerHTML = tableRowsHtml;
             }
