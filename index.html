@@ -2254,6 +2254,7 @@ async function fetchAndSyncUsers() {
             const categories = Array.from(new Set(pool.map(q => q.category).filter(Boolean)));
         
             categories.forEach((cat, idx) => {
+                // 🟢 กำหนดรูปแบบ uKey ให้มาตรฐานและตรงกันทุกจุด
                 const uKey = `${currentSelectedBranch}__${selectedSet}__${cat}`;
                 
                 const unitSkillCounts = {};
@@ -2264,13 +2265,10 @@ async function fetchAndSyncUsers() {
                         unitSkillCounts[skillName.trim().toLowerCase()] = count;
                     }
                 });
-        
-                // 🟢 อ่านค่าสิทธิ์ผู้เข้าสอบ (Access Mode) จาก Radio Button
+            
                 const selectedAccessMode = document.querySelector(`input[name="unit-access-${idx}"]:checked`)?.value || 'all';
-        
-                // 🟢 ดึงรายชื่อเดิมคงไว้ ไม่ให้โดนล้างเป็นอาร์เรย์ว่าง
                 const existingAllowedUsers = unitSettings[uKey]?.allowedUsers || [];
-        
+            
                 unitSettings[uKey] = {
                     ...(unitSettings[uKey] || {}),
                     enabled: document.getElementById(`unit-enable-${idx}`)?.checked || false,
@@ -2282,7 +2280,7 @@ async function fetchAndSyncUsers() {
                     distributeBySkills: document.getElementById(`unit-distribute-${idx}`)?.checked || false,
                     skillCounts: unitSkillCounts,
                     accessMode: selectedAccessMode,
-                    allowedUsers: existingAllowedUsers, // 🟢 ป้องกันรายชื่อหาย
+                    allowedUsers: existingAllowedUsers,
                     blindGrading: document.getElementById(`unit-blind-${idx}`)?.checked || false
                 };
             });
@@ -3205,63 +3203,43 @@ async function fetchAndSyncUsers() {
                     const yearLevel = item.yearLevel;
                     const catName = item.catName;
                 
-                    // 🟢 1. ค้นหา Key การตั้งค่าใน unitSettings แบบสอดคล้องกับการบันทึกจริง
+                    // 🟢 ค้นหา Key การตั้งค่าที่ตรงกันแบบ Flexible Search
                     let matchedConf = null;
                     let activeKey = "";
-
-                    // รูปแบบ Key ที่ถูกต้องตามโครงสร้างการบันทึก (${branch}__${set}__${category})
-                    const possibleExactKeys = [
-                        `${bName}__${setName}__${catName}`,
-                        `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}`,
-                        `${bName}_${yearLevel}_${setName}_${catName}`,
-                        `${bName}_${setName}_${catName}`,
-                        `${bName}_${catName}`,
-                        catName
-                    ];
                 
-                    // ตรวจหา Exact Match
-                    for (const k of possibleExactKeys) {
-                        if (unitSettings && unitSettings[k]) {
-                            matchedConf = unitSettings[k];
-                            activeKey = k;
+                    // ค้นหาคีย์ที่มีโอกาสเป็นไปได้ทั้งหมดใน unitSettings
+                    for (let key in unitSettings) {
+                        if (
+                            key === `${bName}__${setName}__${catName}` || 
+                            key === `${bName}__ทั้งหมด (ทุกชุดการเรียนรู้)__${catName}` ||
+                            (key.includes(bName) && key.includes(catName)) ||
+                            key.endsWith(`__${catName}`)
+                        ) {
+                            matchedConf = unitSettings[key];
+                            activeKey = key;
                             break;
                         }
                     }
                 
-                    // หากยังไม่พบ ให้ค้นหาแบบยืดหยุ่นด้วยการเช็กส่วนประกอบของ Key
-                    if (!matchedConf && unitSettings) {
-                        for (let key in unitSettings) {
-                            if (key.includes(bName) && key.includes(catName)) {
-                                matchedConf = unitSettings[key];
-                                activeKey = key;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!activeKey) {
-                        activeKey = `${bName}__${setName}__${catName}`;
-                    }
-                
-                    // 🟢 2. ดึงข้อมูลสถานะและค่าการตั้งค่าจริงที่แมปได้
+                    // 🟢 ดึงค่าการตั้งค่ามาแสดงผลในตาราง
                     const accessMode = matchedConf?.accessMode || 'all';
                     const allowedUsersCount = (matchedConf?.allowedUsers || []).length;
                     
-                    // เช็กสถานะการเปิด-ปิดสอบ
-                    const isUnitEnabled = matchedConf ? (matchedConf.enabled === true) : true;
+                    // ตรวจสอบสถานะการเปิด-ปิดสอบ (รวมทั้ง Master Switch และรายหน่วย)
+                    const isUnitEnabled = matchedConf ? (matchedConf.enabled !== false) : true;
                     const isGlobalEnable = isUnitEnabled && (bSet.globalExamEnable !== false);
                     
                     // ดึงจำนวนข้อและเวลาทำข้อสอบ
                     const qCount = matchedConf?.questionCount !== undefined ? matchedConf.questionCount : (bSet.questionCount || 15);
                     const timeLimit = matchedConf?.timeLimitMinutes !== undefined ? matchedConf.timeLimitMinutes : (bSet.timeLimitMinutes || 15);
                     
-                    // ดึงค่า Anti-Cheat, ป้องกันแคปจอ, สลับตัวเลือก, คละทักษะ และ Blind Grading
-                    const isAntiCheat = matchedConf ? (matchedConf.antiCheatEnable === true) : (bSet.antiCheatEnable === true);
-                    const isPreventScreenshot = matchedConf ? (matchedConf.preventScreenshot !== false) : (bSet.preventScreenshot !== false);
+                    // ดึงค่า Anti-Cheat และการป้องกันแคปหน้าจอ
+                    const isAntiCheat = matchedConf?.antiCheatEnable !== undefined ? matchedConf.antiCheatEnable : (bSet.antiCheatEnable || false);
+                    const isPreventScreenshot = matchedConf?.preventScreenshot !== undefined ? matchedConf.preventScreenshot : (bSet.preventScreenshot !== false);
                     
-                    const isShuffle = matchedConf ? (matchedConf.shuffleOptions !== false) : true;
-                    const isDistribute = matchedConf ? (matchedConf.distributeBySkills === true) : false;
-                    const isBlindGrading = matchedConf ? (matchedConf.blindGrading === true) : false;
+                    const isShuffle = matchedConf?.shuffleOptions !== undefined ? matchedConf.shuffleOptions : true;
+                    const isDistribute = matchedConf?.distributeBySkills !== undefined ? matchedConf.distributeBySkills : false;
+                    const isBlindGrading = matchedConf?.blindGrading !== undefined ? matchedConf.blindGrading : false;
         
                     tableRowsHtml += `
                         <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100">
